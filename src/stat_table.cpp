@@ -23,7 +23,7 @@ stat_table::stat_table()
 
 	info_list = new obj_list<stat_info>();
 	if (info_list == NULL) {
-		throw "Can't create obj_list";
+		throw "Can't create obj_list  for stat_table";
 	}
 	info_list->set_type(OBJ_LIST_TYPE_STRUCT);
 	

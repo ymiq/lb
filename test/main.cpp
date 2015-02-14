@@ -20,7 +20,7 @@ int db_create(void) {
 	int ret;
 	
 	lbdb *db = new lbdb();
-	ret = db->create();
+	ret = db->db_create();
 	delete db;
 	return ret; 
 }
@@ -29,7 +29,7 @@ int db_dump(void) {
 	int ret;
 	
 	lbdb *db = new lbdb();
-	ret = db->dump();
+	ret = db->db_dump();
 	delete db;
 	return ret; 
 }
@@ -43,9 +43,9 @@ int main(int argc, char *argv[]) {
 		return db_create();
 	}
 	
-	if ((argc == 3) && !strcmp(argv[1], "dump")
-		 && !strcmp(argv[2], "create")) {
-		return db_create();
+	if ((argc == 3) && !strcmp(argv[1], "db")
+		 && !strcmp(argv[2], "dump")) {
+		return db_dump();
 	}
 	
 	return 0;

@@ -1,15 +1,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "lb_table.h"
 #include <exception>
-
+#include "lb_table.h"
+#include "rcu_man.h"
 
 lb_table::lb_table()
 {
 	/* 编译检查 */
-	if (sizeof(serv_info) != sizeof(uint64_t)) {
-		throw "serv_info struct is illegal.";
+	if (sizeof(server_info) != sizeof(uint64_t)) {
+		throw "server_info struct is illegal.";
 	}
 	
 	/* 申请哈希表索引 */
@@ -21,15 +21,27 @@ lb_table::lb_table()
 	
 	/* Cache Line对齐处理 */
 	lb_idx = (lb_index*) (((size_t)lb_idx_buf) & ~(CFG_CACHE_ALIGN - 1));		
+	
+	/* RCU初始化 */
+	info_list = new obj_list<server_info>();
+	if (info_list == NULL) {
+		throw "Can't create obj_list for lb_table";
+	}
+	info_list->set_type(OBJ_LIST_TYPE_STRUCT);
+	
+	rcu_man *prcu = rcu_man::get_inst();
+	if (prcu == NULL) {
+		throw "Can't get instance of rcu_man";
+	}
+	prcu->obj_reg((free_list*)info_list);
 }
-
 
 lb_table::~lb_table()
 {
 	/* 该类的实例创建了就不要考虑销毁了 */
 }
 
-lb_item *lb_table::lb_get(uint64_t hash)
+server_info *lb_table::lb_get(uint64_t hash)
 {
 	unsigned int index;
 	lb_index *pindex;
@@ -51,7 +63,7 @@ lb_item *lb_table::lb_get(uint64_t hash)
 			
 			/* 获得匹配 */
 			if (pindex->items[i].hash == hash) {
-				return &pindex->items[i];
+				return pindex->items[i].server;
 			}
 		}
 		pindex = pindex->next;
@@ -60,11 +72,48 @@ lb_item *lb_table::lb_get(uint64_t hash)
 	return NULL;
 }
 
-lb_item *lb_table::lb_update(lb_item *pitem)
+server_info *lb_table::server_info_new(server_info *ref, int handle, int lb_status, int stat_status) {
+	server_info *server = (server_info *)malloc(sizeof(server_info));
+	
+	if (server == NULL) {
+		throw "No memory to alloc server_info";
+	}
+	
+	if (ref) {
+		*server = *ref;
+		info_list->add(ref);
+	} else {
+		server->handle = 0;
+		server->lb_status = CFG_SERVER_LB_STOP;
+		server->stat_status = CFG_SERVER_STAT_STOP;
+	}
+	
+	if (handle > 0) {
+		server->handle = handle;
+	}
+	if (lb_status >= 0) {
+		if (lb_status) {
+			server->lb_status = true;
+		} else {
+			server->lb_status = false;
+		}
+	}
+	if (stat_status >= 0) {
+		if (stat_status) {
+			server->stat_status = true;
+		} else {
+			server->stat_status = false;
+		}
+	}
+	return server;
+}
+
+
+server_info *lb_table::lb_update(uint64_t hash, int handle, int lb_status, int stat_status)
 {
 	unsigned int index;
 	lb_index *pindex, *prev;
-	uint64_t hash = pitem->hash;
+	server_info *pserver;
 	
 	if (!hash || (hash == -1UL)) {
 		return NULL;
@@ -86,8 +135,11 @@ lb_item *lb_table::lb_update(lb_item *pitem)
 			if (pindex->items[i].hash == hash) {
 				
 				/* 更新条目信息 */
-				pindex->items[i] = *pitem;
-				return &pindex->items[i];
+				pserver = server_info_new(pindex->items[i].server, 
+						handle, lb_status, stat_status);
+				mb();
+				pindex->items[i].server = pserver;
+				return pserver;
 			}
 		}
 		pindex = pindex->next;
@@ -103,12 +155,13 @@ phase2:
 			if (!pindex->items[i].hash || (pindex->items[i].hash == -1UL)) {				
 
 				/* 更新条目信息 */
-				pindex->items[i].server = pitem->server;
+				pserver = server_info_new(NULL, handle, lb_status, stat_status);
+				pindex->items[i].server = pserver;
 
 				/* 增加内存屏障，确保写入先后顺序 */
 				mb();
 				pindex->items[i].hash = hash;
-				return &pindex->items[i];
+				return pserver;
 			}
 		}
 		prev = pindex;
@@ -122,12 +175,14 @@ phase2:
 	}
 	
 	/* 更新条目信息 */
-	pindex->items[0] = *pitem;
+	pserver = server_info_new(NULL, handle, lb_status, stat_status);
+	pindex->items[0].server = pserver;
+	pindex->items[0].hash = hash;
 
 	/* 增加内存屏障，确保写入先后顺序 */
 	mb();
 	prev->next = pindex;	
-	return &pindex->items[0];
+	return pserver;
 }
 
 
@@ -156,6 +211,10 @@ bool lb_table::lb_delete(uint64_t hash)
 				
 				/* 增加删除标记 */
 				pindex->items[i].hash = -1UL;
+				mb();
+				if (pindex->items[i].server) {
+					info_list->add(pindex->items[i].server);
+				}
 				return true;
 			}
 		}
@@ -163,6 +222,110 @@ bool lb_table::lb_delete(uint64_t hash)
 	} while (pindex);
 	
 	return false;
+}
+
+
+int lb_table::get_handle(uint64_t hash){
+	server_info *pserver;
+	
+	pserver = lb_get(hash);
+	if (pserver == NULL) {
+		return -1;
+	}
+	return pserver->handle;
+}
+
+int lb_table::get_handle(uint64_t hash, bool *lb_status) {
+	server_info *pserver;
+	
+	pserver = lb_get(hash);
+	if (pserver == NULL) {
+		return -1;
+	}
+	if (lb_status) {
+		*lb_status = pserver->lb_status;
+	}
+	return pserver->handle;
+}
+
+bool lb_table::is_lb_start(uint64_t hash) {
+	server_info *pserver;
+	
+	pserver = lb_get(hash);
+	if (pserver == NULL) {
+		return false;
+	}
+	return pserver->lb_status;
+}
+
+int lb_table::lb_start(uint64_t hash) {
+	server_info *pserver;
+	
+	pserver = lb_update(hash, -1, CFG_SERVER_LB_START, -1);
+	if (pserver == NULL) {
+		return -1;
+	}
+	return 0;
+}
+
+int lb_table::lb_start(uint64_t hash, int handle) {
+	server_info *pserver;
+	
+	pserver = lb_update(hash, handle, CFG_SERVER_LB_START, -1);
+	if (pserver == NULL) {
+		return -1;
+	}
+	return 0;
+}
+
+int lb_table::lb_stop(uint64_t hash) {
+	server_info *pserver;
+	
+	pserver = lb_update(hash, -1, CFG_SERVER_LB_STOP, -1);
+	if (pserver == NULL) {
+		return -1;
+	}
+	return 0;
+}
+
+int lb_table::lb_stop(uint64_t hash, int handle) {
+	server_info *pserver;
+	
+	pserver = lb_update(hash, handle, CFG_SERVER_LB_STOP, -1);
+	if (pserver == NULL) {
+		return -1;
+	}
+	return 0;
+}
+
+bool lb_table::is_stat_start(uint64_t hash) {
+	server_info *pserver;
+	
+	pserver = lb_get(hash);
+	if (pserver == NULL) {
+		return false;
+	}
+	return pserver->stat_status;
+}
+
+int lb_table::stat_start(uint64_t hash) {
+	server_info *pserver;
+	
+	pserver = lb_update(hash, -1, -1, CFG_SERVER_STAT_START);
+	if (pserver == NULL) {
+		return -1;
+	}
+	return 0;
+}
+
+int lb_table::stat_stop(uint64_t hash) {
+	server_info *pserver;
+	
+	pserver = lb_update(hash, -1, -1, CFG_SERVER_STAT_STOP);
+	if (pserver == NULL) {
+		return -1;
+	}
+	return 0;
 }
 
 

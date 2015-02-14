@@ -17,8 +17,10 @@ public:
 	lbdb();
 	~lbdb();
 	
-	int dump(void);
-	int create(void);
+	int db_dump(void);
+	int db_create(void);
+	
+	int lb_create(void);
 
 protected:
 	
