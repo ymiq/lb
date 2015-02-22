@@ -1,4 +1,4 @@
-#ifndef _RCU_MAN_H__
+﻿#ifndef _RCU_MAN_H__
 #define _RCU_MAN_H__
 
 #include <stdlib.h>
@@ -12,22 +12,9 @@
 #include <algorithm>
 
 #include "config.h"
-#include "free_list.h"
+#include "rcu_base.h"
 
 using namespace std;
-
-#define CFG_OBJ_TABLE_SIZE		64
-#define CFG_THREAD_TABLE_SIZE	64
-
-typedef struct obj_table {
-	free_list *table[CFG_OBJ_TABLE_SIZE];
-	struct obj_table *next;
-}obj_table;
-
-typedef struct thread_table {
-	pthread_t table[CFG_THREAD_TABLE_SIZE];
-	struct thread_table *next;
-}thread_table;
 
 class rcu_man {
 public:
@@ -35,7 +22,7 @@ public:
 		static rcu_man rcu_singleton;
 		return &rcu_singleton;
 	};
-	bool obj_reg(free_list *obj);
+	bool obj_reg(rcu_base *obj);
 	int thread_reg(void);
 	
 	int getid(void);
@@ -46,6 +33,19 @@ public:
 protected:
 	
 private:
+	#define CFG_OBJ_TABLE_SIZE		64
+	#define CFG_THREAD_TABLE_SIZE	64
+	
+	typedef struct obj_table {
+		rcu_base *table[CFG_OBJ_TABLE_SIZE];
+		struct obj_table *next;
+	}obj_table;
+	
+	typedef struct thread_table {
+		pthread_t table[CFG_THREAD_TABLE_SIZE];
+		struct thread_table *next;
+	}thread_table;
+
 	obj_table *obj_tbl;
 	thread_table *tid_tbl;
 	pthread_mutex_t obj_mutex;

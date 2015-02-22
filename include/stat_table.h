@@ -1,4 +1,4 @@
-
+﻿
 
 #ifndef _STAT_TABLE_H__
 #define _STAT_TABLE_H__
@@ -7,19 +7,15 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "config.h"
+#include "stat_obj.h"
 
 using namespace std; 
-template<typename T> class obj_list;
+template<typename T> class rcu_obj;
 
-typedef struct stat_info {
-	unsigned long flags;
-	unsigned long total_packets;
-	unsigned long error_packets;
-}__attribute__((packed)) stat_info;
 
 typedef struct stat_item{
 	uint64_t hash;
-	stat_info *stat;
+	stat_obj *obj;
 }stat_item;
 
 typedef struct stat_index {
@@ -31,19 +27,28 @@ class stat_table {
 public:
 	stat_table();
 	~stat_table();
-	bool stat_packet(uint64_t hash);
-	bool stat_error_packet(uint64_t hash);
-	bool stat_merge(uint64_t hash, int size, stat_info *info);
+	
+	/* 统计处理函数 */
+	int stat(uint64_t hash, void *packet, int packet_size);
+
+	int open(uint64_t hash);		/* 创建一个统计对象 */
+	int close(uint64_t hash);		/* 销毁一个统计对象 */
+	
+	int start(uint64_t hash, uint32_t code);	/* 开启统计 */
+	int stop(uint64_t hash, uint32_t code);		/* 暂停统计 */
+	int clear(uint64_t hash, uint32_t code);	/* 清除统计 */
+	stat_obj *get(uint64_t hash);				/* 获取对象 */
 
 protected:
 	
 private:
 	stat_index *stat_idx;
 	void *stat_idx_buf;
-	obj_list<stat_info> *info_list;
+	rcu_obj<stat_obj> *obj_list;
 	
+	stat_obj *stat_get(uint64_t hash);
+	stat_obj *stat_new(uint64_t hash);
 	bool stat_delete(uint64_t hash);
-	stat_info *stat_get(uint64_t hash);
 };
 
 #endif /* _STAT_TABLE_H__ */

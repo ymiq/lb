@@ -26,7 +26,7 @@ using namespace std;
 	create index lb_idx on lb(master, slave, groupid, aport, qport, qstat, astat);
 */
 
-#define CFG_ENTERPRISES			8192
+#define CFG_ENTERPRISES			256
 #define CFG_ENTERPRISE_GROUPS	32
 #define CFG_RECEIVE_THREADS		32
 
@@ -58,6 +58,11 @@ lbdb::lbdb() {
         throw "mysql_real_connect() error";  
 		mysql_close(&mysql);
 	}
+	
+	grp_idx = (group_index *) calloc(sizeof(group_index), 1);
+	if (grp_idx == NULL) {
+		throw "No memory for create lbdb";
+	}
 }
 
 lbdb::~lbdb() {
@@ -70,19 +75,21 @@ int lbdb::db_create(void) {
 	string strsql = "truncate table lb;";
 	mysql_query(&mysql, strsql.c_str());
 	
+	/* 关闭自动提交 */
+	 mysql_autocommit(&mysql, 0);
+	
 	/* 新建数据内容 */
-	int prev_percent = -1;
 	for (int i=0; i<CFG_ENTERPRISES; i++) {
 		unsigned int group = ((unsigned int)rand()) % CFG_ENTERPRISE_GROUPS;
 		unsigned int qport = 0x6600 + group;
 		unsigned int aport = 0x8800 + group;
 		uint64_t tmp = (unsigned int)rand();
-		tmp << 32;
+		tmp <<= 32;
 		tmp += (unsigned int)rand();
 		
 		/* 添加数据到数据库 */
 		stringstream name;
-		name << "www."  << hex << tmp << ".com";
+		name << "www."  << hex << i << ".com";
 		stringstream sql;
 		sql << "insert into lb (id, name, hash, master, slave, groupid, qport, aport, qstat, astat) values ("
 				<< "0x" << hex << i << ", "
@@ -98,17 +105,12 @@ int lbdb::db_create(void) {
 	    	/* 删除记录。*/
 			string strsql = "delete table lb;";
 			mysql_query(&mysql, strsql.c_str());
+			mysql_commit(&mysql);
 	    	cout << "insert into error" << endl;
 	    	return -1;
 	    }
-	    
-	    /* 显示百分比 */
-	    int percent = (i * 100) / CFG_ENTERPRISES;
-	    if (prev_percent != percent) {
-	    	printf("\r%d%%", percent);
-		    /* prev_percent = percent; */
-	    }
 	}
+	mysql_commit(&mysql);
 	return 0;
 }
 
@@ -152,11 +154,152 @@ int lbdb::db_dump(void) {
 		cout << endl;  
 	}  	
 	
-	/* 关闭数据库 */
+	/* 释放查询信息 */
     mysql_free_result(result);  
 }
 
+int lbdb::lb_opensock(unsigned int master, int port) {
+	char name[256];
+	int handle;
+	
+	sprintf(name, "./bin/out/x%x_%x.dat", master, port);
+	handle = open(name, O_CREAT); 
+	/* printf("open file: %s. handle: %d\n", name, handle); */
+	return handle;
+}
+
+int lbdb::lb_getsock(int groupid, unsigned int master, int qport) {
+	group_index *prev;
+	group_index *pgrp;
+	prev = pgrp = grp_idx;
+	do {
+		group_info *pinfo = pgrp->items;
+		for (int i=0; i<CFG_GROUP_INDEX_SIZE; i++) {
+			if (!pinfo->handle) {
+				int handle = lb_opensock(master, qport);
+				if (handle < 0) {
+					throw "Open socket failed";
+				}
+				pinfo->handle = handle;
+				pinfo->groupid = groupid;
+				pinfo->master = master;
+				pinfo->port = qport;
+				return handle;
+			} 
+			if (pinfo->groupid == groupid) {
+				return pinfo->handle;
+			}
+			pinfo++;
+		}
+		prev = pgrp;
+		pgrp = pgrp->next;
+	} while(pgrp);
+	
+	pgrp = (group_index*)calloc(sizeof(group_index), 1);
+	if (pgrp == NULL) {
+		throw "No memory create group_index";
+	}
+	prev->next = pgrp;
+	
+	int handle = lb_opensock(master, qport);
+	if (handle < 0) {
+		throw "Open socket failed";
+	}
+	group_info *pinfo = pgrp->items;
+	pinfo->handle = handle;
+	pinfo->groupid = groupid;
+	pinfo->master = master;
+	pinfo->port = qport;
+	
+	return handle;
+}
 
 int lbdb::lb_create(void) {
-	return 0;
+		
+	/* 获取负载均衡信息 */
+    MYSQL_RES *result=NULL;  
+    string strsql = "select id, name, hash, master, groupid, qport, qstat from lb order by id ";  
+    if (mysql_query(&mysql, strsql.c_str()) != 0)  
+    {  
+    	cout << "query error" << endl;
+    	return -1;
+    }
+	result = mysql_store_result(&mysql);  
+
+    /* 返回记录集总数 */
+	int rowcount = mysql_num_rows(result); 
+	
+	/* 取得表的字段数组 数量 */
+	unsigned int feildcount = mysql_num_fields(result);  
+	
+	/* 获取负载均衡HASH表 */
+	lb_table *plb = lb_table::get_inst();
+	if (plb == NULL) {
+		cout << "Can't get load balance table" << endl;
+		return -1;
+	}
+	
+	/* 行指针 遍历行 */
+	MYSQL_ROW row =NULL;  
+	while (NULL != (row = mysql_fetch_row(result)) )  
+	{
+		uint64_t hash = strtoull(row[2], NULL, 10);
+		unsigned int master = (unsigned int)strtoul(row[3], NULL, 10);
+		int groupid = atoi(row[4]);
+		int qport = atoi(row[5]);
+		int handle = lb_getsock(groupid, master, qport);
+		/* printf("hash: %x, master: %x, groupid: %d,  port: %x, handle: %d\n",
+			hash, master, groupid, qport, handle); */
+		if (handle < 0) {
+			cout << "Can't open socket" << endl;
+		}
+		plb->lb_start(hash, handle);
+	}  	
+	
+	/* 释放查询信息 */
+    mysql_free_result(result);  
+    return 0;
+}
+
+int lbdb::stat_create(stat_table *pstat) {
+		
+	/* 获取负载均衡信息 */
+    MYSQL_RES *result=NULL;  
+    string strsql = "select id, name, hash, qstat from lb order by id ";  
+    if (mysql_query(&mysql, strsql.c_str()) != 0)  
+    {  
+    	cout << "query error" << endl;
+    	return -1;
+    }
+	result = mysql_store_result(&mysql);  
+
+    /* 返回记录集总数 */
+	int rowcount = mysql_num_rows(result); 
+	
+	/* 取得表的字段数组 数量 */
+	unsigned int feildcount = mysql_num_fields(result);  
+	
+	/* 获取负载均衡HASH表 */
+	lb_table *plb = lb_table::get_inst();
+	if (plb == NULL) {
+		cout << "Can't get load balance table" << endl;
+		return -1;
+	}
+	
+	/* 行指针 遍历行 */
+	MYSQL_ROW row =NULL;  
+	while (NULL != (row = mysql_fetch_row(result)) )  
+	{
+		uint64_t hash = strtoull(row[2], NULL, 10);
+		int qstat = atoi(row[3]);
+		/* printf("hash: %x, master: %x, groupid: %d,  port: %x, handle: %d\n",
+			hash, master, groupid, qport, handle); */
+		if (qstat) {
+			pstat->open(hash);
+		}
+	}  	
+	
+	/* 释放查询信息 */
+    mysql_free_result(result);  
+    return 0;
 }

@@ -5,7 +5,9 @@ SRCS += test/main.cpp
 SRCS += test/lbdb.cpp
 SRCS += src/rcu_man.cpp
 SRCS += src/lb_table.cpp
+SRCS += src/stat_obj.cpp
 SRCS += src/stat_table.cpp
+SRCS += src/stat_man.cpp
 
 CPPFLAGS = -O2 -Werror -I./include
 LDFLAGS = -l stdc++ -l pthread -L/usr/lib64/mysql/ -lmysqlclient

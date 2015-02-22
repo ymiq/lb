@@ -23,9 +23,9 @@ lb_table::lb_table()
 	lb_idx = (lb_index*) (((size_t)lb_idx_buf) & ~(CFG_CACHE_ALIGN - 1));		
 	
 	/* RCU≥ı ºªØ */
-	info_list = new obj_list<server_info>();
+	info_list = new rcu_obj<server_info>();
 	if (info_list == NULL) {
-		throw "Can't create obj_list for lb_table";
+		throw "Can't create rcu_obj for lb_table";
 	}
 	info_list->set_type(OBJ_LIST_TYPE_STRUCT);
 	
@@ -33,7 +33,7 @@ lb_table::lb_table()
 	if (prcu == NULL) {
 		throw "Can't get instance of rcu_man";
 	}
-	prcu->obj_reg((free_list*)info_list);
+	prcu->obj_reg((rcu_base*)info_list);
 }
 
 lb_table::~lb_table()

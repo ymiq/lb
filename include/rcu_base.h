@@ -1,14 +1,14 @@
-#ifndef _FREE_LIST_H__
-#define _FREE_LIST_H__
+#ifndef _RCU_BASE_H__
+#define _RCU_BASE_H__
 
 #include "config.h"
 
 using namespace std; 
 
-class free_list {
+class rcu_base {
 public:
-	free_list() {};
-	~free_list() {};
+	rcu_base() {};
+	~rcu_base() {};
 	virtual void job_start(int id) = 0;
 	virtual void job_end(int id) = 0;
 	virtual void free(void) = 0;
@@ -19,4 +19,4 @@ private:
 };
 
 
-#endif /* _FREE_LIST_H__ */
+#endif /* _RCU_BASE_H__ */

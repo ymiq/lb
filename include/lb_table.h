@@ -7,7 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "config.h"
-#include "obj_list.h"
+#include "rcu_obj.h"
 
 using namespace std; 
 
@@ -60,7 +60,7 @@ protected:
 private:
 	lb_index *lb_idx;
 	void *lb_idx_buf;
-	obj_list<server_info> *info_list;
+	rcu_obj<server_info> *info_list;
 	
 	lb_table();
 	~lb_table();

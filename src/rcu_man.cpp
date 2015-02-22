@@ -1,4 +1,4 @@
-
+ï»¿
 #include <string.h>
 #include "rcu_man.h"
 
@@ -35,12 +35,12 @@ void rcu_man::tid_unlock() {
 }
 
 
-bool rcu_man::obj_reg(free_list *obj) {
+bool rcu_man::obj_reg(rcu_base *obj) {
 	obj_lock(); 
 	obj_table *ptbl = obj_tbl;
 	obj_table *prev_tbl;
 	
-	/* ¼ì²éÊÍ·ÅÒÑ¾­×¢²á */
+	/* æ£€æŸ¥é‡Šæ”¾å·²ç»æ³¨å†Œ */
 	do
 	{
 		for (int i=0; i<CFG_OBJ_TABLE_SIZE; i++) {
@@ -53,7 +53,7 @@ bool rcu_man::obj_reg(free_list *obj) {
 		ptbl = ptbl->next;
 	}while (ptbl);
 	
-	/* ×¢²áÖ¸Õë */
+	/* æ³¨å†ŒæŒ‡é’ˆ */
 	ptbl = obj_tbl;
 	do
 	{
@@ -68,15 +68,16 @@ bool rcu_man::obj_reg(free_list *obj) {
 		ptbl = ptbl->next;
 	}while (ptbl);
 	
-	/* ÖØĞÂÉêÇë»º³åÇø */
+	/* é‡æ–°ç”³è¯·ç¼“å†²åŒº */
 	obj_table *new_tbl = (obj_table*) calloc(sizeof(obj_table), 1);
 	if (new_tbl  == NULL) {
+		obj_unlock();
 		throw "No memory to construct rcu_man";
 	}
 	new_tbl->table[0] = obj;
 	
-	/* ±ÜÃâÂÒĞòÔì³ÉÎÊÌâ */
-	mb();
+	/* é¿å…ä¹±åºé€ æˆé—®é¢˜ */
+	wmb();
 	prev_tbl->next = new_tbl;
 	
 	obj_unlock();
@@ -92,7 +93,7 @@ int rcu_man::thread_reg(void) {
 	thread_table *ptbl = tid_tbl;
 	thread_table *prev_tbl;
 	
-	/* ¼ì²éÏß³ÌÊÇ·ñÒÑ¾­×¢²á */
+	/* æ£€æŸ¥çº¿ç¨‹æ˜¯å¦å·²ç»æ³¨å†Œ */
 	ret = 0;
 	do
 	{
@@ -107,7 +108,7 @@ int rcu_man::thread_reg(void) {
 		ret += CFG_THREAD_TABLE_SIZE;
 	}while (ptbl);
 	
-	/* ×¢²áÏß³Ì */
+	/* æ³¨å†Œçº¿ç¨‹ */
 	ret = 0;
 	ptbl = tid_tbl;
 	do
@@ -124,15 +125,16 @@ int rcu_man::thread_reg(void) {
 		ret += CFG_THREAD_TABLE_SIZE;
 	}while (ptbl);
 	
-	/* ÖØĞÂÉêÇë»º³åÇø */
+	/* é‡æ–°ç”³è¯·ç¼“å†²åŒº */
 	thread_table *new_tbl = (thread_table*) calloc(sizeof(thread_table), 1);
 	if (new_tbl  == NULL) {
+		tid_unlock();
 		throw "No memory to construct rcu_man";
 	}
 	new_tbl->table[0] = tid;
 	
-	/* ±ÜÃâÂÒĞòÔì³ÉÎÊÌâ */
-	mb();
+	/* é¿å…ä¹±åºé€ æˆé—®é¢˜ */
+	wmb();
 	prev_tbl->next = new_tbl;
 			
 	tid_unlock();
@@ -144,15 +146,15 @@ int rcu_man::getid(void) {
 	pthread_t tid = pthread_self();	
 	thread_table *ptbl = tid_tbl;
 	
-	/* ±éÀúËùÓĞÏß³Ì±í£¬»ñÈ¡Ïß³ÌID */
+	/* éå†æ‰€æœ‰çº¿ç¨‹è¡¨ï¼Œè·å–çº¿ç¨‹ID */
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
-			/* ËÑË÷½áÊø */
+			/* æœç´¢ç»“æŸ */
 			if (!ptbl->table[i])
 				return -1;
 			
-			/* ÕÒµ½½á¹û */
+			/* æ‰¾åˆ°ç»“æœ */
 			if (ptbl->table[i] == tid) {
 				return ret + i;
 			}
@@ -166,11 +168,11 @@ int rcu_man::getid(void) {
 void rcu_man::job_start(int tid) {
 	obj_table *ptbl = obj_tbl;
 	
-	/* ±éÀúËùÓĞÊÍ·ÅÁ´£¬µ÷ÓÃjob_start·½·¨ */
+	/* éå†æ‰€æœ‰é‡Šæ”¾é“¾ï¼Œè°ƒç”¨job_startæ–¹æ³• */
 	do
 	{
 		for (int i=0; i<CFG_OBJ_TABLE_SIZE; i++) {
-			/* ËÑË÷½áÊø */
+			/* æœç´¢ç»“æŸ */
 			if (ptbl->table[i] == NULL) {
 				return;
 			}
@@ -183,11 +185,11 @@ void rcu_man::job_start(int tid) {
 void rcu_man::job_end(int tid) {
 	obj_table *ptbl = obj_tbl;
 	
-	/* ±éÀúËùÓĞÊÍ·ÅÁ´£¬µ÷ÓÃjob_end·½·¨ */
+	/* éå†æ‰€æœ‰é‡Šæ”¾é“¾ï¼Œè°ƒç”¨job_endæ–¹æ³• */
 	do
 	{
 		for (int i=0; i<CFG_OBJ_TABLE_SIZE; i++) {
-			/* ËÑË÷½áÊø */
+			/* æœç´¢ç»“æŸ */
 			if (ptbl->table[i] == NULL) {
 				return;
 			}
@@ -200,11 +202,11 @@ void rcu_man::job_end(int tid) {
 void rcu_man::job_free(void) {
 	obj_table *ptbl = obj_tbl;
 	
-	/* ±éÀúËùÓĞÊÍ·ÅÁ´£¬µ÷ÓÃfree·½·¨ */
+	/* éå†æ‰€æœ‰é‡Šæ”¾é“¾ï¼Œè°ƒç”¨freeæ–¹æ³• */
 	do
 	{
 		for (int i=0; i<CFG_OBJ_TABLE_SIZE; i++) {
-			/* ËÑË÷½áÊø */
+			/* æœç´¢ç»“æŸ */
 			if (ptbl->table[i] == NULL) {
 				return;
 			}
