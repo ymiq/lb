@@ -1,4 +1,4 @@
-#include <iostream>
+ï»¿#include <iostream>
 #include <sstream>
 #include <string>
 #include <stdio.h>
@@ -7,17 +7,17 @@
 
 using namespace std;
 
-/* ÎÊÌâ¸ºÔØ¾ùºâÊı¾İ¿â */
+/* é—®é¢˜è´Ÿè½½å‡è¡¡æ•°æ®åº“ */
 /* 
 	id: 	ID
-	name: 	ÆóÒµÃû³Æ
-	hash:   ÆóÒµÃû³ÆHASHÖµ
-	master: Ö÷´¦Àí·şÎñÆ÷IP
-	slave:  ±¸·İ·şÎñÆ÷IP
-	qport:  ¿Í»§ÇëÇó´¦Àí·şÎñÆ÷¶Ë¿Ú
-	aport:  ÆóÒµÓ¦´ğ´¦Àí·şÎñÆ÷¶Ë¿Ú
-	qstat:  ¿Í»§ÇëÇóÍ³¼ÆĞÅÏ¢
-	astat:  ¿Í»§ÇëÇóÍ³¼ÆĞÅÏ¢
+	name: 	ä¼ä¸šåç§°
+	hash:   ä¼ä¸šåç§°HASHå€¼
+	master: ä¸»å¤„ç†æœåŠ¡å™¨IP
+	slave:  å¤‡ä»½æœåŠ¡å™¨IP
+	qport:  å®¢æˆ·è¯·æ±‚å¤„ç†æœåŠ¡å™¨ç«¯å£
+	aport:  ä¼ä¸šåº”ç­”å¤„ç†æœåŠ¡å™¨ç«¯å£
+	qstat:  å®¢æˆ·è¯·æ±‚ç»Ÿè®¡ä¿¡æ¯
+	astat:  å®¢æˆ·è¯·æ±‚ç»Ÿè®¡ä¿¡æ¯
 	
 	create databse lb_db;
 	use lb_db;
@@ -33,18 +33,18 @@ using namespace std;
 #pragma comment(lib,"libmysql.lib")  
 
 lbdb::lbdb() {
-    /* ¼ì²é¿âÎÄ¼ş */
+    /* æ£€æŸ¥åº“æ–‡ä»¶ */
     if (mysql_library_init(0, NULL, NULL) != 0)  
     {  
         throw "mysql_library_init() error";  
     }  
     
-    /* ´ò¿ªÊı¾İ¿â */
+    /* æ‰“å¼€æ•°æ®åº“ */
 	if (mysql_init(&mysql) == NULL) {
 		throw "mysql_init() error";
 	}
 	
-	/* Êı¾İ¿âÑ¡ÏîÉèÖÃ */
+	/* æ•°æ®åº“é€‰é¡¹è®¾ç½® */
 #if 0	
     if (mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, "utf-8") != 0)  
     {  
@@ -53,7 +53,7 @@ lbdb::lbdb() {
     }  
 #endif
 	
-	/* Á´½ÓÊı¾İ¿â */
+	/* é“¾æ¥æ•°æ®åº“ */
 	if (mysql_real_connect(&mysql, "localhost", "root", "", "lb_db", 3306, NULL, 0) == NULL) {
         throw "mysql_real_connect() error";  
 		mysql_close(&mysql);
@@ -71,14 +71,14 @@ lbdb::~lbdb() {
 
 int lbdb::db_create(void) {
 
-	/* Çå¿ÕÊı¾İ±í */
+	/* æ¸…ç©ºæ•°æ®è¡¨ */
 	string strsql = "truncate table lb;";
 	mysql_query(&mysql, strsql.c_str());
 	
-	/* ¹Ø±Õ×Ô¶¯Ìá½» */
+	/* å…³é—­è‡ªåŠ¨æäº¤ */
 	 mysql_autocommit(&mysql, 0);
 	
-	/* ĞÂ½¨Êı¾İÄÚÈİ */
+	/* æ–°å»ºæ•°æ®å†…å®¹ */
 	for (int i=0; i<CFG_ENTERPRISES; i++) {
 		unsigned int group = ((unsigned int)rand()) % CFG_ENTERPRISE_GROUPS;
 		unsigned int qport = 0x6600 + group;
@@ -87,7 +87,7 @@ int lbdb::db_create(void) {
 		tmp <<= 32;
 		tmp += (unsigned int)rand();
 		
-		/* Ìí¼ÓÊı¾İµ½Êı¾İ¿â */
+		/* æ·»åŠ æ•°æ®åˆ°æ•°æ®åº“ */
 		stringstream name;
 		name << "www."  << hex << i << ".com";
 		stringstream sql;
@@ -102,7 +102,7 @@ int lbdb::db_create(void) {
 				<< "0, 0);";
 	    if (mysql_query(&mysql, sql.str().c_str()) != 0) {
 	    	
-	    	/* É¾³ı¼ÇÂ¼¡£*/
+	    	/* åˆ é™¤è®°å½•ã€‚*/
 			string strsql = "delete table lb;";
 			mysql_query(&mysql, strsql.c_str());
 			mysql_commit(&mysql);
@@ -114,10 +114,10 @@ int lbdb::db_create(void) {
 	return 0;
 }
 
-/* ·µ»ØÊı¾İ¼ÇÂ¼ */
+/* è¿”å›æ•°æ®è®°å½• */
 int lbdb::db_dump(void) {
 		
-	/* »ñÈ¡¸ºÔØ¾ùºâĞÅÏ¢ */
+	/* è·å–è´Ÿè½½å‡è¡¡ä¿¡æ¯ */
     MYSQL_RES *result=NULL;  
     string strsql = "select id, name, hash, master, groupid, qport, qstat from lb order by id ";  
     if (mysql_query(&mysql, strsql.c_str()) != 0)  
@@ -128,13 +128,13 @@ int lbdb::db_dump(void) {
     }
 	result = mysql_store_result(&mysql);  
 
-    /* ·µ»Ø¼ÇÂ¼¼¯×ÜÊı */
+    /* è¿”å›è®°å½•é›†æ€»æ•° */
 	int rowcount = mysql_num_rows(result); 
 	
-	/* È¡µÃ±íµÄ×Ö¶ÎÊı×é ÊıÁ¿ */
+	/* å–å¾—è¡¨çš„å­—æ®µæ•°ç»„ æ•°é‡ */
 	unsigned int feildcount = mysql_num_fields(result);  
 	
-	/* ×Ö¶ÎÖ¸Õë ±éÀú×Ö¶Î */
+	/* å­—æ®µæŒ‡é’ˆ éå†å­—æ®µ */
 	MYSQL_FIELD *feild = NULL;  
 	for (unsigned int i=0; i<feildcount; i++)  
 	{  
@@ -143,7 +143,7 @@ int lbdb::db_dump(void) {
 	}  
 	cout << endl;  
 	
-	/* ĞĞÖ¸Õë ±éÀúĞĞ */
+	/* è¡ŒæŒ‡é’ˆ éå†è¡Œ */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result)) )  
 	{  
@@ -154,7 +154,7 @@ int lbdb::db_dump(void) {
 		cout << endl;  
 	}  	
 	
-	/* ÊÍ·Å²éÑ¯ĞÅÏ¢ */
+	/* é‡Šæ”¾æŸ¥è¯¢ä¿¡æ¯ */
     mysql_free_result(result);  
 }
 
@@ -216,7 +216,7 @@ int lbdb::lb_getsock(int groupid, unsigned int master, int qport) {
 
 int lbdb::lb_create(void) {
 		
-	/* »ñÈ¡¸ºÔØ¾ùºâĞÅÏ¢ */
+	/* è·å–è´Ÿè½½å‡è¡¡ä¿¡æ¯ */
     MYSQL_RES *result=NULL;  
     string strsql = "select id, name, hash, master, groupid, qport, qstat from lb order by id ";  
     if (mysql_query(&mysql, strsql.c_str()) != 0)  
@@ -226,20 +226,20 @@ int lbdb::lb_create(void) {
     }
 	result = mysql_store_result(&mysql);  
 
-    /* ·µ»Ø¼ÇÂ¼¼¯×ÜÊı */
+    /* è¿”å›è®°å½•é›†æ€»æ•° */
 	int rowcount = mysql_num_rows(result); 
 	
-	/* È¡µÃ±íµÄ×Ö¶ÎÊı×é ÊıÁ¿ */
+	/* å–å¾—è¡¨çš„å­—æ®µæ•°ç»„ æ•°é‡ */
 	unsigned int feildcount = mysql_num_fields(result);  
 	
-	/* »ñÈ¡¸ºÔØ¾ùºâHASH±í */
+	/* è·å–è´Ÿè½½å‡è¡¡HASHè¡¨ */
 	lb_table *plb = lb_table::get_inst();
 	if (plb == NULL) {
 		cout << "Can't get load balance table" << endl;
 		return -1;
 	}
 	
-	/* ĞĞÖ¸Õë ±éÀúĞĞ */
+	/* è¡ŒæŒ‡é’ˆ éå†è¡Œ */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result)) )  
 	{
@@ -256,14 +256,14 @@ int lbdb::lb_create(void) {
 		plb->lb_start(hash, handle);
 	}  	
 	
-	/* ÊÍ·Å²éÑ¯ĞÅÏ¢ */
+	/* é‡Šæ”¾æŸ¥è¯¢ä¿¡æ¯ */
     mysql_free_result(result);  
     return 0;
 }
 
 int lbdb::stat_create(stat_table *pstat) {
 		
-	/* »ñÈ¡¸ºÔØ¾ùºâĞÅÏ¢ */
+	/* è·å–è´Ÿè½½å‡è¡¡ä¿¡æ¯ */
     MYSQL_RES *result=NULL;  
     string strsql = "select id, name, hash, qstat from lb order by id ";  
     if (mysql_query(&mysql, strsql.c_str()) != 0)  
@@ -273,20 +273,20 @@ int lbdb::stat_create(stat_table *pstat) {
     }
 	result = mysql_store_result(&mysql);  
 
-    /* ·µ»Ø¼ÇÂ¼¼¯×ÜÊı */
+    /* è¿”å›è®°å½•é›†æ€»æ•° */
 	int rowcount = mysql_num_rows(result); 
 	
-	/* È¡µÃ±íµÄ×Ö¶ÎÊı×é ÊıÁ¿ */
+	/* å–å¾—è¡¨çš„å­—æ®µæ•°ç»„ æ•°é‡ */
 	unsigned int feildcount = mysql_num_fields(result);  
 	
-	/* »ñÈ¡¸ºÔØ¾ùºâHASH±í */
+	/* è·å–è´Ÿè½½å‡è¡¡HASHè¡¨ */
 	lb_table *plb = lb_table::get_inst();
 	if (plb == NULL) {
 		cout << "Can't get load balance table" << endl;
 		return -1;
 	}
 	
-	/* ĞĞÖ¸Õë ±éÀúĞĞ */
+	/* è¡ŒæŒ‡é’ˆ éå†è¡Œ */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result)) )  
 	{
@@ -299,7 +299,7 @@ int lbdb::stat_create(stat_table *pstat) {
 		}
 	}  	
 	
-	/* ÊÍ·Å²éÑ¯ĞÅÏ¢ */
+	/* é‡Šæ”¾æŸ¥è¯¢ä¿¡æ¯ */
     mysql_free_result(result);  
     return 0;
 }

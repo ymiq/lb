@@ -1,4 +1,4 @@
-
+﻿
 
 #ifndef _LBDB_H__
 #define _LBDB_H__

@@ -6,6 +6,7 @@ stat_man::stat_man() {
 	if (stat_tbl  == NULL) {
 		throw "No memory to construct stat_man";
 	}
+	pthread_mutex_init(&stat_mtx, NULL);
 }
 
 
@@ -13,17 +14,30 @@ stat_man::~stat_man() {
 	/* 未考虑销毁 */
 }
 
+
+void stat_man::lock(void) {
+	pthread_mutex_lock(&stat_mtx);
+}
+
+
+void stat_man::unlock(void) {
+	pthread_mutex_unlock(&stat_mtx);
+}
+
+
 int stat_man::reg(stat_table *pstat) {
 	int ret;
 	thread_table *ptbl = stat_tbl;
 	thread_table *prev_tbl;
 	
 	/* 检查线程是否已经注册 */
+	lock();
 	ret = 0;
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
 			if (ptbl->table[i] == pstat) {
+				unlock();
 				return 0;
 			}
 		}
@@ -40,6 +54,7 @@ int stat_man::reg(stat_table *pstat) {
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
 			if (ptbl->table[i] == 0) {
 				ptbl->table[i] = pstat;
+				unlock();
 				return 1;
 			}
 		}
@@ -51,6 +66,7 @@ int stat_man::reg(stat_table *pstat) {
 	/* 重新申请缓冲区 */
 	thread_table *new_tbl = (thread_table*) calloc(sizeof(thread_table), 1);
 	if (new_tbl  == NULL) {
+		unlock();
 		throw "No memory to construct stat_man";
 	}
 	new_tbl->table[0] = pstat;
@@ -58,6 +74,7 @@ int stat_man::reg(stat_table *pstat) {
 	/* 避免乱序造成问题 */
 	wmb();
 	prev_tbl->next = new_tbl;
+	unlock();
 	return 1;
 }
 

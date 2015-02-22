@@ -1,4 +1,4 @@
-#include <stdlib.h>
+ï»¿#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <exception>
@@ -7,22 +7,22 @@
 
 lb_table::lb_table()
 {
-	/* ±àÒë¼ì²é */
+	/* ç¼–è¯‘æ£€æŸ¥ */
 	if (sizeof(server_info) != sizeof(uint64_t)) {
 		throw "server_info struct is illegal.";
 	}
 	
-	/* ÉêÇë¹şÏ£±íË÷Òı */
+	/* ç”³è¯·å“ˆå¸Œè¡¨ç´¢å¼• */
 	lb_idx_buf = (lb_index *) malloc(sizeof(lb_index) * CFG_INDEX_SIZE + CFG_CACHE_ALIGN);
 	if (lb_idx_buf == NULL) {
 		throw "No memory for lb_idx_buf";
 	}
 	memset(lb_idx_buf, 0x00, sizeof(lb_index) * CFG_INDEX_SIZE + CFG_CACHE_ALIGN);
 	
-	/* Cache Line¶ÔÆë´¦Àí */
+	/* Cache Lineå¯¹é½å¤„ç† */
 	lb_idx = (lb_index*) (((size_t)lb_idx_buf) & ~(CFG_CACHE_ALIGN - 1));		
 	
-	/* RCU³õÊ¼»¯ */
+	/* RCUåˆå§‹åŒ– */
 	info_list = new rcu_obj<server_info>();
 	if (info_list == NULL) {
 		throw "Can't create rcu_obj for lb_table";
@@ -38,7 +38,7 @@ lb_table::lb_table()
 
 lb_table::~lb_table()
 {
-	/* ¸ÃÀàµÄÊµÀı´´½¨ÁË¾Í²»Òª¿¼ÂÇÏú»ÙÁË */
+	/* è¯¥ç±»çš„å®ä¾‹åˆ›å»ºäº†å°±ä¸è¦è€ƒè™‘é”€æ¯äº† */
 }
 
 server_info *lb_table::lb_get(uint64_t hash)
@@ -56,12 +56,12 @@ server_info *lb_table::lb_get(uint64_t hash)
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
 			
-			/* ËÑË÷½áÊø */
+			/* æœç´¢ç»“æŸ */
 			if (!pindex->items[i].hash) {
 				return NULL;
 			}
 			
-			/* »ñµÃÆ¥Åä */
+			/* è·å¾—åŒ¹é… */
 			if (pindex->items[i].hash == hash) {
 				return pindex->items[i].server;
 			}
@@ -122,19 +122,19 @@ server_info *lb_table::lb_update(uint64_t hash, int handle, int lb_status, int s
 	index = (unsigned int)(hash % CFG_INDEX_SIZE);
 	prev = pindex = &lb_idx[index];
 	
-	/* µÚÒ»ÂÖËÑË÷£¬Æ¥ÅäÊÇ·ñ´æÔÚ¸ÃÌõÄ¿ */
+	/* ç¬¬ä¸€è½®æœç´¢ï¼ŒåŒ¹é…æ˜¯å¦å­˜åœ¨è¯¥æ¡ç›® */
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
 
-			/* ËÑË÷½áÊø */
+			/* æœç´¢ç»“æŸ */
 			if (!pindex->items[i].hash) {
 				goto phase2;	
 			}
 			
-			/* »ñµÃÆ¥Åä */
+			/* è·å¾—åŒ¹é… */
 			if (pindex->items[i].hash == hash) {
 				
-				/* ¸üĞÂÌõÄ¿ĞÅÏ¢ */
+				/* æ›´æ–°æ¡ç›®ä¿¡æ¯ */
 				pserver = server_info_new(pindex->items[i].server, 
 						handle, lb_status, stat_status);
 				mb();
@@ -146,19 +146,19 @@ server_info *lb_table::lb_update(uint64_t hash, int handle, int lb_status, int s
 	} while (pindex);
 	
 phase2:
-	/* µÚ¶şÂÖËÑË÷£¬²åÈë/¸üĞÂÌõÄ¿ */
+	/* ç¬¬äºŒè½®æœç´¢ï¼Œæ’å…¥/æ›´æ–°æ¡ç›® */
 	pindex = prev;
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
 
-			/* ËÑË÷½áÊø£¬´´½¨ĞÂÌõÄ¿ */
+			/* æœç´¢ç»“æŸï¼Œåˆ›å»ºæ–°æ¡ç›® */
 			if (!pindex->items[i].hash || (pindex->items[i].hash == -1UL)) {				
 
-				/* ¸üĞÂÌõÄ¿ĞÅÏ¢ */
+				/* æ›´æ–°æ¡ç›®ä¿¡æ¯ */
 				pserver = server_info_new(NULL, handle, lb_status, stat_status);
 				pindex->items[i].server = pserver;
 
-				/* Ôö¼ÓÄÚ´æÆÁÕÏ£¬È·±£Ğ´ÈëÏÈºóË³Ğò */
+				/* å¢åŠ å†…å­˜å±éšœï¼Œç¡®ä¿å†™å…¥å…ˆåé¡ºåº */
 				mb();
 				pindex->items[i].hash = hash;
 				return pserver;
@@ -168,18 +168,18 @@ phase2:
 		pindex = pindex->next;
 	} while (pindex);
 	
-	/* ÉêÇëĞÂµÄË÷ÒıÏî, ´Ë´¦Î´ÔÙ¿¼ÂÇCache¶ÔÆë£»ÒòÎªÕı³£Çé¿öÏÂ¸ÅÂÊ½ÏµÍ */
+	/* ç”³è¯·æ–°çš„ç´¢å¼•é¡¹, æ­¤å¤„æœªå†è€ƒè™‘Cacheå¯¹é½ï¼›å› ä¸ºæ­£å¸¸æƒ…å†µä¸‹æ¦‚ç‡è¾ƒä½ */
 	pindex = (lb_index*)calloc(sizeof(lb_index), 1);
 	if (pindex == NULL) {
 		return NULL;
 	}
 	
-	/* ¸üĞÂÌõÄ¿ĞÅÏ¢ */
+	/* æ›´æ–°æ¡ç›®ä¿¡æ¯ */
 	pserver = server_info_new(NULL, handle, lb_status, stat_status);
 	pindex->items[0].server = pserver;
 	pindex->items[0].hash = hash;
 
-	/* Ôö¼ÓÄÚ´æÆÁÕÏ£¬È·±£Ğ´ÈëÏÈºóË³Ğò */
+	/* å¢åŠ å†…å­˜å±éšœï¼Œç¡®ä¿å†™å…¥å…ˆåé¡ºåº */
 	mb();
 	prev->next = pindex;	
 	return pserver;
@@ -201,15 +201,15 @@ bool lb_table::lb_delete(uint64_t hash)
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
 			
-			/* ËÑË÷½áÊø */
+			/* æœç´¢ç»“æŸ */
 			if (!pindex->items[i].hash) {
 				return false;
 			}
 			
-			/* »ñµÃÆ¥Åä */
+			/* è·å¾—åŒ¹é… */
 			if (pindex->items[i].hash == hash) {
 				
-				/* Ôö¼ÓÉ¾³ı±ê¼Ç */
+				/* å¢åŠ åˆ é™¤æ ‡è®° */
 				pindex->items[i].hash = -1UL;
 				mb();
 				if (pindex->items[i].server) {

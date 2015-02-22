@@ -29,7 +29,9 @@ public:
 	~stat_table();
 	
 	/* 统计处理函数 */
+	int stat(uint64_t hash);
 	int stat(uint64_t hash, void *packet, int packet_size);
+	int error_stat(uint64_t hash);
 
 	int open(uint64_t hash);		/* 创建一个统计对象 */
 	int close(uint64_t hash);		/* 销毁一个统计对象 */

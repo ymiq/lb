@@ -1,4 +1,4 @@
-
+ï»¿
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -9,7 +9,7 @@
 
 #if 0
 void *receive_thread(void*) {
-	/* Éú³ÉËæ»úÊı */
+	/* ç”Ÿæˆéšæœºæ•° */
 	
 }
 int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
@@ -61,29 +61,29 @@ int stat_create(stat_table *pstat) {
 
 
 int main(int argc, char *argv[]) {
-	/* ÉèÖÃËæ»úÊıÖÖ×Ó */
+	/* è®¾ç½®éšæœºæ•°ç§å­ */
 	srand((int)time(NULL));
 	
-	/* ´´½¨¾ùºâÊı¾İ¿â */
+	/* åˆ›å»ºå‡è¡¡æ•°æ®åº“ */
 	if ((argc == 3) && !strcmp(argv[1], "db")
 		 && !strcmp(argv[2], "create")) {
 		return db_create();
 	}
 	
-	/* ÏÔÊ¾¾ùºâÊı¾İ¿âĞÅÏ¢ */
+	/* æ˜¾ç¤ºå‡è¡¡æ•°æ®åº“ä¿¡æ¯ */
 	if ((argc == 3) && !strcmp(argv[1], "db")
 		 && !strcmp(argv[2], "dump")) {
 		return db_dump();
 	}
 	
-	/* ¸ù¾İÊı¾İ¿âĞÅÏ¢´´½¨¸ºÔØ¾ùºâHASH±í */
+	/* æ ¹æ®æ•°æ®åº“ä¿¡æ¯åˆ›å»ºè´Ÿè½½å‡è¡¡HASHè¡¨ */
 	if (lb_create() < 0) {
 		printf("Can't create hash table\n");
 	}
 		
 	return 0;
 
-	/* ´´½¨¶àÏß³Ì£¬Ä£ÄâÓÃ»§ÌáÎÊ */
+	/* åˆ›å»ºå¤šçº¿ç¨‹ï¼Œæ¨¡æ‹Ÿç”¨æˆ·æé—® */
 #if 0	
 	for (int i=0; i<CFG_RECEIVE_THREADS; i++) {
 		if (pthread_create(&thread_id, NULL, receive_thread, NULL) != 0) {
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	
-	/* ´¦Àí¿ØÖÆÃüÁî */
+	/* å¤„ç†æ§åˆ¶å‘½ä»¤ */
 	while (1) {
 	}
 	

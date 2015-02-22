@@ -1,4 +1,4 @@
-#include<iostream>
+ï»¿#include<iostream>
 using namespace std;
 
 template <class T>
@@ -22,7 +22,7 @@ template <class T>
 struct ST<T> A<T>:: st = {
 	.n = 0,
 	.count = 0
-}; // ¾²Ì¬Êı¾İ³ÉÔ±µÄ³õÊ¼»¯
+}; // é™æ€æ•°æ®æˆå‘˜çš„åˆå§‹åŒ–
 
 
 int main()

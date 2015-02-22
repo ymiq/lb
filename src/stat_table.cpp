@@ -257,5 +257,23 @@ int stat_table::stat(uint64_t hash, void *packet, int packet_size) {
 }
 
 
+int stat_table::stat(uint64_t hash) {
+	stat_obj *pobj = stat_new(hash);
+	if (!pobj) {
+		return -1;
+	}
+	return pobj->stat();
+}
+
+
+int stat_table::error_stat(uint64_t hash) {
+	stat_obj *pobj = stat_new(hash);
+	if (!pobj) {
+		return -1;
+	}
+	return pobj->error_stat();
+}
+
+
 
 

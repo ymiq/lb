@@ -1,4 +1,4 @@
-
+﻿
 
 #ifndef _LB_TABLE_H__
 #define _LB_TABLE_H__

@@ -1,4 +1,4 @@
-#ifndef _RCU_OBJ_H__
+ï»¿#ifndef _RCU_OBJ_H__
 #define _RCU_OBJ_H__
 
 #include <stdlib.h>
@@ -29,17 +29,17 @@ public:
 	rcu_instance();
 	~rcu_instance();
 	
-	/* Ã¿¸öÏß³ÌÔÚÖ÷ÒµÎñ´¦ÀíÇ°¡¢ºó·Ö±ğµ÷ÓÃjob_startºÍjob_endº¯Êı¡£µ÷ÓÃ¼òµ¥ÊµÀı£º
+	/* æ¯ä¸ªçº¿ç¨‹åœ¨ä¸»ä¸šåŠ¡å¤„ç†å‰ã€ååˆ†åˆ«è°ƒç”¨job_startå’Œjob_endå‡½æ•°ã€‚è°ƒç”¨ç®€å•å®ä¾‹ï¼š
 	 * while (1) {
 	 * 	select(...);
 	 * 	
-	 * 	// ¿ªÆôRCU°²È«ÆÚ¼ì²é
+	 * 	// å¼€å¯RCUå®‰å…¨æœŸæ£€æŸ¥
 	 * 	job_start();
 	 * 	
-	 * 	// Ö÷ÒµÎñ´¦Àí
+	 * 	// ä¸»ä¸šåŠ¡å¤„ç†
 	 * 	job_do.....
 	 * 	
-	 * 	// ½áÊøRCU°²È«ÆÚ¼ì²é
+	 * 	// ç»“æŸRCUå®‰å…¨æœŸæ£€æŸ¥
 	 * 	job_end();
 	 * }
 	 */
@@ -57,23 +57,23 @@ private:
 	pthread_mutex_t mtx;
 	list<T*> list0;
 	list<T*> list1;
-	int ready;		/* Ö¸Ïò´ıÊÍ·Å¶ÔÏó/»º³åÇøÁ´(list0 or list1) */
-	int type;		/* ÊÍ·ÅÀàĞÍ£º1: obj, 0: buf */
-	bool conflict;	/* TRUE:  ´æÔÚÊÍ·Å¶ÔÏó/»º³åÇø£¬¿ªÊ¼³åÍ»¼ì²â */
-					/* FALSE: ½áÊø³åÍ»¼ì²â */
+	int ready;		/* æŒ‡å‘å¾…é‡Šæ”¾å¯¹è±¡/ç¼“å†²åŒºé“¾(list0 or list1) */
+	int type;		/* é‡Šæ”¾ç±»å‹ï¼š1: obj, 0: buf */
+	bool conflict;	/* TRUE:  å­˜åœ¨é‡Šæ”¾å¯¹è±¡/ç¼“å†²åŒºï¼Œå¼€å§‹å†²çªæ£€æµ‹ */
+					/* FALSE: ç»“æŸå†²çªæ£€æµ‹ */
 					
-	/* Ã¿Ïß³Ì±äÁ¿¡£¾²Ö¹×´Ì¬£¬Ö¸Ê¾µ±Ç°Ïß³ÌÊÇ·ñ½øÈëGrace period.
-	 * Öµ£º 0 - ´æÔÚ³åÍ»¿ÉÄÜ£¬²»ÄÜÊÍ·Å
-	 *      1 - Grace Period£¬¿ÉÒÔÊÍ·Å
-	 *      2 - Grace Period£¬conflict±äÎªÕæÊ±Ê§Ğ§
+	/* æ¯çº¿ç¨‹å˜é‡ã€‚é™æ­¢çŠ¶æ€ï¼ŒæŒ‡ç¤ºå½“å‰çº¿ç¨‹æ˜¯å¦è¿›å…¥Grace period.
+	 * å€¼ï¼š 0 - å­˜åœ¨å†²çªå¯èƒ½ï¼Œä¸èƒ½é‡Šæ”¾
+	 *      1 - Grace Periodï¼Œå¯ä»¥é‡Šæ”¾
+	 *      2 - Grace Periodï¼Œconflictå˜ä¸ºçœŸæ—¶å¤±æ•ˆ
 	 * 
-	 * ×´Ì¬£º
-	 * 1. Ö÷ÒµÎñ´¦ÀíÖ®ºó£¨µ÷ÓÃjob_end)£¬µ±Ç°Ïß³ÌÁ¢¼´½øÈëGrace period£¨ÖµÎª£º1£©
-	 * 2. Ö÷ÒµÎñ´¦ÀíÖ®Ç°£¨µ÷ÓÃjob_start£©Î´³åÍ»¼ì²â£¬Ö÷´¦ÀíÒµÎñ¹ı³ÌÖĞ²»ÄÜ½øÈëGrace period£¨ÖµÎª£º0£©
-	 *    Ö÷ÒµÎñ´¦ÀíÖĞ¿ªÆô³åÍ»¼ì²â£¬µ±Ç°Ïß³ÌÎŞ·¨½øÈëGrace period£¬Ö»ÓĞµÈ´ıÏÂÒ»´ÎÖ÷´¦ÀíÖÜÆÚ
-	 * 3. Ö÷ÒµÎñ´¦ÀíÖ®Ç°£¨µ÷ÓÃjob_start£©¿ªÆô³åÍ»¼ì²â£¬µ±Ç°Ïß³ÌÁ¢¼´½øÈëGrace period£¨ÖµÎª£º2£©
-	 *    Ö÷ÒµÎñ´¦ÀíÖĞ£¬ĞÂÆôÁËÒ»´Î°²È«¼ì²â£¬½øÈëGrace period£¨ÖµÎª£º2£©µÄÏß³Ì£¬
-	 *    ½«ÍË³öGrace Period£¨ÖµÎª: 0)£¬ĞèÒªµÈ´ıÏÂÒ»´ÎÖ÷´¦ÀíÖÜÆÚ²ÅÄÜ½øÈëGrace period
+	 * çŠ¶æ€ï¼š
+	 * 1. ä¸»ä¸šåŠ¡å¤„ç†ä¹‹åï¼ˆè°ƒç”¨job_end)ï¼Œå½“å‰çº¿ç¨‹ç«‹å³è¿›å…¥Grace periodï¼ˆå€¼ä¸ºï¼š1ï¼‰
+	 * 2. ä¸»ä¸šåŠ¡å¤„ç†ä¹‹å‰ï¼ˆè°ƒç”¨job_startï¼‰æœªå†²çªæ£€æµ‹ï¼Œä¸»å¤„ç†ä¸šåŠ¡è¿‡ç¨‹ä¸­ä¸èƒ½è¿›å…¥Grace periodï¼ˆå€¼ä¸ºï¼š0ï¼‰
+	 *    ä¸»ä¸šåŠ¡å¤„ç†ä¸­å¼€å¯å†²çªæ£€æµ‹ï¼Œå½“å‰çº¿ç¨‹æ— æ³•è¿›å…¥Grace periodï¼Œåªæœ‰ç­‰å¾…ä¸‹ä¸€æ¬¡ä¸»å¤„ç†å‘¨æœŸ
+	 * 3. ä¸»ä¸šåŠ¡å¤„ç†ä¹‹å‰ï¼ˆè°ƒç”¨job_startï¼‰å¼€å¯å†²çªæ£€æµ‹ï¼Œå½“å‰çº¿ç¨‹ç«‹å³è¿›å…¥Grace periodï¼ˆå€¼ä¸ºï¼š2ï¼‰
+	 *    ä¸»ä¸šåŠ¡å¤„ç†ä¸­ï¼Œæ–°å¯äº†ä¸€æ¬¡å®‰å…¨æ£€æµ‹ï¼Œè¿›å…¥Grace periodï¼ˆå€¼ä¸ºï¼š2ï¼‰çš„çº¿ç¨‹ï¼Œ
+	 *    å°†é€€å‡ºGrace Periodï¼ˆå€¼ä¸º: 0)ï¼Œéœ€è¦ç­‰å¾…ä¸‹ä¸€æ¬¡ä¸»å¤„ç†å‘¨æœŸæ‰èƒ½è¿›å…¥Grace period
 	 */
 	int quiescent[CFG_MAX_THREADS];
 
@@ -87,7 +87,7 @@ private:
 template<typename T> 
 rcu_instance<T>::rcu_instance() {
 	
-	/* È«¼Ò±äÁ¿³õÊ¼»¯ */
+	/* å…¨å®¶å˜é‡åˆå§‹åŒ– */
 	pthread_mutex_init(&mtx, NULL);
 	ready = 0;
 	type = OBJ_LIST_TYPE_STRUCT;
@@ -96,7 +96,7 @@ rcu_instance<T>::rcu_instance() {
 		quiescent[i] = true;
 	}
 	
-	/* ×¢²áRCU½á¹¹Ìå/¶ÔÏóµ½RCU¹ÜÀíÆ÷ */
+	/* æ³¨å†ŒRCUç»“æ„ä½“/å¯¹è±¡åˆ°RCUç®¡ç†å™¨ */
 	rcu_man *prcu = rcu_man::get_inst();
 	if (prcu == NULL) {
 		throw "Can't get instance of rcu_man";
@@ -159,14 +159,14 @@ void rcu_instance<T>::job_end(int id) {
 
 template<typename T> 
 void rcu_instance<T>::free(void) {	
-	/* ÎŞÊÍ·ÅÈÎÎñ£¬ Ö±½Ó·µ»Ø */
+	/* æ— é‡Šæ”¾ä»»åŠ¡ï¼Œ ç›´æ¥è¿”å› */
 	if (!conflict) 
 		return;
 	
-	/* »ñÈ¡»¥³âÁ¿ */
+	/* è·å–äº’æ–¥é‡ */
 	lock();
 	
-	/* ¼ì²éÊÇ·ñ½øÈëºÍÆ½Ê±ÆÚ */
+	/* æ£€æŸ¥æ˜¯å¦è¿›å…¥å’Œå¹³æ—¶æœŸ */
 	for (int i=0; i<CFG_MAX_THREADS; i++) {
 		if (!quiescent[i]) {
 			unlock();
@@ -174,7 +174,7 @@ void rcu_instance<T>::free(void) {
 		}
 	}
 	
-	/* ÊÍ·Å¶ÔÏó */
+	/* é‡Šæ”¾å¯¹è±¡ */
 	list<T*> *list = ready_list();
 	typename list<T*>::iterator element;
 	for (element=list->begin(); element!=list->end(); ++element) {
@@ -186,16 +186,16 @@ void rcu_instance<T>::free(void) {
 	}
 	list->clear();
 	
-	/* ÇĞ»»ReadyÁ´±í */
+	/* åˆ‡æ¢Readyé“¾è¡¨ */
 	ready = ready ? 0: 1;
 	
-	/* ¼ì²éÊÇ·ñ´æÔÚĞèÒªÊÍ·ÅµÄÄÚÈİ */
+	/* æ£€æŸ¥æ˜¯å¦å­˜åœ¨éœ€è¦é‡Šæ”¾çš„å†…å®¹ */
 	list = ready_list();
 	mb();
 	if (list->empty()) {
 		conflict = false;
 	} else {
-		/* ½øÈëGrace Period£¨ÖµÎª£º2£©µÄÏß³Ì£¬½«Ç¿ÖÆÍË³öGrace Period */
+		/* è¿›å…¥Grace Periodï¼ˆå€¼ä¸ºï¼š2ï¼‰çš„çº¿ç¨‹ï¼Œå°†å¼ºåˆ¶é€€å‡ºGrace Period */
 		for (int i=0; i<CFG_MAX_THREADS; i++) {
 			__sync_val_compare_and_swap(&quiescent[i], 2, 0);
 		}
@@ -204,25 +204,25 @@ void rcu_instance<T>::free(void) {
 		conflict = true;
 	}
 	
-	/* ÊÍ·Å»¥³âÁ¿ */
+	/* é‡Šæ”¾äº’æ–¥é‡ */
 	unlock();
 }
 
 template<typename T>
 void rcu_instance<T>::add(T *ptr) {
-	/* »ñÈ¡»¥³âÁ¿ */
+	/* è·å–äº’æ–¥é‡ */
 	lock();
 	
-	/* Ìí¼Óµ½ÊÍ·ÅÁĞ±í */
+	/* æ·»åŠ åˆ°é‡Šæ”¾åˆ—è¡¨ */
 	list<T*> *alist = add_list();
 	alist->push_back(ptr);
 	
-	/* ¼ì²éready_list ÊÇ·ñÎª¿Õ */
+	/* æ£€æŸ¥ready_list æ˜¯å¦ä¸ºç©º */
 	list<T*> *rlist = ready_list();
 	if (rlist->empty()) {
 		ready = ready ? 0: 1;
 		
-		/* ½øÈëGrace Period£¨ÖµÎª£º2£©µÄÏß³Ì£¬½«Ç¿ÖÆÍË³öGrace Period */
+		/* è¿›å…¥Grace Periodï¼ˆå€¼ä¸ºï¼š2ï¼‰çš„çº¿ç¨‹ï¼Œå°†å¼ºåˆ¶é€€å‡ºGrace Period */
 		for (int i=0; i<CFG_MAX_THREADS; i++) {
 			__sync_val_compare_and_swap(&quiescent[i], 2, 0);
 		}
@@ -231,7 +231,7 @@ void rcu_instance<T>::add(T *ptr) {
 		conflict = true;
 	}
 	
-	/* ÊÍ·Å»¥³âÁ¿ */
+	/* é‡Šæ”¾äº’æ–¥é‡ */
 	unlock();
 }
 
@@ -254,7 +254,7 @@ private:
 	static rcu_instance<T> obj;
 };
 
-/* ¾²Ì¬Êı¾İ³ÉÔ±µÄ³õÊ¼»¯ */
+/* é™æ€æ•°æ®æˆå‘˜çš„åˆå§‹åŒ– */
 template <typename T>
 struct rcu_instance<T> rcu_obj<T>::obj;
 

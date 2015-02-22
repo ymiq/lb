@@ -22,7 +22,9 @@ public:
 	~stat_obj();
 	
 	/* 统计触发 */
+	int stat();
 	int stat(void *packet, int packet_size);
+	int error_stat();
 
 	/* 统计操作基本方法 */
 	int start(uint32_t code);	/* 开启统计 */
@@ -32,6 +34,7 @@ public:
 	
 	/* 操作符重载 */
 	stat_obj& operator+=(const stat_obj *pobj);
+	stat_obj& operator+=(const stat_obj &obj);
 	
 protected:
 	

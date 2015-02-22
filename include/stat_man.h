@@ -43,9 +43,12 @@ private:
 	} thread_table;
 
 	thread_table *stat_tbl;
+	pthread_mutex_t stat_mtx;
 	
 	stat_man();
 	~stat_man();
+	void lock(void);
+	void unlock(void);
 };
 
 #endif /* _STAT_MAN_H__ */
