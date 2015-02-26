@@ -1,14 +1,15 @@
-﻿#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+﻿#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include <exception>
-#include "lb_table.h"
-#include "rcu_man.h"
+#include <log.h>
+#include <lb_table.h>
+#include <rcu_man.h>
 
 lb_table::lb_table()
 {
 	/* 编译检查 */
-	if (sizeof(server_info) != sizeof(uint64_t)) {
+	if (sizeof(server_info) != sizeof(unsigned long int)) {
 		throw "server_info struct is illegal.";
 	}
 	
@@ -28,12 +29,6 @@ lb_table::lb_table()
 		throw "Can't create rcu_obj for lb_table";
 	}
 	info_list->set_type(OBJ_LIST_TYPE_STRUCT);
-	
-	rcu_man *prcu = rcu_man::get_inst();
-	if (prcu == NULL) {
-		throw "Can't get instance of rcu_man";
-	}
-	prcu->obj_reg((rcu_base*)info_list);
 }
 
 lb_table::~lb_table()
@@ -41,9 +36,10 @@ lb_table::~lb_table()
 	/* 该类的实例创建了就不要考虑销毁了 */
 }
 
-server_info *lb_table::lb_get(uint64_t hash)
+server_info *lb_table::lb_get(unsigned long int hash)
 {
 	unsigned int index;
+	unsigned long int save_hash;
 	lb_index *pindex;
 	
 	if (!hash || (hash == -1UL)) {
@@ -56,13 +52,15 @@ server_info *lb_table::lb_get(uint64_t hash)
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
 			
+			save_hash = pindex->items[i].hash;
+			
 			/* 搜索结束 */
-			if (!pindex->items[i].hash) {
+			if (!save_hash) {
 				return NULL;
 			}
 			
 			/* 获得匹配 */
-			if (pindex->items[i].hash == hash) {
+			if (save_hash == hash) {
 				return pindex->items[i].server;
 			}
 		}
@@ -109,9 +107,10 @@ server_info *lb_table::server_info_new(server_info *ref, int handle, int lb_stat
 }
 
 
-server_info *lb_table::lb_update(uint64_t hash, int handle, int lb_status, int stat_status)
+server_info *lb_table::lb_update(unsigned long int hash, int handle, int lb_status, int stat_status)
 {
 	unsigned int index;
+	unsigned long int save_hash;
 	lb_index *pindex, *prev;
 	server_info *pserver;
 	
@@ -125,14 +124,15 @@ server_info *lb_table::lb_update(uint64_t hash, int handle, int lb_status, int s
 	/* 第一轮搜索，匹配是否存在该条目 */
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
+			save_hash = pindex->items[i].hash;
 
 			/* 搜索结束 */
-			if (!pindex->items[i].hash) {
+			if (!save_hash) {
 				goto phase2;	
 			}
 			
 			/* 获得匹配 */
-			if (pindex->items[i].hash == hash) {
+			if (save_hash == hash) {
 				
 				/* 更新条目信息 */
 				pserver = server_info_new(pindex->items[i].server, 
@@ -150,9 +150,10 @@ phase2:
 	pindex = prev;
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
+			save_hash = pindex->items[i].hash;
 
 			/* 搜索结束，创建新条目 */
-			if (!pindex->items[i].hash || (pindex->items[i].hash == -1UL)) {				
+			if (!save_hash || (save_hash == -1UL)) {				
 
 				/* 更新条目信息 */
 				pserver = server_info_new(NULL, handle, lb_status, stat_status);
@@ -186,9 +187,10 @@ phase2:
 }
 
 
-bool lb_table::lb_delete(uint64_t hash)
+bool lb_table::lb_delete(unsigned long int hash)
 {
 	unsigned int index;
+	unsigned long int save_hash;
 	lb_index *pindex;
 	
 	if (!hash || (hash == -1UL)) {
@@ -200,14 +202,15 @@ bool lb_table::lb_delete(uint64_t hash)
 	
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
+			save_hash = pindex->items[i].hash;
 			
 			/* 搜索结束 */
-			if (!pindex->items[i].hash) {
+			if (!save_hash) {
 				return false;
 			}
 			
 			/* 获得匹配 */
-			if (pindex->items[i].hash == hash) {
+			if (save_hash == hash) {
 				
 				/* 增加删除标记 */
 				pindex->items[i].hash = -1UL;
@@ -225,7 +228,7 @@ bool lb_table::lb_delete(uint64_t hash)
 }
 
 
-int lb_table::get_handle(uint64_t hash){
+int lb_table::get_handle(unsigned long int hash){
 	server_info *pserver;
 	
 	pserver = lb_get(hash);
@@ -235,7 +238,7 @@ int lb_table::get_handle(uint64_t hash){
 	return pserver->handle;
 }
 
-int lb_table::get_handle(uint64_t hash, bool *lb_status) {
+int lb_table::get_handle(unsigned long int hash, bool *lb_status) {
 	server_info *pserver;
 	
 	pserver = lb_get(hash);
@@ -248,7 +251,7 @@ int lb_table::get_handle(uint64_t hash, bool *lb_status) {
 	return pserver->handle;
 }
 
-bool lb_table::is_lb_start(uint64_t hash) {
+bool lb_table::is_lb_start(unsigned long int hash) {
 	server_info *pserver;
 	
 	pserver = lb_get(hash);
@@ -258,7 +261,7 @@ bool lb_table::is_lb_start(uint64_t hash) {
 	return pserver->lb_status;
 }
 
-int lb_table::lb_start(uint64_t hash) {
+int lb_table::lb_start(unsigned long int hash) {
 	server_info *pserver;
 	
 	pserver = lb_update(hash, -1, CFG_SERVER_LB_START, -1);
@@ -268,7 +271,7 @@ int lb_table::lb_start(uint64_t hash) {
 	return 0;
 }
 
-int lb_table::lb_start(uint64_t hash, int handle) {
+int lb_table::lb_start(unsigned long int hash, int handle) {
 	server_info *pserver;
 	
 	pserver = lb_update(hash, handle, CFG_SERVER_LB_START, -1);
@@ -278,7 +281,7 @@ int lb_table::lb_start(uint64_t hash, int handle) {
 	return 0;
 }
 
-int lb_table::lb_stop(uint64_t hash) {
+int lb_table::lb_stop(unsigned long int hash) {
 	server_info *pserver;
 	
 	pserver = lb_update(hash, -1, CFG_SERVER_LB_STOP, -1);
@@ -288,7 +291,7 @@ int lb_table::lb_stop(uint64_t hash) {
 	return 0;
 }
 
-int lb_table::lb_stop(uint64_t hash, int handle) {
+int lb_table::lb_stop(unsigned long int hash, int handle) {
 	server_info *pserver;
 	
 	pserver = lb_update(hash, handle, CFG_SERVER_LB_STOP, -1);
@@ -298,7 +301,7 @@ int lb_table::lb_stop(uint64_t hash, int handle) {
 	return 0;
 }
 
-bool lb_table::is_stat_start(uint64_t hash) {
+bool lb_table::is_stat_start(unsigned long int hash) {
 	server_info *pserver;
 	
 	pserver = lb_get(hash);
@@ -308,7 +311,7 @@ bool lb_table::is_stat_start(uint64_t hash) {
 	return pserver->stat_status;
 }
 
-int lb_table::stat_start(uint64_t hash) {
+int lb_table::stat_start(unsigned long int hash) {
 	server_info *pserver;
 	
 	pserver = lb_update(hash, -1, -1, CFG_SERVER_STAT_START);
@@ -318,7 +321,7 @@ int lb_table::stat_start(uint64_t hash) {
 	return 0;
 }
 
-int lb_table::stat_stop(uint64_t hash) {
+int lb_table::stat_stop(unsigned long int hash) {
 	server_info *pserver;
 	
 	pserver = lb_update(hash, -1, -1, CFG_SERVER_STAT_STOP);

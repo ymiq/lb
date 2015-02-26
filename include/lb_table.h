@@ -3,11 +3,10 @@
 #ifndef _LB_TABLE_H__
 #define _LB_TABLE_H__
 
-#include <stdlib.h>
-#include <stddef.h>
-#include <stdint.h>
-#include "config.h"
-#include "rcu_obj.h"
+#include <cstdlib>
+#include <cstddef>
+#include <config.h>
+#include <rcu_obj.h>
 
 using namespace std; 
 
@@ -23,7 +22,7 @@ typedef struct server_info {
 }server_info;
 
 typedef struct lb_item{
-	uint64_t hash;
+	unsigned long int hash;
 	server_info *server;
 }lb_item;
 
@@ -40,20 +39,20 @@ public:
 	};
 
 	/* When stoped, handle return -1 */
-	int get_handle(uint64_t hash);
-	int get_handle(uint64_t hash, bool *lb_status);
+	int get_handle(unsigned long int hash);
+	int get_handle(unsigned long int hash, bool *lb_status);
 	
-	bool lb_delete(uint64_t hash);
+	bool lb_delete(unsigned long int hash);
 	
-	bool is_lb_start(uint64_t hash);
-	int lb_stop(uint64_t hash);
-	int lb_start(uint64_t hash);
-	int lb_stop(uint64_t hash, int handle);
-	int lb_start(uint64_t hash, int handle);
+	bool is_lb_start(unsigned long int hash);
+	int lb_stop(unsigned long int hash);
+	int lb_start(unsigned long int hash);
+	int lb_stop(unsigned long int hash, int handle);
+	int lb_start(unsigned long int hash, int handle);
 	
-	bool is_stat_start(uint64_t hash);	
-	int stat_start(uint64_t hash);
-	int stat_stop(uint64_t hash);
+	bool is_stat_start(unsigned long int hash);	
+	int stat_start(unsigned long int hash);
+	int stat_stop(unsigned long int hash);
 	
 protected:
 	
@@ -66,8 +65,8 @@ private:
 	~lb_table();
 	
 	server_info *server_info_new(server_info *ref, int handle, int lb_status, int stat_status);
-	server_info *lb_get(uint64_t hash);
-	server_info *lb_update(uint64_t hash, int handle, int lb_status, int stat_status);
+	server_info *lb_get(unsigned long int hash);
+	server_info *lb_update(unsigned long int hash, int handle, int lb_status, int stat_status);
 };
 
 #endif /* _LB_TABLE_H__ */

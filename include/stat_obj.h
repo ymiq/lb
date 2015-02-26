@@ -3,10 +3,9 @@
 #ifndef _STAT_OBJ_H__
 #define _STAT_OBJ_H__
 
-#include <stdlib.h>
-#include <stddef.h>
-#include <stdint.h>
-#include "config.h"
+#include <cstdlib>
+#include <cstddef>
+#include <config.h>
 
 using namespace std; 
 
@@ -27,10 +26,10 @@ public:
 	int error_stat();
 
 	/* 统计操作基本方法 */
-	int start(uint32_t code);	/* 开启统计 */
-	int stop(uint32_t code);	/* 清除统计 */
-	int clear(uint32_t code);	/* 清除统计 */
-	int get(stat_info *pinfo);	/* 获取统计信息 */
+	int start(unsigned int code);	/* 开启统计 */
+	int stop(unsigned int code);	/* 清除统计 */
+	int clear(unsigned int code);	/* 清除统计 */
+	int read(stat_info *pinfo);	/* 获取统计信息 */
 	
 	/* 操作符重载 */
 	stat_obj& operator+=(const stat_obj *pobj);
@@ -39,7 +38,7 @@ public:
 protected:
 	
 private:
-	uint32_t flags;
+	unsigned int flags;
 	stat_info info;
 };
 

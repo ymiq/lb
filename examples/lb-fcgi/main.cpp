@@ -1,15 +1,48 @@
 ﻿
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <time.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+
 #include <unistd.h>
 #include <pthread.h>
-#include "lbdb.h"
+#include <semaphore.h>
+#include <fcgi_stdio.h>  
+#include <rcu_man.h>
+#include <lb_table.h>
+#include <log.h>
+#include <lbdb.h>
+
+using namespace std;
+
+#define CFG_WORKER_THREADS	1
+
+static int lb_init(void) {
+	int ret;
+	
+	lbdb *db = new lbdb();
+	ret = db->lb_init();
+	if (ret < 0) {
+		LOGE("Can't create load balance talbe");
+	}
+	delete db;
+	return ret; 
+}
 
 
-static void *pthread_rcu_man(void *args) {
+static int stat_init(stat_table *pstat) {
+	/* 该函数要求在所有stat_table创建后再调用 */
+	lbdb *db = new lbdb();
+	int ret = db->stat_init(pstat);
+	if (ret < 0) {
+		LOGE("Can't create stat talbe");
+	}
+	delete db;
+	return ret;  
+}
+
+
+static void *thread_rcu_man(void *args) {
 	
 	rcu_man *prcu = rcu_man::get_inst();
 	while (1) {
@@ -23,76 +56,89 @@ static void *pthread_rcu_man(void *args) {
 }
 
 
-static void *pthread_rcv_sim(void *args) {
-	while (1) {
-		
-		/* 随机发送(100~1124)个包 */
-		int send_packets = (rand() % 1024) + 100;
-		for (int cnt=0; cnt<=send_packets; cnt++) {
-		}
-		
-		/* 随机Sleep一段时间(50~200ms) */
-		int delay = (rand() % 150) + 50;
-		usleep(delay*1000);
-	}
-}
-
-
-static int lb_create(void) {
-	int ret;
+static void *thread_worker(void *args) {
+	/* RCU相关初始化 */
+	rcu_man *prcu = rcu_man::get_inst();
+	int tid = prcu->tid_get();
 	
-	lbdb *db = new lbdb();
-	ret = db->lb_create();
-	if (ret < 0) {
-		printf("Can't create load balance talbe\n");
+	/* LB相关初始化 */
+	lb_table *plb = lb_table::get_inst();
+		
+	/* 创建每线程统计表，并初始化 */
+	stat_table *pstat = new stat_table;
+	if (stat_init(pstat) < 0) {
+		LOGE("statics table init failed");
+		exit(1);
 	}
-	delete db;
-	return ret; 
-}
-
-
-static int stat_create(stat_table *pstat) {
-	int ret;
 	
-	lbdb *db = new lbdb();
-	ret = db->stat_create(pstat);
-	if (ret < 0) {
-		printf("Can't create stat talbe\n");
+	/* FastCGI相关初始化 */
+	FCGX_Init();
+	FCGX_Request request;  
+	FCGX_InitRequest(&request, 0, 0);  
+	
+	/* 连接处理 */
+	while (1) { 
+		unsigned long int hash;
+		
+		/* 接收连接 */
+	    int rc = FCGX_Accept_r(&request);  
+	    if (rc < 0) {
+	        break;
+	    }
+	    
+	    /* 获取请求数据 */
+	    
+	    hash = 0x123456789UL + rand();
+	    
+		/* Worker线程主处理 */
+	    prcu->job_start(tid);
+	    
+	    pstat->stat(hash);
+	    
+	    prcu->job_end(tid);
+
+	    /* 应答 */
+	    FCGX_FPrintF(request.out,  
+	        "Content-type: text/html\r\n"  
+	        "\r\n"  
+	        "<title>FastCGI Hello! ");  
+	    
+	    /* 连接清理 */   
+	    FCGX_Finish_r(&request);  
 	}
-	delete db;
-	return ret; 
+	return NULL;  
 }
 
 
 int main(int argc, char *argv[]) {
-	/* 设置随机数种子 */
-	srand((int)time(NULL));
-	
+	/* 开启日志记录 */
+	LOG_OPEN("lb-cfgi");
+
 	/* 创建RCU管理线程 */
 	pthread_t th_rcu;
-	if (pthread_create(&th_rcu, NULL, pthread_rcu_man, NULL) < 0) {
-		printf("can't create rcu manage thread\n");
+	if (pthread_create(&th_rcu, NULL, thread_rcu_man, NULL) < 0) {
+		LOGE("Create rcu manage thread failed");
 		return -1;
 	}
 	
 	/* 根据数据库信息创建负载均衡HASH表 */
-	if (lb_create() < 0) {
-		printf("Can't create hash table\n");
+	if (lb_init() < 0) {
+		LOGE("Can't create hash table");
 		return -1;
 	}
 		
-	/* 创建多线程，模拟用户提问 */
-	pthread_t th_sim[CFG_RECEIVE_THREADS];
-	for (int i=0; i<CFG_RECEIVE_THREADS; i++) {
-		if (pthread_create(&th_sim[i], NULL, pthread_rcv_sim, NULL) != 0) {
-			printf("Create thread failed\n");
+	/* 创建工作线程 */
+	pthread_t th_worker[CFG_WORKER_THREADS];
+	for (int idx=0; idx<CFG_WORKER_THREADS; idx++) {
+		if (pthread_create(&th_worker[idx], NULL, thread_worker, NULL) != 0) {
+			LOGE("Create worker thread failed");
 			return -1;
 		}
 	}
-	
-	/* 处理控制命令 */
+
+	/* 等待动态配置命令 */
 	while (1) {
-		
+		sleep(1);
 	}
 	
 	/* never reach here */	

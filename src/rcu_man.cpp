@@ -1,6 +1,7 @@
 ﻿
-#include <string.h>
-#include "rcu_man.h"
+#include <cstring>
+#include <log.h>
+#include <rcu_man.h>
 
 rcu_man::rcu_man() {
 	obj_tbl = (obj_table*) calloc(sizeof(obj_table), 1);
@@ -15,20 +16,25 @@ rcu_man::rcu_man() {
 	pthread_mutex_init(&tid_mutex, NULL);
 }
 
+
 rcu_man::~rcu_man() {
 }
+
 
 void rcu_man::obj_lock() {
 	pthread_mutex_lock(&obj_mutex);
 }
 
+
 void rcu_man::obj_unlock() {
 	pthread_mutex_unlock(&obj_mutex);
 }
 
+
 void rcu_man::tid_lock() {
 	pthread_mutex_lock(&tid_mutex);
 }
+
 
 void rcu_man::tid_unlock() {
 	pthread_mutex_unlock(&tid_mutex);
@@ -84,8 +90,8 @@ bool rcu_man::obj_reg(rcu_base *obj) {
 	return true;
 }
 
-int rcu_man::thread_reg(void) {
-	pthread_t tid = pthread_self();	
+
+int rcu_man::tid_reg(pthread_t tid) {
 	int ret;
 	
 	tid_lock();  
@@ -141,21 +147,25 @@ int rcu_man::thread_reg(void) {
 	return ret;
 }
 
-int rcu_man::getid(void) {
+
+int rcu_man::tid_get(void) {
 	int ret = 0;
 	pthread_t tid = pthread_self();	
 	thread_table *ptbl = tid_tbl;
+	pthread_t save_tid;
 	
 	/* 遍历所有线程表，获取线程ID */
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
 			/* 搜索结束 */
-			if (!ptbl->table[i])
-				return -1;
+			save_tid = ptbl->table[i];
+			if (!save_tid) {
+				return tid_reg(tid);
+			}
 			
 			/* 找到结果 */
-			if (ptbl->table[i] == tid) {
+			if (save_tid == tid) {
 				return ret + i;
 			}
 		}
@@ -165,52 +175,61 @@ int rcu_man::getid(void) {
 	return -1;
 }
 
+
 void rcu_man::job_start(int tid) {
 	obj_table *ptbl = obj_tbl;
+	rcu_base *pbase;
 	
 	/* 遍历所有释放链，调用job_start方法 */
 	do
 	{
 		for (int i=0; i<CFG_OBJ_TABLE_SIZE; i++) {
 			/* 搜索结束 */
-			if (ptbl->table[i] == NULL) {
+			pbase = ptbl->table[i];
+			if (pbase == NULL) {
 				return;
 			}
-			ptbl->table[i]->job_start(tid);
+			pbase->job_start(tid);
 		}
 		ptbl = ptbl->next;
 	}while (ptbl);
 }
 
+
 void rcu_man::job_end(int tid) {
 	obj_table *ptbl = obj_tbl;
+	rcu_base *pbase;
 	
 	/* 遍历所有释放链，调用job_end方法 */
 	do
 	{
 		for (int i=0; i<CFG_OBJ_TABLE_SIZE; i++) {
 			/* 搜索结束 */
-			if (ptbl->table[i] == NULL) {
+			pbase = ptbl->table[i];
+			if (pbase == NULL) {
 				return;
 			}
-			ptbl->table[i]->job_end(tid);
+			pbase->job_end(tid);
 		}
 		ptbl = ptbl->next;
 	}while (ptbl);
 }
 
+
 void rcu_man::job_free(void) {
 	obj_table *ptbl = obj_tbl;
+	rcu_base *pbase;
 	
 	/* 遍历所有释放链，调用free方法 */
 	do
 	{
 		for (int i=0; i<CFG_OBJ_TABLE_SIZE; i++) {
 			/* 搜索结束 */
-			if (ptbl->table[i] == NULL) {
+			pbase = ptbl->table[i];
+			if (pbase == NULL) {
 				return;
 			}
-			ptbl->table[i]->free();
+			pbase->free();
 		}
 		ptbl = ptbl->next;
 	}while (ptbl);

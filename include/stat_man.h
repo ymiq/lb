@@ -1,18 +1,18 @@
 ﻿#ifndef _STAT_MAN_H__
 #define _STAT_MAN_H__
 
-#include <stdlib.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <pthread.h>
- 
+#include <cstdlib>
+#include <cstddef>
+#include <ctime>
+
 #include <iostream>
 #include <list>
 #include <numeric>
 #include <algorithm>
 
-#include "config.h"
-#include "stat_table.h"
+#include <pthread.h>
+#include <config.h>
+#include <stat_table.h>
 
 using namespace std;
 
@@ -25,12 +25,12 @@ public:
 	int reg(stat_table *pstat);
 	
 	/* 统计操作基本方法 */
-	int open(uint64_t hash);					/* 创建一个统计对象 */
-	int close(uint64_t hash);					/* 销毁一个统计对象 */
-	int start(uint64_t hash, uint32_t code);	/* 开启统计 */
-	int stop(uint64_t hash, uint32_t code);		/* 暂停统计 */
-	int clear(uint64_t hash, uint32_t code);	/* 清除统计 */
-	int get(uint64_t hash, stat_info *pinfo);	/* 获取统计信息 */
+	int open(unsigned long int hash);					/* 创建一个统计对象 */
+	int close(unsigned long int hash);					/* 销毁一个统计对象 */
+	int start(unsigned long int hash, unsigned int code);	/* 开启统计 */
+	int stop(unsigned long int hash, unsigned int code);		/* 暂停统计 */
+	int clear(unsigned long int hash, unsigned int code);	/* 清除统计 */
+	int read(unsigned long int hash, stat_info *pinfo, struct timeval *tm);	/* 获取统计信息 */
 
 protected:
 	

@@ -3,16 +3,15 @@
 #ifndef _LBDB_H__
 #define _LBDB_H__
 
-#include <stdlib.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <cstdlib>
+#include <cstddef>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <mysql/mysql.h>
 
-#include "config.h"
-#include "stat_table.h"
+#include <config.h>
+#include <stat_table.h>
 
 using namespace std; 
 
@@ -36,11 +35,8 @@ public:
 	lbdb();
 	~lbdb();
 	
-	int db_dump(void);
-	int db_create(void);
-	
-	int lb_create(void);
-	int stat_create(stat_table *pstat);
+	int lb_init(void);
+	int stat_init(stat_table *pstat);
 
 protected:
 	

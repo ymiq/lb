@@ -1,19 +1,19 @@
 ﻿#ifndef _RCU_OBJ_H__
 #define _RCU_OBJ_H__
 
-#include <stdlib.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <pthread.h>
+#include <cstdlib>
+#include <cstddef>
 
 #include <iostream>
 #include <list>
 #include <numeric>
 #include <algorithm>
 
-#include "config.h"
-#include "rcu_base.h"
-#include "rcu_man.h"
+#include <pthread.h>
+#include <config.h>
+#include <log.h>
+#include <rcu_base.h>
+#include <rcu_man.h>
 
 using namespace std;
 
@@ -24,7 +24,7 @@ using namespace std;
 
 
 template<typename T> 
-class rcu_instance {
+class rcu_instance : virtual rcu_base {
 public:
 	rcu_instance();
 	~rcu_instance();
@@ -95,13 +95,6 @@ rcu_instance<T>::rcu_instance() {
 	for (int i=0; i<CFG_MAX_THREADS; i++) {
 		quiescent[i] = true;
 	}
-	
-	/* 注册RCU结构体/对象到RCU管理器 */
-	rcu_man *prcu = rcu_man::get_inst();
-	if (prcu == NULL) {
-		throw "Can't get instance of rcu_man";
-	}
-	prcu->obj_reg((rcu_base*)this);
 }
 
 template<typename T> 
@@ -136,6 +129,15 @@ list<T*> *rcu_instance<T>::add_list(void) {
 
 template<typename T> 
 void rcu_instance<T>::set_type(int t) {
+	
+	/* 注册RCU结构体/对象到RCU管理器 */
+	rcu_man *prcu = rcu_man::get_inst();
+	if (prcu == NULL) {
+		throw "Can't get instance of rcu_man";
+	}
+	prcu->obj_reg(this);
+	
+	/* 设置类型 */
 	type = t;
 }
 
@@ -156,6 +158,7 @@ void rcu_instance<T>::job_end(int id) {
 		quiescent[id] = 1;
 	}
 }
+
 
 template<typename T> 
 void rcu_instance<T>::free(void) {	

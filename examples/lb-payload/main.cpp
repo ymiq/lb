@@ -6,23 +6,25 @@
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <http.h>
+
+using namespace std;
 
 #define CFG_SIM_THREADS		4
 
 static void *pthread_ask_sim(void *args) {
+	http http_client;
+	
 	while (1) {
 		
 		/* 随机发送(100~1124)个包 */
 		int send_packets = (rand() % 1024) + 100;
 		for (int cnt=0; cnt<=send_packets; cnt++) {
-			int handle;
-			
-			/* 打开Socket */
-			handle = 
-			
-			/* 发送消息 */
-			
-			/* 关闭Socket */
+
+			string url = "127.0.0.1/question/webif";
+			string post = "<xml></xml>";
+			string response;
+			http_client.post(url, post, response);
 		}
 		
 		/* 随机Sleep一段时间(50~200ms) */

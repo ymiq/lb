@@ -1,7 +1,7 @@
 ﻿#ifndef _RCU_BASE_H__
 #define _RCU_BASE_H__
 
-#include "config.h"
+#include <config.h>
 
 using namespace std; 
 

@@ -1,10 +1,10 @@
-﻿#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include "stat_obj.h"
-#include "rcu_obj.h"
-#include "rcu_man.h"
-#include "stat_man.h"
+﻿#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <stat_obj.h>
+#include <rcu_obj.h>
+#include <rcu_man.h>
+#include <stat_man.h>
 
 #include <exception>
 
@@ -20,24 +20,24 @@ stat_obj::~stat_obj() {
 }
 
 
-int stat_obj::start(uint32_t code) {
+int stat_obj::start(unsigned int code) {
 	flags |= code;
 	return 0;
 }
 
-int stat_obj::stop(uint32_t code) {
+int stat_obj::stop(unsigned int code) {
 	flags &= ~code;
 	return 0;
 }
 
-int stat_obj::clear(uint32_t code) {
+int stat_obj::clear(unsigned int code) {
 	flags &= ~code;
 	memset(&info, 0, sizeof(info));
 	return 0;
 }
 
 
-int stat_obj::get(stat_info *pinfo) {
+int stat_obj::read(stat_info *pinfo) {
 	*pinfo = info;
 	return 0;
 }

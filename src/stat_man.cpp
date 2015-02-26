@@ -1,5 +1,7 @@
-﻿
-#include "stat_man.h"
+﻿#include <ctime>
+#include <sys/time.h>
+#include <log.h>
+#include <stat_man.h>
 
 stat_man::stat_man() {
 	stat_tbl = (thread_table*) calloc(sizeof(thread_table), 1);
@@ -79,21 +81,24 @@ int stat_man::reg(stat_table *pstat) {
 }
 
 
-int stat_man::open(uint64_t hash) {
+int stat_man::open(unsigned long int hash) {
 	thread_table *ptbl = stat_tbl;
+	stat_table *pstat;
 	int last = 0;
 	
 	/* 遍历所有注册统计对象表 */
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
+			pstat = ptbl->table[i];
+			
 			/* 搜索结束 */
-			if (ptbl->table[i] == NULL) {
+			if (pstat == NULL) {
 				return 0;
 			}
 			
 			/* 打开指定线程下相应统计对象 */
-			if (ptbl->table[i]->open(hash) < 0) {
+			if (pstat->open(hash) < 0) {
 				
 				/* 回滚处理 */
 				last += i;
@@ -103,8 +108,11 @@ int stat_man::open(uint64_t hash) {
 				/* 遍历所有注册统计对象表, 进行销毁处理 */
 				while(ptbl && (last >= 0))
 				{
-					for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
-						ptbl->table[i]->close(hash);
+					for (int j=0; j<CFG_THREAD_TABLE_SIZE; j++) {
+						stat_table *pclose = ptbl->table[j];
+						if (pclose) {
+							pclose->close(hash);
+						}
 						if (--last == 0) {
 							return -1;
 						}
@@ -124,21 +132,24 @@ int stat_man::open(uint64_t hash) {
 }
 
 
-int stat_man::close(uint64_t hash) {
+int stat_man::close(unsigned long int hash) {
 	int ret = 0;
 	thread_table *ptbl = stat_tbl;
+	stat_table *pstat;
 	
 	/* 遍历所有注册统计对象表 */
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
+			pstat = ptbl->table[i];
+
 			/* 搜索结束 */
-			if (ptbl->table[i] == NULL) {
+			if (pstat == NULL) {
 				return ret;
 			}
 			
 			/* 关闭指定线程下相应统计对象 */
-			if (ptbl->table[i]->close(hash) < 0) {
+			if (pstat->close(hash) < 0) {
 				ret = -1;
 			}
 		}
@@ -149,21 +160,24 @@ int stat_man::close(uint64_t hash) {
 }
 
 
-int stat_man::start(uint64_t hash, uint32_t code) {
+int stat_man::start(unsigned long int hash, unsigned int code) {
 	int last = 0;
 	thread_table *ptbl = stat_tbl;
+	stat_table *pstat;
 	
 	/* 遍历所有注册统计对象表 */
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
+			pstat = ptbl->table[i];
+
 			/* 搜索结束 */
-			if (ptbl->table[i] == NULL) {
+			if (pstat == NULL) {
 				return 0;
 			}
 			
 			/* 打开指定线程下相应统计对象 */
-			if (ptbl->table[i]->start(hash, code) < 0) {
+			if (pstat->start(hash, code) < 0) {
 				
 				/* 回滚处理 */
 				last += i;
@@ -173,8 +187,11 @@ int stat_man::start(uint64_t hash, uint32_t code) {
 				/* 遍历所有注册统计对象表, 进行销毁处理 */
 				while(ptbl && (last >= 0))
 				{
-					for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
-						ptbl->table[i]->stop(hash, code);
+					for (int j=0; j<CFG_THREAD_TABLE_SIZE; j++) {
+						stat_table *pstop = ptbl->table[j];
+						if (pstop) {
+							pstop->stop(hash, code);
+						}
 						if (--last == 0) {
 							return -1;
 						}
@@ -194,21 +211,24 @@ int stat_man::start(uint64_t hash, uint32_t code) {
 }
 
 
-int stat_man::stop(uint64_t hash, uint32_t code) {
+int stat_man::stop(unsigned long int hash, unsigned int code) {
 	int ret = 0;
 	thread_table *ptbl = stat_tbl;
+	stat_table *pstat;
 	
 	/* 遍历所有注册统计对象表 */
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
+			pstat = ptbl->table[i];
+
 			/* 搜索结束 */
-			if (ptbl->table[i] == NULL) {
+			if (pstat == NULL) {
 				return ret;
 			}
 			
 			/* 关闭指定线程下相应统计对象 */
-			if (ptbl->table[i]->stop(hash, code) < 0) {
+			if (pstat->stop(hash, code) < 0) {
 				ret = -1;
 			}
 		}
@@ -219,21 +239,24 @@ int stat_man::stop(uint64_t hash, uint32_t code) {
 }
 
 
-int stat_man::clear(uint64_t hash, uint32_t code) {
+int stat_man::clear(unsigned long int hash, unsigned int code) {
 	int ret = 0;
 	thread_table *ptbl = stat_tbl;
+	stat_table *pstat;
 	
 	/* 遍历所有注册统计对象表 */
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
+			pstat = ptbl->table[i];
+
 			/* 搜索结束 */
-			if (ptbl->table[i] == NULL) {
+			if (pstat == NULL) {
 				return ret;
 			}
 			
 			/* 关闭指定线程下相应统计对象 */
-			if (ptbl->table[i]->clear(hash, code) < 0) {
+			if (pstat->clear(hash, code) < 0) {
 				ret = -1;
 			}
 		}
@@ -244,7 +267,7 @@ int stat_man::clear(uint64_t hash, uint32_t code) {
 }
 
 
-int stat_man::get(uint64_t hash, stat_info *pinfo) {
+int stat_man::read(unsigned long int hash, stat_info *pinfo, struct timeval *tm) {
 	int ret = 0;
 	thread_table *ptbl = stat_tbl;
 	stat_obj obj;
@@ -255,7 +278,12 @@ int stat_man::get(uint64_t hash, stat_info *pinfo) {
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
 			/* 搜索结束 */
 			if (ptbl->table[i] == NULL) {
-				return obj.get(pinfo);
+				/* 获取统计时间 */
+				if (gettimeofday(tm, NULL) < 0) {
+					LOGE("gettimeofday failed");
+				}
+	
+				return obj.read(pinfo);
 			}
 			
 			/* 关闭指定线程下相应统计对象 */
@@ -267,7 +295,11 @@ int stat_man::get(uint64_t hash, stat_info *pinfo) {
 		ptbl = ptbl->next;
 	}while (ptbl);
 	
-	return obj.get(pinfo);
+	/* 获取统计时间 */
+	if (gettimeofday(tm, NULL) < 0) {
+		LOGE("gettimeofday failed");
+	}
+	return obj.read(pinfo);
 }
 
 

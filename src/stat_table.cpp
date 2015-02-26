@@ -1,11 +1,11 @@
-﻿#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include "rcu_obj.h"
-#include "rcu_man.h"
-#include "stat_obj.h"
-#include "stat_table.h"
-#include "stat_man.h"
+﻿#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <rcu_obj.h>
+#include <rcu_man.h>
+#include <stat_obj.h>
+#include <stat_table.h>
+#include <stat_man.h>
 
 #include <exception>
 
@@ -43,8 +43,9 @@ stat_table::~stat_table() {
 }
 
 
-stat_obj *stat_table::stat_get(uint64_t hash) {
+stat_obj *stat_table::stat_get(unsigned long int hash) {
 	unsigned int index;
+	unsigned long int save_hash;
 	stat_index *pindex, *prev;
 	
 	if (!hash || (hash == -1UL)) {
@@ -57,14 +58,15 @@ stat_obj *stat_table::stat_get(uint64_t hash) {
 	/* 匹配是否存在该条目 */
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
-
+			save_hash = pindex->items[i].hash;
+			
 			/* 搜索结束 */
-			if (!pindex->items[i].hash) {
+			if (!save_hash) {
 				return NULL;	
 			}
 			
 			/* 获得匹配 */
-			if (pindex->items[i].hash == hash) {
+			if (save_hash == hash) {
 				return pindex->items[i].obj;
 			}
 		}
@@ -75,8 +77,9 @@ stat_obj *stat_table::stat_get(uint64_t hash) {
 }
 
 
-stat_obj *stat_table::stat_new(uint64_t hash) {
+stat_obj *stat_table::stat_new(unsigned long int hash) {
 	unsigned int index;
+	unsigned long int save_hash;
 	stat_index *pindex, *prev;
 	
 	if (!hash || (hash == -1UL)) {
@@ -89,21 +92,15 @@ stat_obj *stat_table::stat_new(uint64_t hash) {
 	/* 第一轮搜索，匹配是否存在该条目 */
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
+			save_hash = pindex->items[i].hash;
 
 			/* 搜索结束 */
-			if (!pindex->items[i].hash) {
+			if (!save_hash) {
 				goto phase2;	
 			}
 			
 			/* 获得匹配 */
-			if (pindex->items[i].hash == hash) {
-				
-				/* 更新条目信息 */
-				pindex->items[i].obj = new stat_obj;
-				if (pindex->items[i].obj == NULL) {
-					throw "No memory";
-					return NULL;
-				}
+			if (save_hash == hash) {				
 				return pindex->items[i].obj;
 			}
 		}
@@ -154,7 +151,7 @@ phase2:
 }
 
 
-bool stat_table::stat_delete(uint64_t hash) {
+bool stat_table::stat_delete(unsigned long int hash) {
 	unsigned int index;
 	stat_index *pindex;
 	
@@ -196,7 +193,7 @@ bool stat_table::stat_delete(uint64_t hash) {
 }
 
 
-int stat_table::open(uint64_t hash) {
+int stat_table::open(unsigned long int hash) {
 	stat_obj *pobj = stat_new(hash);
 	if (pobj == NULL) {
 		return -1;
@@ -205,14 +202,14 @@ int stat_table::open(uint64_t hash) {
 }
 
 
-int stat_table::close(uint64_t hash) {
+int stat_table::close(unsigned long int hash) {
 	if (!stat_delete(hash))
 		return -1;
 	return 0;
 }
 
 
-int stat_table::start(uint64_t hash, uint32_t code) {
+int stat_table::start(unsigned long int hash, unsigned int code) {
 	stat_obj *pobj = stat_new(hash);
 	if (!pobj) {
 		return -1;
@@ -221,7 +218,7 @@ int stat_table::start(uint64_t hash, uint32_t code) {
 }
 
 
-int stat_table::stop(uint64_t hash, uint32_t code) {
+int stat_table::stop(unsigned long int hash, unsigned int code) {
 	stat_obj *pobj = stat_new(hash);
 	if (!pobj) {
 		return -1;
@@ -230,7 +227,7 @@ int stat_table::stop(uint64_t hash, uint32_t code) {
 }
 
 
-int stat_table::clear(uint64_t hash, uint32_t code) {
+int stat_table::clear(unsigned long int hash, unsigned int code) {
 	stat_obj *pobj = stat_new(hash);
 	if (!pobj) {
 		return -1;
@@ -239,7 +236,7 @@ int stat_table::clear(uint64_t hash, uint32_t code) {
 }
 
 
-stat_obj *stat_table::get(uint64_t hash) {
+stat_obj *stat_table::get(unsigned long int hash) {
 	stat_obj *pobj = stat_new(hash);
 	if (!pobj) {
 		return NULL;
@@ -248,7 +245,7 @@ stat_obj *stat_table::get(uint64_t hash) {
 }
 
 
-int stat_table::stat(uint64_t hash, void *packet, int packet_size) {
+int stat_table::stat(unsigned long int hash, void *packet, int packet_size) {
 	stat_obj *pobj = stat_new(hash);
 	if (!pobj) {
 		return -1;
@@ -257,7 +254,7 @@ int stat_table::stat(uint64_t hash, void *packet, int packet_size) {
 }
 
 
-int stat_table::stat(uint64_t hash) {
+int stat_table::stat(unsigned long int hash) {
 	stat_obj *pobj = stat_new(hash);
 	if (!pobj) {
 		return -1;
@@ -266,7 +263,7 @@ int stat_table::stat(uint64_t hash) {
 }
 
 
-int stat_table::error_stat(uint64_t hash) {
+int stat_table::error_stat(unsigned long int hash) {
 	stat_obj *pobj = stat_new(hash);
 	if (!pobj) {
 		return -1;

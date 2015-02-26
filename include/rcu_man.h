@@ -1,18 +1,18 @@
 ﻿#ifndef _RCU_MAN_H__
 #define _RCU_MAN_H__
 
-#include <stdlib.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <pthread.h>
+#include <cstdlib>
+#include <cstddef>
  
 #include <iostream>
 #include <list>
 #include <numeric>
 #include <algorithm>
 
-#include "config.h"
-#include "rcu_base.h"
+#include <pthread.h>
+
+#include <config.h>
+#include <rcu_base.h>
 
 using namespace std;
 
@@ -23,13 +23,12 @@ public:
 		return &rcu_singleton;
 	};
 	bool obj_reg(rcu_base *obj);
-	int thread_reg(void);
 	
-	int getid(void);
 	void job_start(int tid);
 	void job_end(int tid);
 	void job_free(void);
 
+	int tid_get(void);
 protected:
 	
 private:
@@ -59,6 +58,7 @@ private:
 
 	void tid_lock();
 	void tid_unlock();
+	int tid_reg(pthread_t tid);
 };
 
 #endif /* _RCU_MAN_H__ */
