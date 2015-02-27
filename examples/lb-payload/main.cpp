@@ -12,6 +12,69 @@ using namespace std;
 
 #define CFG_SIM_THREADS		4
 
+static void rand_delay(int low, int high) {
+	int distance = high - low;
+	if (distance < 0) {
+		distance = low;
+	}
+	int delay = (rand() % distance) + low;
+	usleep(delay * 1000);
+}
+
+
+static void rand_company(char *name, int low, int high) {
+	int distance = high - low;
+	if (distance < 0) {
+		distance = low;
+	}
+	int company = (rand() % distance) + low;
+	sprintf(name, "www.%d.com", company);
+}
+
+
+static void rand_question(char *quest, int low, int high) {
+	int distance = high - low;
+	if (distance < 0) {
+		distance = low;
+	}
+	int question = (rand() % distance) + low;
+	sprintf(quest, "question(%d)", question);
+}
+
+
+static void rand_user(char *name, int low, int high) {
+	int distance = high - low;
+	if (distance < 0) {
+		distance = low;
+	}
+	int user = (rand() % distance) + low;
+	sprintf(name, "%d", user);
+}
+
+static const char format[] = 
+	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+	"<company>%s</company>"
+	"<user>%s</user>"
+	"<question>%s</question>\n";
+
+static void rand_post(http *pclient) {
+	char company[128];
+	char user[128];
+	char question[128];
+	char content[1024];
+	
+	rand_company(company, 0, 16);
+	rand_user(user, 0, 16);
+	rand_question(question, 0, 16);
+	snprintf(content, sizeof(content)-1, format, company, user, question);
+	
+	string url = "wxif.lan.net/webif";
+	string response;
+	
+	pclient->post(url, content, response);
+}
+
+
 static void *pthread_ask_sim(void *args) {
 	http http_client;
 	
@@ -21,15 +84,14 @@ static void *pthread_ask_sim(void *args) {
 		int send_packets = (rand() % 1024) + 100;
 		for (int cnt=0; cnt<=send_packets; cnt++) {
 
-			string url = "127.0.0.1/question/webif";
+			string url = "wxif.lan.net/webif";
 			string post = "<xml></xml>";
 			string response;
-			http_client.post(url, post, response);
+			rand_post(&http_client);
 		}
 		
 		/* 随机Sleep一段时间(50~200ms) */
-		int delay = (rand() % 150) + 50;
-		usleep(delay*1000);
+		rand_delay(1000, 2000);
 	}
 }
 

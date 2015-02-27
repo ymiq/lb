@@ -10,7 +10,7 @@
 
 using namespace std;
 
-#define LOG_BUF_SIZE		1024
+#define LOG_BUF_SIZE		2048
 
 void log_open(const char *name) {
 	openlog(name, LOG_ODELAY | LOG_PID, LOG_USER);
@@ -19,10 +19,12 @@ void log_open(const char *name) {
 
 void log_printf(int prio, const char* fmt, ...) {
     va_list ap;
+    char buf[LOG_BUF_SIZE];
 
     va_start(ap, fmt);
-    syslog(prio, fmt, ap);
+    vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
     va_end(ap);
+    syslog(prio, buf);
 }
 
 

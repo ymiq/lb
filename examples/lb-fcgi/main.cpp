@@ -7,18 +7,19 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <fcgi_stdio.h>  
 #include <rcu_man.h>
 #include <lb_table.h>
 #include <log.h>
 #include <lbdb.h>
+#include <fcgi_stdio.h>  
+#include <openssl/md5.h>
 
 using namespace std;
 
 #define CFG_WORKER_THREADS	1
 
 static int lb_init(void) {
-	int ret;
+	int ret = 0;
 	
 	lbdb *db = new lbdb();
 	ret = db->lb_init();
@@ -56,8 +57,73 @@ static void *thread_rcu_man(void *args) {
 }
 
 
+static bool content_parser(char *content, char *company, char *user, char *question) {
+	char *pstart;
+	char *pend;
+	
+	struct match {
+		const char *stoken;
+		const char *etoken;
+		char *data;
+	} xml_match [] = 
+	{
+		{"<company>", "</company>", company},
+		{"<user>", "</user>", user},
+		{"<question>", "</question>", question}
+	};
+	
+	pstart = strstr(content, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+	if (pstart == NULL) {
+		return false;
+	}
+	
+	for (int i=0; i<3; i++) {
+		char *dst = xml_match[i].data;
+		int max = 127;
+		pstart = strstr(content, xml_match[i].stoken);
+		if (pstart == NULL) {
+			return false;
+		}
+		pstart += strlen(xml_match[i].stoken);
+		pend = strstr(content, xml_match[i].etoken);
+		if (pend == NULL) {
+			return false;
+		}
+		if (pend == pstart) {
+			return false;
+		}
+		while ((pstart != pend) && max--) {
+			*dst++ = *pstart++;
+		}
+		*dst = '\0';
+	}
+	return true;	
+}
+
+
+static unsigned long int company_hash(const char *company) {
+	MD5_CTX ctx;
+	unsigned char md5[16];
+	unsigned long int hash = 0;
+	
+	MD5_Init(&ctx);
+	MD5_Update(&ctx, company, strlen(company));
+	MD5_Final(md5, &ctx);
+	
+	memcpy(&hash, md5, sizeof(hash));
+	
+	return hash;
+}
+
+
 static void *thread_worker(void *args) {
-	/* RCU相关初始化 */
+    FCGX_Request request;
+	char buffer[4096];
+	char company[128];
+	char user[128];
+	char question[128];
+ 
+ 	/* RCU相关初始化 */
 	rcu_man *prcu = rcu_man::get_inst();
 	int tid = prcu->tid_get();
 	
@@ -71,30 +137,60 @@ static void *thread_worker(void *args) {
 		exit(1);
 	}
 	
-	/* FastCGI相关初始化 */
-	FCGX_Init();
-	FCGX_Request request;  
-	FCGX_InitRequest(&request, 0, 0);  
-	
 	/* 连接处理 */
-	while (1) { 
+    FCGX_InitRequest(&request, 0, 0);
+    while (1) {
 		unsigned long int hash;
 		
-		/* 接收连接 */
-	    int rc = FCGX_Accept_r(&request);  
-	    if (rc < 0) {
-	        break;
-	    }
-	    
-	    /* 获取请求数据 */
-	    
-	    hash = 0x123456789UL + rand();
-	    
-		/* Worker线程主处理 */
+		/* 接受请求。如果多线程，可能需要加锁 */
+		int rc = FCGX_Accept_r(&request);
+		if (rc < 0) {
+			break;
+		}
+		
+		/* 获取POST内容 */
+ 		char *request_method = FCGX_GetParam("REQUEST_METHOD", request.envp);
+		if (strcmp(request_method, "POST")) {
+	        FCGX_Finish_r(&request);
+	        continue;
+		}
+		char *content_length = FCGX_GetParam("CONTENT_LENGTH", request.envp);
+		if (content_length == NULL) {
+	        FCGX_Finish_r(&request);
+	        continue;
+		}
+		int len = strtol(content_length, NULL, 10);
+		if (len == 0) {
+	        FCGX_Finish_r(&request);
+	        continue;
+		}
+		len = (len > 4000) ? 4000 : len;
+		FCGX_GetStr(buffer, 4000, request.in);
+		buffer[len] = '\0';
+				
+		/* 解析请求内容 */
+		if (content_parser(buffer, company, user, question) == false) {
+	        FCGX_Finish_r(&request);
+	        continue;
+		}
+		hash = company_hash(company);
+		LOGI("C: %s,	U: %s,	Q: %s,	H: %lx", company, user, question, hash);
+				  
+		/* Worker线程主处理开始 */
 	    prcu->job_start(tid);
 	    
-	    pstat->stat(hash);
-	    
+	    /* 分发数据包 */
+	    bool running = false;
+	    int handle = plb->get_handle(hash, &running);
+	    if ((handle > 0) && running) {
+	    	/* 把数据包写入当前Socket */
+	    	write(handle, buffer, len);
+	    	
+		    /* 统计处理 */
+		    pstat->stat(hash);	    
+	    }
+	    	    
+		/* Worker线程主处理结束 */
 	    prcu->job_end(tid);
 
 	    /* 应答 */
@@ -103,8 +199,7 @@ static void *thread_worker(void *args) {
 	        "\r\n"  
 	        "<title>FastCGI Hello! ");  
 	    
-	    /* 连接清理 */   
-	    FCGX_Finish_r(&request);  
+        FCGX_Finish_r(&request);
 	}
 	return NULL;  
 }
@@ -113,7 +208,7 @@ static void *thread_worker(void *args) {
 int main(int argc, char *argv[]) {
 	/* 开启日志记录 */
 	LOG_OPEN("lb-cfgi");
-
+	
 	/* 创建RCU管理线程 */
 	pthread_t th_rcu;
 	if (pthread_create(&th_rcu, NULL, thread_rcu_man, NULL) < 0) {
@@ -127,6 +222,9 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 		
+	/* FastCGI相关初始化 */
+	FCGX_Init();
+	
 	/* 创建工作线程 */
 	pthread_t th_worker[CFG_WORKER_THREADS];
 	for (int idx=0; idx<CFG_WORKER_THREADS; idx++) {

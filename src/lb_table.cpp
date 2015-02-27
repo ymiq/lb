@@ -61,6 +61,7 @@ server_info *lb_table::lb_get(unsigned long int hash)
 			
 			/* 获得匹配 */
 			if (save_hash == hash) {
+				rmb();
 				return pindex->items[i].server;
 			}
 		}
@@ -137,7 +138,7 @@ server_info *lb_table::lb_update(unsigned long int hash, int handle, int lb_stat
 				/* 更新条目信息 */
 				pserver = server_info_new(pindex->items[i].server, 
 						handle, lb_status, stat_status);
-				mb();
+				wmb();
 				pindex->items[i].server = pserver;
 				return pserver;
 			}
@@ -160,7 +161,7 @@ phase2:
 				pindex->items[i].server = pserver;
 
 				/* 增加内存屏障，确保写入先后顺序 */
-				mb();
+				wmb();
 				pindex->items[i].hash = hash;
 				return pserver;
 			}
@@ -181,7 +182,7 @@ phase2:
 	pindex->items[0].hash = hash;
 
 	/* 增加内存屏障，确保写入先后顺序 */
-	mb();
+	wmb();
 	prev->next = pindex;	
 	return pserver;
 }
@@ -214,10 +215,11 @@ bool lb_table::lb_delete(unsigned long int hash)
 				
 				/* 增加删除标记 */
 				pindex->items[i].hash = -1UL;
-				mb();
+				wmb();
 				if (pindex->items[i].server) {
 					info_list->add(pindex->items[i].server);
 				}
+				pindex->items[i].server = NULL;
 				return true;
 			}
 		}

@@ -1,6 +1,7 @@
 ﻿#include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <log.h>
 #include <rcu_obj.h>
 #include <rcu_man.h>
 #include <stat_obj.h>
@@ -49,6 +50,7 @@ stat_obj *stat_table::stat_get(unsigned long int hash) {
 	stat_index *pindex, *prev;
 	
 	if (!hash || (hash == -1UL)) {
+		LOGE("Input parameter error");
 		return NULL;
 	}
 	
@@ -67,6 +69,7 @@ stat_obj *stat_table::stat_get(unsigned long int hash) {
 			
 			/* 获得匹配 */
 			if (save_hash == hash) {
+				rmb();		/* 确保先读hash，后读obj */
 				return pindex->items[i].obj;
 			}
 		}
@@ -83,6 +86,7 @@ stat_obj *stat_table::stat_new(unsigned long int hash) {
 	stat_index *pindex, *prev;
 	
 	if (!hash || (hash == -1UL)) {
+		LOGE("Input parameter error");
 		return NULL;
 	}
 	
@@ -100,7 +104,8 @@ stat_obj *stat_table::stat_new(unsigned long int hash) {
 			}
 			
 			/* 获得匹配 */
-			if (save_hash == hash) {				
+			if (save_hash == hash) {
+				rmb();			
 				return pindex->items[i].obj;
 			}
 		}
@@ -112,20 +117,22 @@ phase2:
 	pindex = prev;
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
+			save_hash = pindex->items[i].hash;
 
 			/* 搜索结束，创建新条目 */
-			if (!pindex->items[i].hash || (pindex->items[i].hash == -1UL)) {				
-
+			if (!save_hash || (save_hash == -1UL)) {	
+				
 				/* 更新条目信息 */
-				pindex->items[i].obj = new stat_obj;
-				if (pindex->items[i].obj == NULL) {
+				stat_obj *pnew = new stat_obj;
+				if (pnew == NULL) {
+					LOGE("Can't create stat_obj");
 					return NULL;
 				}
-
+				
 				/* 增加内存屏障，确保写入先后顺序 */
-				mb();
+				wmb();
 				pindex->items[i].hash = hash;
-				return pindex->items[i].obj;
+				return pnew;
 			}
 		}
 		prev = pindex;
@@ -135,24 +142,29 @@ phase2:
 	/* 申请新的索引项, 此处未再考虑Cache对齐；因为正常情况下概率较低 */
 	pindex = (stat_index*)calloc(sizeof(stat_index), 1);
 	if (pindex == NULL) {
+		LOGE("No memory to create stat_index");
 		return NULL;
 	}
 	
 	/* 更新条目信息 */
-	pindex->items[0].obj = new stat_obj;
-	if (pindex->items[0].obj == NULL) {
+	stat_obj *pnew = new stat_obj;
+	if (pnew == NULL) {
+		LOGE("Can't create stat_obj");
 		return NULL;
 	}
+	pindex->items[0].obj = pnew;
+	pindex->items[0].hash = hash;
 
 	/* 增加内存屏障，确保写入先后顺序 */
-	mb();
+	wmb();
 	prev->next = pindex;	
-	return pindex->items[0].obj;
+	return pnew;
 }
 
 
 bool stat_table::stat_delete(unsigned long int hash) {
 	unsigned int index;
+	unsigned long int save_hash;
 	stat_index *pindex;
 	
 	if (!hash || (hash == -1UL)) {
@@ -164,20 +176,21 @@ bool stat_table::stat_delete(unsigned long int hash) {
 	
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
+			save_hash = pindex->items[i].hash;
 			
 			/* 搜索结束 */
-			if (!pindex->items[i].hash) {
+			if (!save_hash) {
 				return false;
 			}
 			
 			/* 获得匹配 */
-			if (pindex->items[i].hash == hash) {
+			if (save_hash == hash) {
 				
 				/* 增加删除标记 */
 				pindex->items[i].hash = -1UL;
 				
 				/* 增加内存屏障，确保写入先后顺序 */
-				mb();
+				wmb();
 				stat_obj *pobj = pindex->items[i].obj;			
 				pindex->items[i].obj = NULL;
 				

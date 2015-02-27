@@ -3,9 +3,8 @@
 #ifndef _LBDB_H__
 #define _LBDB_H__
 
-#include <stdlib.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <cstdlib>
+#include <cstddef>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -21,13 +20,15 @@ public:
 	int db_dump(void);
 	int db_create(void);
 	
-	uint64_t get_hash(const char *company);
+	unsigned long int get_hash(const char *company);
 	bool check_groupid(int groupid);
 
 protected:
 	
 private:
 	MYSQL mysql;
+	
+	unsigned long int compute_hash(const char *company);
 };
 
 #endif /* _LBDB_H__ */

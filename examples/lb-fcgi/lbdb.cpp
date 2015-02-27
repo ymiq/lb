@@ -5,6 +5,12 @@
 #include <log.h>
 #include <lb_table.h>
 #include <lbdb.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <sys/un.h>
+#include <sys/socket.h>
+#include <sys/unistd.h>
+#include <arpa/inet.h>
 
 using namespace std;
 
@@ -33,8 +39,7 @@ using namespace std;
 
 lbdb::lbdb() {
     /* 检查库文件 */
-    if (mysql_library_init(0, NULL, NULL) != 0)  
-    {  
+    if (mysql_library_init(0, NULL, NULL) != 0) {  
         throw "mysql_library_init() error";  
     }  
     
@@ -45,8 +50,7 @@ lbdb::lbdb() {
 	
 	/* 数据库选项设置 */
 #if 0	
-    if (mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, "utf-8") != 0)  
-    {  
+    if (mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, "utf-8") != 0) {  
         throw "mysql_options() error";  
 		mysql_close(&mysql);
     }  
@@ -70,13 +74,23 @@ lbdb::~lbdb() {
 
 
 int lbdb::lb_opensock(unsigned int master, int port) {
-	char name[256];
-	int handle;
+	int sockfd;
+	struct sockaddr_in serv_addr;
 	
-	sprintf(name, "./bin/out/x%x_%x.dat", master, port);
-	handle = open(name, O_CREAT); 
-	/* printf("open file: %s. handle: %d\n", name, handle); */
-	return handle;
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	
+	/* 设置连接目的地址 */
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(10000);
+	serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	bzero(&(serv_addr.sin_zero), 8);
+ 
+	/* 发送连接请求 */
+	if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)) < 0) {
+		perror("connect failed");
+		return -1;
+	}
+	return sockfd;
 }
 
 int lbdb::lb_getsock(int groupid, unsigned int master, int qport) {
@@ -130,8 +144,7 @@ int lbdb::lb_init(void) {
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
     string strsql = "select id, name, hash, master, groupid, qport, qstat from lb order by id ";  
-    if (mysql_query(&mysql, strsql.c_str()) != 0)  
-    {  
+    if (mysql_query(&mysql, strsql.c_str()) != 0) {  
     	LOGE("query error");
     	return -1;
     }
@@ -152,8 +165,7 @@ int lbdb::lb_init(void) {
 	
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
-	while (NULL != (row = mysql_fetch_row(result)) )  
-	{
+	while (NULL != (row = mysql_fetch_row(result))) {
 		unsigned long int hash = strtoull(row[2], NULL, 10);
 		unsigned int master = (unsigned int)strtoul(row[3], NULL, 10);
 		int groupid = atoi(row[4]);
@@ -179,8 +191,7 @@ int lbdb::stat_init(stat_table *pstat) {
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
     string strsql = "select id, name, hash, qstat from lb order by id ";  
-    if (mysql_query(&mysql, strsql.c_str()) != 0)  
-    {  
+    if (mysql_query(&mysql, strsql.c_str()) != 0) {  
     	LOGE("query error");
     	return -1;
     }
@@ -194,8 +205,7 @@ int lbdb::stat_init(stat_table *pstat) {
 	
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
-	while (NULL != (row = mysql_fetch_row(result)) )  
-	{
+	while (NULL != (row = mysql_fetch_row(result))) {
 		unsigned long int hash = strtoull(row[2], NULL, 10);
 		int qstat = atoi(row[3]);
 		/* printf("hash: %x, master: %x, groupid: %d,  port: %x, handle: %d\n",

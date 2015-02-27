@@ -9,12 +9,12 @@ LBCGI_SRCS += src/stat_obj.cpp
 LBCGI_SRCS += src/stat_table.cpp
 LBCGI_SRCS += src/stat_man.cpp
 LBCGI_CPPFLAGS = -O2 -Werror -I./include
-LBCGI_LDFLAGS = -l stdc++ -l pthread -l fcgi -L/usr/lib64/mysql/ -lmysqlclient 
+LBCGI_LDFLAGS = -l stdc++ -l pthread -l fcgi -L/usr/lib64/mysql/ -l mysqlclient -l crypto
 
 LBCMD_TARGET := bin/lb-cmd
 LBCMD_SRCS = examples/lb-cmd/main.cpp
 LBCMD_SRCS += examples/lb-cmd/lbdb.cpp
-LBCMD_LDFLAGS = -l stdc++ -l pthread -L/usr/lib64/mysql/ -lmysqlclient
+LBCMD_LDFLAGS = -l stdc++ -l pthread -L/usr/lib64/mysql/ -l mysqlclient -l crypto
 LBCMD_CPPFLAGS = -O2 -Werror
 
 LBSRV_TARGET := bin/lb-server

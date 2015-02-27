@@ -8,6 +8,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <event.h>
+#include <syslog.h>
 
 
 #define PORT        25341
@@ -24,8 +25,8 @@ struct sock_ev {
 
 static struct event_base* base;
 
-static unsigned int port = 0;
-static unsigned int ip = 0;
+static unsigned int port = 10000;
+static unsigned int ip = 0x7f000001;
 static bool foreground = false;
 
 static struct option long_options[] = {
@@ -127,8 +128,12 @@ void on_read(int sock, short event, void* arg)
     }
     
     /* 处理数据 */
+    ev->buffer[256] = '\0';
+    syslog(LOG_INFO, "GET QUESTION: %s\n", ev->buffer);
+    free(ev->buffer);
     
     /* 应答 */
+#if 0    
     event_set(ev->write_ev, sock, EV_WRITE, on_write, ev->buffer);
     if (event_base_set(base, ev->write_ev) < 0) {
     	printf("event_base_set error\n");
@@ -138,6 +143,7 @@ void on_read(int sock, short event, void* arg)
     	printf("event_add error\n");
     	return;
     }
+#endif
 }
 
 
@@ -215,6 +221,8 @@ int main(int argc, char* argv[]) {
     	goto error2;
     }
 	
+    openlog("lb-server", LOG_ODELAY | LOG_PID, LOG_USER);
+
 	/* 处理Socket事件 */
     struct event listen_ev;
     base = event_base_new();

@@ -213,6 +213,11 @@ void rcu_instance<T>::free(void) {
 
 template<typename T>
 void rcu_instance<T>::add(T *ptr) {
+	/* 检查参数判断 */
+	if (!ptr) {
+		return;
+	}
+	
 	/* 获取互斥量 */
 	lock();
 	

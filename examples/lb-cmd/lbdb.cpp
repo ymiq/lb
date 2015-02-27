@@ -4,6 +4,7 @@
 #include <string>
 #include <stdio.h>
 #include "lbdb.h"
+#include <openssl/md5.h>
 
 using namespace std;
 
@@ -21,7 +22,7 @@ using namespace std;
 	
 	create databse lb_db;
 	use lb_db;
-	create table lb (id int, name varchar(256), hash bigint, master int, slave int, groupid int, qport int, aport int, qstat int, astat int); 
+	create table lb (id int, name varchar(256), hash bigint unsigned, master int unsigned, slave int unsigned, groupid int, qport int, aport int, qstat int unsigned, astat int unsigned); 
 	create unique index lb_uidx on lb(id, hash);
 	create index lb_idx on lb(master, slave, groupid, aport, qport, qstat, astat);
 */
@@ -34,8 +35,7 @@ using namespace std;
 
 lbdb::lbdb() {
     /* 检查库文件 */
-    if (mysql_library_init(0, NULL, NULL) != 0)  
-    {  
+    if (mysql_library_init(0, NULL, NULL) != 0) {  
         throw "mysql_library_init() error";  
     }  
     
@@ -46,8 +46,7 @@ lbdb::lbdb() {
 	
 	/* 数据库选项设置 */
 #if 0	
-    if (mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, "utf8") != 0)  
-    {  
+    if (mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, "utf8") != 0) {  
         throw "mysql_options() error";  
 		mysql_close(&mysql);
     }  
@@ -64,6 +63,20 @@ lbdb::~lbdb() {
 	mysql_close(&mysql);
 }
 
+unsigned long int lbdb::compute_hash(const char *company) {
+	MD5_CTX ctx;
+	unsigned char md5[16];
+	unsigned long int hash = 0;
+	
+	MD5_Init(&ctx);
+	MD5_Update(&ctx, company, strlen(company));
+	MD5_Final(md5, &ctx);
+	
+	memcpy(&hash, md5, sizeof(hash));
+	
+	return hash;
+}
+
 int lbdb::db_create(void) {
 
 	/* 清空数据表 */
@@ -71,25 +84,24 @@ int lbdb::db_create(void) {
 	mysql_query(&mysql, strsql.c_str());
 	
 	/* 关闭自动提交 */
-	 mysql_autocommit(&mysql, 0);
+	mysql_autocommit(&mysql, 0);
 	
 	/* 新建数据内容 */
 	for (int i=0; i<CFG_ENTERPRISES; i++) {
-		unsigned int group = ((unsigned int)rand()) % CFG_ENTERPRISE_GROUPS;
-		unsigned int qport = 0x6600 + group;
-		unsigned int aport = 0x8800 + group;
-		uint64_t tmp = (unsigned int)rand();
-		tmp <<= 32;
-		tmp += (unsigned int)rand();
+		unsigned int group = 0;		// ((unsigned int)rand()) % CFG_ENTERPRISE_GROUPS;
+		unsigned int qport = 10000 + group;
+		unsigned int aport = 11000 + group;
+		unsigned long int hash;
 		
 		/* 添加数据到数据库 */
 		stringstream name;
-		name << "www."  << hex << i << ".com";
+		name << "www."  << i << ".com";
+		hash = compute_hash(name.str().c_str());
 		stringstream sql;
 		sql << "insert into lb (id, name, hash, master, slave, groupid, qport, aport, qstat, astat) values ("
 				<< "0x" << hex << i << ", "
 				<< "'" << name.str() << "', " 
-				<< "0x" << hex << tmp << ", "
+				<< "0x" << hex << hash << ", "
 				<< "0x7f000001, 0x7f000002, "
 				<< "0x" << hex << group << ", "
 				<< "0x" << hex << qport << ", "
@@ -115,8 +127,7 @@ int lbdb::db_dump(void) {
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
     string strsql = "select id, name, hash, master, groupid, qport, qstat from lb order by id ";  
-    if (mysql_query(&mysql, strsql.c_str()) != 0)  
-    {  
+    if (mysql_query(&mysql, strsql.c_str()) != 0) {  
     	cout << "query error" << endl;
 		mysql_close(&mysql);
     	return -1;
@@ -131,20 +142,26 @@ int lbdb::db_dump(void) {
 	
 	/* 字段指针 遍历字段 */
 	MYSQL_FIELD *feild = NULL;  
-	for (unsigned int i=0; i<feildcount; i++)  
-	{  
+	for (unsigned int i=0; i<feildcount; i++) {  
 		feild = mysql_fetch_field_direct(result, i);  
-		cout << feild->name << "\t";  
+		cout << feild->name << "\t\t";  
 	}  
 	cout << endl;  
 	
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
-	while (NULL != (row = mysql_fetch_row(result)) )  
-	{  
-		for(int i=0; i<feildcount;i++)  
-		{  
-		    cout << row[i] << "\t";  
+	while (NULL != (row = mysql_fetch_row(result)) ) {  
+		for(int i=0; i<feildcount;i++) {  
+			if (i == 2) {
+				unsigned long int hash = strtoul(row[i], NULL, 10);
+				cout.width(16);  
+			    cout << hex << hash << "\t";  
+			} else if (i == 3) {
+				unsigned int master = strtoul(row[i], NULL, 10);
+			    cout << hex << master << "\t";  
+			} else {
+		    	cout << row[i] << "\t";  
+		    }
 		}  
 		cout << endl;  
 	}  	
@@ -154,13 +171,12 @@ int lbdb::db_dump(void) {
 }
 
 
-uint64_t lbdb::get_hash(const char *company) {
+unsigned long int lbdb::get_hash(const char *company) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
     string strsql = "select id, name, hash, groupid from lb order by id ";  
-    if (mysql_query(&mysql, strsql.c_str()) != 0)  
-    {  
+    if (mysql_query(&mysql, strsql.c_str()) != 0) {  
     	cout << "query error" << endl;
     	return 0;
     }
@@ -168,10 +184,9 @@ uint64_t lbdb::get_hash(const char *company) {
 
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
-	while (NULL != (row = mysql_fetch_row(result)) )  
-	{
+	while (NULL != (row = mysql_fetch_row(result)))	{
 		if (!strcmp(company, row[1])) {
-			uint64_t hash = strtoull(row[2], NULL, 10);
+			unsigned long int hash = strtoull(row[2], NULL, 10);
 		    mysql_free_result(result);  
 		    return hash;
 		}
@@ -188,8 +203,7 @@ bool lbdb::check_groupid(int groupid) {
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
     string strsql = "select id, name, hash from lb order by id ";  
-    if (mysql_query(&mysql, strsql.c_str()) != 0)  
-    {  
+    if (mysql_query(&mysql, strsql.c_str()) != 0) {  
     	cout << "query error" << endl;
     	return 0;
     }
@@ -197,8 +211,7 @@ bool lbdb::check_groupid(int groupid) {
 
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
-	while (NULL != (row = mysql_fetch_row(result)) )  
-	{
+	while (NULL != (row = mysql_fetch_row(result))) {
 		int gid = atoi(row[3]);
 		if (gid == groupid) {
 		    mysql_free_result(result);  
