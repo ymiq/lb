@@ -174,7 +174,7 @@ static void *thread_worker(void *args) {
 	        continue;
 		}
 		hash = company_hash(company);
-		LOGI("C: %s,	U: %s,	Q: %s,	H: %lx", company, user, question, hash);
+		LOGD("C: %s,	U: %s,	Q: %s,	H: %lx", company, user, question, hash);
 				  
 		/* Worker线程主处理开始 */
 	    prcu->job_start(tid);

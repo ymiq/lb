@@ -184,7 +184,7 @@ void on_accept(int sock, short event, void* arg)
 
 
 int main(int argc, char* argv[]) {
-    struct sockaddr_in my_addr;
+    struct sockaddr_in sk_addr;
     int sock;
     int yes;
     
@@ -208,11 +208,11 @@ int main(int argc, char* argv[]) {
     	perror("setsockopt error");
     	goto error2;
     }
-    memset(&my_addr, 0, sizeof(my_addr));
-    my_addr.sin_family = AF_INET;
-    my_addr.sin_port = htons(port);
-    my_addr.sin_addr.s_addr = INADDR_ANY;
-    if (bind(sock, (struct sockaddr*)&my_addr, sizeof(struct sockaddr)) < 0) {
+    memset(&sk_addr, 0, sizeof(sk_addr));
+    sk_addr.sin_family = AF_INET;
+    sk_addr.sin_port = htons(port);
+    sk_addr.sin_addr.s_addr = INADDR_ANY;
+    if (bind(sock, (struct sockaddr*)&sk_addr, sizeof(struct sockaddr)) < 0) {
     	perror("bind error");
     	goto error2;
     }

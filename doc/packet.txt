@@ -1,0 +1,27 @@
+packet header
+[Sections for lb]
+1. magic		magic number and version
+2. interface	which interface that question come from
+3. session		session id	
+4. hash			company hash
+5. userid		user id
+6. meta			question meta type(picture, text, voice, score etc...)
+
+[Section for dispatch]
+7. token		packet token
+
+[Section for robot]
+8. candidate	question answer candidate
+9. type			question type(consultation, complain, exception)
+10. itime		question time
+11. otime		answer time
+
+[Sections for waiter]
+12. answer		answer
+13. istation	question service station id
+14. ostation	answer service statin id
+
+[Sections for customer]
+15. score		score for current answers
+
+
