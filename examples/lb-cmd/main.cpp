@@ -7,9 +7,24 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 #include <pthread.h>
 #include "lbdb.h"
+#include "command.h"
 
+#define CFG_LB_IPADDR		"127.0.0.1"
+#define CFG_LB_CMDPORT		8000
+
+typedef struct LB_CMD {
+	unsigned int cmd;
+	unsigned int group;
+	unsigned long int hash; 
+	unsigned int ip;
+	unsigned int port;
+	unsigned char data[0];
+} LB_CMD;
+
+int sockfd = -1;
 
 static int db_create(void) {
 	int ret;
@@ -123,26 +138,6 @@ static int host_info(char *str, unsigned int *ip, unsigned int *port) {
 }
 
 
-static int do_group_stat(unsigned int cmd, unsigned int id) {
-	return 0;
-}
-
-
-static int do_company_stat(unsigned int cmd, uint64_t hash) {
-	return 0;
-}
-
-
-static int do_group_lb(unsigned int cmd, unsigned int id, unsigned int ip, unsigned int port) {
-	return 0;
-}
-
-
-static int do_company_lb(unsigned int cmd, uint64_t hash, unsigned int ip, unsigned int port) {
-	return 0;
-}
-
-
 static void help(void) {
 	printf("db create   创建负载均衡数据库\n");
 	printf("db dump     显示负载均衡数据内容\n");
@@ -180,58 +175,65 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	
+	/* 创建命令对象 */
+	command *pcmd;
+	try {
+		pcmd = new command;
+	} catch(const char* msg) {
+		printf("Error quit: %s\n", msg);
+		return 0;
+	}
+	
 	/* 统计相关命令 */
+	unsigned int cmd = 0;
+	unsigned int id = 0;
+	unsigned long int hash = 0;
+	unsigned int ip = 0;
+	unsigned int port = 0;
 	if ((argc > 3) && (!strcmp(argv[1], "stat"))) {
-		unsigned int cmd = 0;
+		cmd = 0x20000000;
+		
+		/* 统计相关命令处理 */
 		if (!strcmp(argv[2], "start")) {
-			cmd = 1;
+			cmd |= 1;
 		} else if (!strcmp(argv[2], "stop")) {
-			cmd = 2;
+			cmd |= 2;
 		} else if (!strcmp(argv[2], "info")) {
-			cmd = 4;
+			cmd |= 4;
 		} else {
-			help();
-			return 0;
 			help();
 			return 0;
 		}
 		if ((argc > 4) && (!strcmp(argv[3], "group"))) { 
 			cmd |= 0x10000000;
-			unsigned int id;
 			if (group_id(argv[4], &id) < 0) {
 				printf("无效组ID号\n");
 				return 0;
 			}
-			return do_group_stat(cmd, id);
 		} else {
-			uint64_t hash;
 			if (company_hash(argv[3], &hash) < 0) {
 				printf("无效公司名\n");
 				return 0;
 			}
-			return  do_company_stat(cmd, hash);
 		}
 	} else if ((argc > 3) && (!strcmp(argv[1], "lb"))) {
-		unsigned int cmd = 0;
+		cmd = 0;
 		
 		/* 均衡相关命令处理 */
 		if (!strcmp(argv[2], "start")) {
-			cmd = 1;
+			cmd |= 1;
 		} else if (!strcmp(argv[2], "stop")) {
-			cmd = 2;
+			cmd |= 2;
 		} else if (!strcmp(argv[2], "info")) {
-			cmd = 4;
+			cmd |= 4;
 		} else if (!strcmp(argv[2], "switch")) {
-			cmd = 8;
+			cmd |= 8;
 		} else {
 			help();
 			return 0;
 		}
 		if ((argc > 4) && (!strcmp(argv[3], "group"))) { 
 			cmd |= 0x10000000;
-			unsigned int id;
-			unsigned int ip = 0;
-			unsigned int port = 0;
 			if (group_id(argv[4], &id) < 0) {
 				printf("无效组ID号\n");
 				return 0;
@@ -246,11 +248,7 @@ int main(int argc, char *argv[]) {
 					return 0;
 				}
 			}
-			return do_group_lb(cmd, id, 0, 0);
 		} else {
-			unsigned int ip = 0;
-			unsigned int port = 0;
-			uint64_t hash;
 			if (company_hash(argv[3], &hash) < 0) {
 				printf("无效公司名\n");
 				return 0;
@@ -265,12 +263,16 @@ int main(int argc, char *argv[]) {
 					return 0;
 				}
 			}
-			return do_company_lb(cmd, hash, ip, port);;
 		}
 	} else {
 		help();
+		return 0;
 	}
 	
-	return 0;
+	/* 命令处理 */
+	if (pcmd->request(cmd, 0, id, 0, 0) >= 0) {
+		return pcmd->reponse();
+	}
+	return -1;
 }
 

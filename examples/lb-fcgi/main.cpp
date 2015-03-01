@@ -13,6 +13,8 @@
 #include <lbdb.h>
 #include <fcgi_stdio.h>  
 #include <openssl/md5.h>
+#include <evsrv.h>
+#include "cmdsrv.h"
 
 using namespace std;
 
@@ -236,7 +238,9 @@ int main(int argc, char *argv[]) {
 
 	/* 等待动态配置命令 */
 	while (1) {
-		sleep(1);
+		evsrv<cmdsrv> srv("127.0.0.1", 8000);
+		
+		srv.loop();
 	}
 	
 	/* never reach here */	

@@ -9,11 +9,13 @@
 #include <getopt.h>
 #include <event.h>
 #include <syslog.h>
+#include <evsrv.h>
+#include "lbdis.h"
 
-
-#define PORT        25341
-#define BACKLOG     5
-#define MEM_SIZE    1024
+#define CFG_LISTEN_IP		"127.0.0.1"
+#define CFG_LISTEN_PORT		10000
+// #define CFG_LISTEN_BACKLOG	5
+#define CFG_MEM_SIZE		1024
 
 struct sock_ev {
     struct event* read_ev;
@@ -21,12 +23,10 @@ struct sock_ev {
     char* buffer;
 };
 
-
-
 static struct event_base* base;
 
-static unsigned int port = 10000;
-static unsigned int ip = 0x7f000001;
+static unsigned int port = CFG_LISTEN_PORT;
+static unsigned int ip = 0;
 static bool foreground = false;
 
 static struct option long_options[] = {
@@ -48,6 +48,7 @@ static void help(void) {
 static bool parser_opt(int argc, char **argv) {
     int c;
     int digit_optind = 0;
+    ip = inet_addr(CFG_LISTEN_IP);
 	
     while (1) {
         int this_option_optind = optind ? optind : 1;
@@ -99,6 +100,14 @@ void on_write(int sock, short event, void* arg)
     free(buffer);
 }
 
+typedef struct LB_CMD {
+	unsigned int command;
+	unsigned int group;
+	unsigned long int hash; 
+	unsigned int ip;
+	unsigned int port;
+	unsigned char data[0];
+} LB_CMD;
 
 void on_read(int sock, short event, void* arg)
 {
@@ -107,15 +116,15 @@ void on_read(int sock, short event, void* arg)
     struct sock_ev* ev = (struct sock_ev*)arg;
     
     /* 准备接收缓冲区 */
-    ev->buffer = (char*)malloc(MEM_SIZE);
+    ev->buffer = (char*)malloc(CFG_MEM_SIZE);
     if (ev->buffer == NULL) {
     	printf("no memory\n");
     	return;
     }
-    bzero(ev->buffer, MEM_SIZE);
+    bzero(ev->buffer, CFG_MEM_SIZE);
     
     /* 接收Socket数据 */
-    size = recv(sock, ev->buffer, MEM_SIZE, 0);
+    size = recv(sock, ev->buffer, CFG_MEM_SIZE, 0);
     if (size <= 0) {
     	if (size == 0) {
     		/* 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
@@ -128,22 +137,27 @@ void on_read(int sock, short event, void* arg)
     }
     
     /* 处理数据 */
+    LB_CMD *pcmd = (LB_CMD *) ev->buffer;
+    printf("Get command\n");
+    printf("  CMD: 0x%08x\n", pcmd->command);
+    printf(" HASH: 0x%lx\n", pcmd->hash);
+    printf("GROUP: %d\n", pcmd->group);
+    printf("   IP: 0x%08x\n", pcmd->ip);
+    printf(" PORT: %d\n", pcmd->port);
+    printf("\n");
+    
+    char buffer[16];
+    *(bool*)buffer = true;
+    if (send(sock, buffer, 16, 0) != 16) {
+    	perror("reponse error");
+    }
+    
+    return;
     ev->buffer[256] = '\0';
     syslog(LOG_INFO, "GET QUESTION: %s\n", ev->buffer);
     free(ev->buffer);
     
     /* 应答 */
-#if 0    
-    event_set(ev->write_ev, sock, EV_WRITE, on_write, ev->buffer);
-    if (event_base_set(base, ev->write_ev) < 0) {
-    	printf("event_base_set error\n");
-    	return;
-    }
-    if (event_add(ev->write_ev, NULL) < 0) {
-    	printf("event_add error\n");
-    	return;
-    }
-#endif
 }
 
 
@@ -196,6 +210,19 @@ int main(int argc, char* argv[]) {
     	printf("Invalid port number\n");
     	return 0;
     }
+    
+    evsrv<lbdis> *srv;
+    try {
+    	srv = new evsrv<lbdis>(CFG_LISTEN_IP, (unsigned short)port);
+    } catch(const char *msg) {
+    	printf("Error out: %s\n", msg);
+    }
+    yes = 1;
+    if (srv->setskopt(SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0) {
+    	printf("setsockopt error");
+    	return -1;
+    }
+    srv->loop();
 
 	/* 打开端口 */
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -216,7 +243,7 @@ int main(int argc, char* argv[]) {
     	perror("bind error");
     	goto error2;
     }
-    if (listen(sock, BACKLOG) < 0) {
+    if (listen(sock, CFG_LISTEN_BACKLOG) < 0) {
     	perror("listen error");
     	goto error2;
     }

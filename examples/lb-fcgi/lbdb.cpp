@@ -80,10 +80,10 @@ int lbdb::lb_opensock(unsigned int master, int port) {
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	
 	/* 设置连接目的地址 */
+	memset(&serv_addr, 0, sizeof(serv_addr));
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(10000);
 	serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	bzero(&(serv_addr.sin_zero), 8);
  
 	/* 发送连接请求 */
 	if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)) < 0) {

@@ -5,51 +5,100 @@
 #include <arpa/inet.h>
 #include <event.h>
 #include <log.h>
+#include <evsock.h>
 
-evsock::evsock() {
-}
-
+#define CFG_RCVBUF_SIZE		1024
 
 evsock::~evsock() {
+    event_del(&read_ev);
+	if (!wq.empty()) {
+	    event_del(&write_ev);
+	}
 }
 
 
-evsock::evsock(int fd) {
-	sockfd = fd;
-}
-
-
-virtual void *evsock::read(size_t *buf_size) {
+void *evsock::ev_recv(size_t *size) {
+	/* 参数检查 */
+	if (!size) {
+		LOGE("Invalid parameter");
+		return NULL;
+	}
+	
     /* 准备接收缓冲区 */
-    char *buffer = (char*)malloc(MEM_SIZE);
+    char *buffer = (char*)malloc(CFG_RCVBUF_SIZE);
     if (buffer == NULL) {
-    	LOGE("no memory\n");
-    	return;
+    	LOGE("no memory");
+    	*size = -1;
+    	return NULL;
     }
-    bzero(buffer, MEM_SIZE);
     
     /* 接收Socket数据 */
-    size = recv(sock, buffer, MEM_SIZE, 0);
-    if (size <= 0) {
-    	if (size == 0) {
-    		/* 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
-    	} else {
-			/* 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
-    	}
-        release_sock_event(ev);
-        close(sock);
-        return;
+    int rd_size = recv(sockfd, buffer, CFG_RCVBUF_SIZE, 0);
+    *size = rd_size;
+   	if (rd_size <= 0) {
+   		free(buffer);
+   		return NULL;
+   	} 
+   	return buffer;
+}
+
+
+void evsock::ev_recv_done(void *buf) {
+	free(buf);
+}
+
+
+void evsock::do_write(int sock, short event, void* arg) {
+	evsock *evsk = (evsock *)arg;
+	queue<EV_SEND*> *q = evsk->ev_queue();
+	
+    /* 从写缓冲队列取出一个Buffer */
+    EV_SEND *qsend = q->front();
+    q->pop();
+    
+    /* 发送 */
+	qsend->size = send(sock, qsend->buf, qsend->size, 0);
+	evsk->ev_send_done(qsend);
+    
+    /* 检查FIFO是否还存在待发送内容 */
+    if (!q->empty()) {
+	    event_set(&evsk->write_ev, sock, EV_WRITE, do_write, evsk);
+	    if (event_base_set(evsk->evbase, &evsk->write_ev) < 0) {
+	    	LOGE("event_base_set error\n");
+	    	return;
+	    }
+	    if (event_add(&evsk->write_ev, NULL) < 0) {
+	    	LOGE("event_add error\n");
+	    }
     }
-    return buffer;
 }
 
 
-void evsock::free_buff(void *buf) {
-	free(buffer);
-}
-
-
-virtual int evsock::write(void *buffer, size_t size) {
-    retrun send(sock, buffer, size, 0);
+bool evsock::ev_send(EV_SEND *send) {
+	bool empty;
+	
+	if (!send->buf || !send->size) {
+		return false;
+	}
+		
+	/* 把当前缓冲区挂入写FIFO */
+	EV_SEND *qsend = (EV_SEND *)malloc(sizeof(EV_SEND));
+	*qsend = *send;
+	empty = wq.empty();
+	wq.push(qsend);
+	
+	/* 触发写事件 */
+	if (empty) {
+	    event_set(&write_ev, sockfd, EV_WRITE, do_write, this);
+	    if (event_base_set(evbase, &write_ev) < 0) {
+	    	LOGE("event_base_set error\n");
+	    	return false;
+	    }
+	    if (event_add(&write_ev, NULL) < 0) {
+	    	LOGE("event_add error\n");
+	    	return false;
+	    }
+	}
+    return true;
 }
 

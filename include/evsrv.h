@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <cstddef>
 #include <fcntl.h>
+#include <unistd.h>
+#include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
@@ -14,25 +16,30 @@
 #include <evsock.h>
 
 using namespace std;	
+#define CFG_LISTEN_BACKLOG     4096
 
 template<typename T> 
 class evsrv {
 public:
-	evsrv();
 	~evsrv();
+	evsrv(const char *ip_str, unsigned short port);
+	int setskopt(int level, int optname,
+                      const void *optval, socklen_t optlen);
+	int getskopt(int level, int optname,
+                      void *optval, socklen_t *optlen);
+	bool loop(void);
+	
 	
 protected:
 	
 private:
 	int sockfd;
-	string ip;
+	string *ip;
 	unsigned short port;
-}
-
-template<class T>
-evsrv<T>::evsrv() {
-}
-
+	struct event_base* base;
+	
+	static void do_accept(int sock, short event, void* arg);	
+};
 
 template<class T>
 evsrv<T>::~evsrv() {
@@ -41,25 +48,25 @@ evsrv<T>::~evsrv() {
 
 
 template<class T>
-evsrv<T>::evsrv(const char *ip_str, unsigned short port) {
+evsrv<T>::evsrv(const char *ipstr, unsigned short prt) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
     	throw "socket error";
     }
-    ip = new string(ipstr);
-    port = port;
+    ip = new std::string(ipstr);
+    port = prt;
 }
 
 
 template<class T>
-int evsrv<T>::setsockopt(int level, int optname,
+int evsrv<T>::setskopt(int level, int optname,
                       const void *optval, socklen_t optlen) {
     return setsockopt(sockfd, level, optname, &optval, optlen);
 }
 
 
 template<class T>
-int evsrv<T>::getsockopt(int level, int optname,
+int evsrv<T>::getskopt(int level, int optname,
                       void *optval, socklen_t *optlen) {
     return getsockopt(sockfd, level, optname, &optval, optlen);
 }
@@ -73,13 +80,13 @@ bool evsrv<T>::loop(void) {
 	memset(&sk_addr, 0, sizeof(sk_addr));
 	sk_addr.sin_family = AF_INET;
 	sk_addr.sin_port = htons(port);
-	sk_addr.sin_addr.s_addr = inet_addr(ip.c_str());
+	sk_addr.sin_addr.s_addr = inet_addr(ip->c_str());
 	
 	if (bind(sockfd, (struct sockaddr*)&sk_addr, sizeof(struct sockaddr)) < 0) {
 		LOGE("bind error");
 		return false;
 	}
-	if (listen(sockfd, BACKLOG) < 0) {
+	if (listen(sockfd, CFG_LISTEN_BACKLOG) < 0) {
 		LOGE("listen error");
 		return false;
 	}
@@ -91,7 +98,7 @@ bool evsrv<T>::loop(void) {
 		LOGE("event_base_new error\n");
 		return false;
 	}
-	event_set(&listen_ev, sockfd, EV_READ|EV_PERSIST, this->accept, NULL);
+	event_set(&listen_ev, sockfd, EV_READ|EV_PERSIST, evsrv<T>::do_accept, this);
 	if (event_base_set(base, &listen_ev) < 0) {
 		LOGE("event_base_set error\n");
 		return false;
@@ -110,30 +117,31 @@ bool evsrv<T>::loop(void) {
 
 
 template<class T>
-void evsrv<T>::accept(int sock, short event, void* arg) {
+void evsrv<T>::do_accept(int sock, short event, void* arg) {
 	struct sockaddr_in cli_addr;
+	evsrv<T> *srv = (evsrv<T> *)arg;
 	int newfd;
 	socklen_t sin_size;
 	
     /* 接受连接 */
 	sin_size = sizeof(struct sockaddr_in);
-	newfd = accept(sockfd, (struct sockaddr*)&cli_addr, &sin_size);
+	newfd = accept(srv->sockfd, (struct sockaddr*)&cli_addr, &sin_size);
 	if (newfd < 0) {
 		LOGE("accept error");
 		return;
 	}
 	
     /* 创建evsock对象 */
-	T *evsk_dr = new T(newfd);
-	evsock *evsk = type_cast<evsock *>(evsk_dr);
+	T *evsk_dr = new T(newfd, srv->base);
+	evsock *evsk = dynamic_cast<evsock *>(evsk_dr);
 	
 	/* 创建evsock事件 */
-	event_set(evsk->read_ev, newfd, EV_READ|EV_PERSIST, evsk_dr->read, evsk_dr);
-	if (event_base_set(base, evsk->read_ev) < 0) {
+	event_set(&evsk->read_ev, newfd, EV_READ|EV_PERSIST, evsk_dr->read, evsk_dr);
+	if (event_base_set(srv->base, &evsk->read_ev) < 0) {
 		LOGE("event_base_set error\n");
 		return;
 	}
-	if (event_add(evsk->read_ev, NULL) < 0) {
+	if (event_add(&evsk->read_ev, NULL) < 0) {
 		LOGE("event_add error\n");
 		return;
 	}

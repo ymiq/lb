@@ -2,30 +2,36 @@
 LBCGI_TARGET := bin/lb-fcgi
 LBCGI_SRCS += examples/lb-fcgi/main.cpp
 LBCGI_SRCS += examples/lb-fcgi/lbdb.cpp
+LBCGI_SRCS += examples/lb-fcgi/cmdsrv.cpp
 LBCGI_SRCS += src/logger.cpp
+LBCGI_SRCS += src/evsock.cpp
 LBCGI_SRCS += src/rcu_man.cpp
 LBCGI_SRCS += src/lb_table.cpp
 LBCGI_SRCS += src/stat_obj.cpp
 LBCGI_SRCS += src/stat_table.cpp
 LBCGI_SRCS += src/stat_man.cpp
 LBCGI_CPPFLAGS = -O2 -Werror -I./include
-LBCGI_LDFLAGS = -l stdc++ -l pthread -l fcgi -L/usr/lib64/mysql/ -l mysqlclient -l crypto
+LBCGI_LDFLAGS = -lstdc++ -lpthread -lfcgi -L/usr/lib64/mysql/ -lmysqlclient -lcrypto -levent
 
 LBCMD_TARGET := bin/lb-cmd
 LBCMD_SRCS = examples/lb-cmd/main.cpp
 LBCMD_SRCS += examples/lb-cmd/lbdb.cpp
-LBCMD_LDFLAGS = -l stdc++ -l pthread -L/usr/lib64/mysql/ -l mysqlclient -l crypto
+LBCMD_SRCS += examples/lb-cmd/command.cpp
+LBCMD_LDFLAGS = -lstdc++ -lpthread -L/usr/lib64/mysql/ -lmysqlclient -lcrypto
 LBCMD_CPPFLAGS = -O2 -Werror
 
 LBSRV_TARGET := bin/lb-server
 LBSRV_SRCS = examples/lb-server/main.cpp
-LBSRV_LDFLAGS = -l stdc++ -l pthread -l event
-LBSRV_CPPFLAGS = -O2 -Werror
+LBSRV_SRCS += examples/lb-server/lbdis.cpp
+LBSRV_SRCS += src/evsock.cpp
+LBSRV_SRCS += src/logger.cpp
+LBSRV_LDFLAGS = -lstdc++ -lpthread -levent
+LBSRV_CPPFLAGS = -O2 -Werror -I./include
 
 LBPL_TARGET := bin/lb-payload
 LBPL_SRCS = examples/lb-payload/main.cpp
 LBPL_SRCS += examples/lb-payload/http.cpp
-LBPL_LDFLAGS = -l stdc++ -l pthread -l curl
+LBPL_LDFLAGS = -lstdc++ -lpthread -lcurl
 LBPL_CPPFLAGS = -O2 -Werror -I examples/lb-payload/
 
 .DEFAULT: all
