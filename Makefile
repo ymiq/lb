@@ -20,9 +20,9 @@ LBCMD_SRCS += examples/lb-cmd/command.cpp
 LBCMD_LDFLAGS = -lstdc++ -lpthread -L/usr/lib64/mysql/ -lmysqlclient -lcrypto
 LBCMD_CPPFLAGS = -O2 -Werror
 
-LBSRV_TARGET := bin/lb-server
-LBSRV_SRCS = examples/lb-server/main.cpp
-LBSRV_SRCS += examples/lb-server/lbdis.cpp
+LBSRV_TARGET := bin/gear
+LBSRV_SRCS = examples/gear/main.cpp
+LBSRV_SRCS += examples/gear/lbsrv.cpp
 LBSRV_SRCS += src/evsock.cpp
 LBSRV_SRCS += src/logger.cpp
 LBSRV_LDFLAGS = -lstdc++ -lpthread -levent

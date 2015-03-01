@@ -11,10 +11,10 @@
 
 using namespace std;
 
-class lbdis : public evsock {
+class lbsrv : public evsock {
 public:
-	~lbdis();
-	lbdis(int fd, struct event_base* base):evsock(fd, base) {}
+	~lbsrv();
+	lbsrv(int fd, struct event_base* base):evsock(fd, base) {}
 		
 	void ev_send_done(EV_SEND *send);
 	

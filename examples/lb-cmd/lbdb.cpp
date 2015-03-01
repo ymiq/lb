@@ -202,7 +202,7 @@ bool lbdb::check_groupid(int groupid) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
-    string strsql = "select id, name, hash from lb order by id ";  
+    string strsql = "select id, name, hash, groupid from lb order by id ";  
     if (mysql_query(&mysql, strsql.c_str()) != 0) {  
     	cout << "query error" << endl;
     	return 0;

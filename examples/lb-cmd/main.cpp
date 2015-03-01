@@ -270,7 +270,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	/* 命令处理 */
-	if (pcmd->request(cmd, 0, id, 0, 0) >= 0) {
+	if (pcmd->request(cmd, hash, id, ip, port) >= 0) {
 		return pcmd->reponse();
 	}
 	return -1;

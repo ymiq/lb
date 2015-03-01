@@ -65,13 +65,12 @@ int command::get_repsone(void *buf, int *size) {
 		FD_ZERO(&fdread);  
 		FD_SET(sockfd, &fdread); 
 		struct timeval tv = {3, 0};   
-		int ret = select(0, &fdread, NULL, NULL, &tv); 
+		int ret = select(sockfd+1, &fdread, NULL, NULL, &tv); 
 		if (ret == 0) 
 		{       
 			/* Time expired */
 		    break; 
 		}
-		printf("abc\n");
 		if (FD_ISSET(sockfd, &fdread)) {
 			int len = *size;
 			len = recv(sockfd, buf, len, 0); 
