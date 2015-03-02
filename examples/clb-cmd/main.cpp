@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "lbdb.h"
+#include "lb_db.h"
 #include "command.h"
 
 #define CFG_LB_IPADDR		"127.0.0.1"
@@ -29,7 +29,7 @@ int sockfd = -1;
 static int db_create(void) {
 	int ret;
 	
-	lbdb *db = new lbdb();
+	lb_db *db = new lb_db("localhost", 3306, "lb_db");
 	ret = db->db_create();
 	delete db;
 	return ret; 
@@ -38,7 +38,7 @@ static int db_create(void) {
 static int db_dump(void) {
 	int ret;
 	
-	lbdb *db = new lbdb();
+	lb_db *db = new lb_db("localhost", 3306, "lb_db");
 	ret = db->db_dump();
 	delete db;
 	return ret; 
@@ -48,8 +48,8 @@ static int db_dump(void) {
 static int company_hash(const char *str, uint64_t *hash) {
 	uint64_t hash_val;
 	
-	lbdb *db = new lbdb();
-	hash_val = db->get_hash(str);
+	lb_db *db = new lb_db();
+	hash_val = db->check_company(str);
 	delete db;
 	if (hash_val && hash) {
 		*hash = hash_val;
@@ -77,7 +77,7 @@ static int group_id(const char *str, unsigned int *id) {
 	}
 	
 	/* 检查groupid是否有效 */
-	lbdb *db = new lbdb();
+	lb_db *db = new lb_db();
 	bool ret = db->check_groupid((int)groupid);
 	delete db;
 	if (ret && id) {

@@ -3,7 +3,7 @@
 #include <sstream>
 #include <string>
 #include <stdio.h>
-#include "lbdb.h"
+#include "lb_db.h"
 #include <openssl/md5.h>
 
 using namespace std;
@@ -31,7 +31,7 @@ using namespace std;
 #define CFG_ENTERPRISE_GROUPS	32
 #define CFG_RECEIVE_THREADS		32
 
-lbdb::lbdb() {
+lb_db::lb_db(const char *ip, unsigned short port, const char *db_name) {
     /* 检查库文件 */
     if (mysql_library_init(0, NULL, NULL) != 0) {  
         throw "mysql_library_init() error";  
@@ -51,17 +51,19 @@ lbdb::lbdb() {
 #endif
 	
 	/* 链接数据库 */
-	if (mysql_real_connect(&mysql, "localhost", "root", "", "lb_db", 3306, NULL, 0) == NULL) {
+	if (mysql_real_connect(&mysql, ip, "root", "", db_name, port, NULL, 0) == NULL) {
         throw "mysql_real_connect() error";  
 		mysql_close(&mysql);
 	}
 }
 
-lbdb::~lbdb() {
+
+lb_db::~lb_db() {
 	mysql_close(&mysql);
 }
 
-unsigned long int lbdb::compute_hash(const char *company) {
+
+unsigned long int lb_db::compute_hash(const char *company) {
 	MD5_CTX ctx;
 	unsigned char md5[16];
 	unsigned long int hash = 0;
@@ -75,7 +77,8 @@ unsigned long int lbdb::compute_hash(const char *company) {
 	return hash;
 }
 
-int lbdb::db_create(void) {
+
+int lb_db::db_create(void) {
 
 	/* 清空数据表 */
 	string strsql = "truncate table lb;";
@@ -119,8 +122,9 @@ int lbdb::db_create(void) {
 	return 0;
 }
 
+
 /* 返回数据记录 */
-int lbdb::db_dump(void) {
+int lb_db::db_dump(void) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
@@ -167,7 +171,7 @@ int lbdb::db_dump(void) {
 }
 
 
-unsigned long int lbdb::get_hash(const char *company) {
+unsigned long int lb_db::check_company(const char *company) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
@@ -194,7 +198,7 @@ unsigned long int lbdb::get_hash(const char *company) {
 }
 
 
-bool lbdb::check_groupid(int groupid) {
+bool lb_db::check_groupid(int groupid) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  

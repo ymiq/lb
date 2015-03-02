@@ -4,76 +4,32 @@
 #include <cstdio>
 #include <log.h>
 #include <lb_table.h>
-#include <lbdb.h>
+#include <lb_db.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/un.h>
 #include <sys/socket.h>
 #include <sys/unistd.h>
 #include <arpa/inet.h>
+#include "cfg_db.h"
 
 using namespace std;
 
-/* 问题负载均衡数据库 */
-/* 
-	id: 	ID
-	name: 	企业名称
-	hash:   企业名称HASH值
-	master: 主处理服务器IP
-	slave:  备份服务器IP
-	qport:  客户请求处理服务器端口
-	aport:  企业应答处理服务器端口
-	qstat:  客户请求统计信息
-	astat:  客户请求统计信息
-	
-	create database lb_db;
-	use lb_db;
-	create table lb (id int, name varchar(256), hash bigint, master int, slave int, groupid int, qport int, aport int, qstat int, astat int); 
-	create unique index lb_uidx on lb(id, hash);
-	create index lb_idx on lb(master, slave, groupid, aport, qport, qstat, astat);
-*/
-
-#define CFG_ENTERPRISES			256
-#define CFG_ENTERPRISE_GROUPS	32
-#define CFG_RECEIVE_THREADS		32
-
-lbdb::lbdb() {
-    /* 检查库文件 */
-    if (mysql_library_init(0, NULL, NULL) != 0) {  
-        throw "mysql_library_init() error";  
-    }  
-    
-    /* 打开数据库 */
-	if (mysql_init(&mysql) == NULL) {
-		throw "mysql_init() error";
-	}
-	
-	/* 数据库选项设置 */
-#if 0	
-    if (mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, "utf-8") != 0) {  
-        throw "mysql_options() error";  
-		mysql_close(&mysql);
-    }  
-#endif
-	
-	/* 链接数据库 */
-	if (mysql_real_connect(&mysql, "localhost", "root", "", "lb_db", 3306, NULL, 0) == NULL) {
-        throw "mysql_real_connect() error";  
-		mysql_close(&mysql);
-	}
-	
+cfg_db::cfg_db(const char *ip, unsigned short port, const char *db_name) :
+			lb_db(ip, port, db_name) {
 	grp_idx = (group_index *) calloc(sizeof(group_index), 1);
 	if (grp_idx == NULL) {
-		throw "No memory for create lbdb";
+	        throw "No memory for create lbdb";
 	}
 }
 
-lbdb::~lbdb() {
-	mysql_close(&mysql);
+
+cfg_db::~cfg_db() {
+	free(grp_idx);
 }
 
 
-int lbdb::lb_opensock(unsigned int master, int port) {
+int cfg_db::opensock(unsigned int master, int port) {
 	int sockfd;
 	struct sockaddr_in serv_addr;
 	
@@ -93,7 +49,8 @@ int lbdb::lb_opensock(unsigned int master, int port) {
 	return sockfd;
 }
 
-int lbdb::lb_getsock(int groupid, unsigned int master, int qport) {
+
+int cfg_db::getsock(int groupid, unsigned int master, int qport) {
 	group_index *prev;
 	group_index *pgrp;
 	prev = pgrp = grp_idx;
@@ -101,7 +58,7 @@ int lbdb::lb_getsock(int groupid, unsigned int master, int qport) {
 		group_info *pinfo = pgrp->items;
 		for (int i=0; i<CFG_GROUP_INDEX_SIZE; i++) {
 			if (!pinfo->handle) {
-				int handle = lb_opensock(master, qport);
+				int handle = opensock(master, qport);
 				if (handle < 0) {
 					throw "Open socket failed";
 				}
@@ -126,7 +83,7 @@ int lbdb::lb_getsock(int groupid, unsigned int master, int qport) {
 	}
 	prev->next = pgrp;
 	
-	int handle = lb_opensock(master, qport);
+	int handle = opensock(master, qport);
 	if (handle < 0) {
 		throw "Open socket failed";
 	}
@@ -139,7 +96,8 @@ int lbdb::lb_getsock(int groupid, unsigned int master, int qport) {
 	return handle;
 }
 
-int lbdb::lb_init(void) {
+
+int cfg_db::init_lb_table(lb_table *plb) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
@@ -150,13 +108,6 @@ int lbdb::lb_init(void) {
     }
 	result = mysql_store_result(&mysql);  
 
-	/* 获取负载均衡HASH表 */
-	lb_table *plb = lb_table::get_inst();
-	if (plb == NULL) {
-		LOGE("Can't get load balance table");
-		return -1;
-	}
-	
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result))) {
@@ -164,7 +115,7 @@ int lbdb::lb_init(void) {
 		unsigned int master = (unsigned int)strtoul(row[3], NULL, 10);
 		int groupid = atoi(row[4]);
 		int qport = atoi(row[5]);
-		int handle = lb_getsock(groupid, master, qport);
+		int handle = getsock(groupid, master, qport);
 		/* printf("hash: %x, master: %x, groupid: %d,  port: %x, handle: %d\n",
 			hash, master, groupid, qport, handle); */
 		if (handle < 0) {
@@ -180,7 +131,7 @@ int lbdb::lb_init(void) {
 
 
 
-int lbdb::stat_init(stat_table *pstat) {
+int cfg_db::init_stat_table(stat_table *pstat) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  

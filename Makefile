@@ -1,38 +1,39 @@
 
-LBCGI_TARGET := bin/clb-fcgi
-LBCGI_SRCS += examples/clb-fcgi/main.cpp
-LBCGI_SRCS += examples/clb-fcgi/lbdb.cpp
-LBCGI_SRCS += examples/clb-fcgi/cmdsrv.cpp
-LBCGI_SRCS += src/logger.cpp
-LBCGI_SRCS += src/evsock.cpp
-LBCGI_SRCS += src/rcu_man.cpp
-LBCGI_SRCS += src/lb_table.cpp
-LBCGI_SRCS += src/stat_obj.cpp
-LBCGI_SRCS += src/stat_table.cpp
-LBCGI_SRCS += src/stat_man.cpp
-LBCGI_CPPFLAGS = -O2 -Wall -Werror -I./include
-LBCGI_LDFLAGS = -lstdc++ -lpthread -lfcgi -L/usr/lib64/mysql/ -lmysqlclient -lcrypto -levent
+CLBFCGI_TARGET := bin/clb-fcgi
+CLBFCGI_SRCS += examples/clb-fcgi/main.cpp
+CLBFCGI_SRCS += examples/clb-fcgi/cfg_db.cpp
+CLBFCGI_SRCS += examples/clb-fcgi/cmdsrv.cpp
+CLBFCGI_SRCS += src/logger.cpp
+CLBFCGI_SRCS += src/evsock.cpp
+CLBFCGI_SRCS += src/rcu_man.cpp
+CLBFCGI_SRCS += src/lb_table.cpp
+CLBFCGI_SRCS += src/lb_db.cpp
+CLBFCGI_SRCS += src/stat_obj.cpp
+CLBFCGI_SRCS += src/stat_table.cpp
+CLBFCGI_SRCS += src/stat_man.cpp
+CLBFCGI_CPPFLAGS = -O2 -Wall -Werror -I./include
+CLBFCGI_LDFLAGS = -lstdc++ -lpthread -lfcgi -L/usr/lib64/mysql/ -lmysqlclient -lcrypto -levent
 
-LBCMD_TARGET := bin/clb-cmd
-LBCMD_SRCS = examples/clb-cmd/main.cpp
-LBCMD_SRCS += examples/clb-cmd/lbdb.cpp
-LBCMD_SRCS += examples/clb-cmd/command.cpp
-LBCMD_LDFLAGS = -lstdc++ -lpthread -L/usr/lib64/mysql/ -lmysqlclient -lcrypto
-LBCMD_CPPFLAGS = -O2 -Wall -Werror
+CLBCMD_TARGET := bin/clb-cmd
+CLBCMD_SRCS = examples/clb-cmd/main.cpp
+CLBCMD_SRCS += examples/clb-cmd/command.cpp
+CLBCMD_SRCS += src/lb_db.cpp
+CLBCMD_CPPFLAGS = -O2 -Wall -Werror -I./include
+CLBCMD_LDFLAGS = -lstdc++ -lpthread -L/usr/lib64/mysql/ -lmysqlclient -lcrypto
 
-LBSRV_TARGET := bin/hub
-LBSRV_SRCS = examples/hub/main.cpp
-LBSRV_SRCS += examples/hub/clbsrv.cpp
-LBSRV_SRCS += src/evsock.cpp
-LBSRV_SRCS += src/logger.cpp
-LBSRV_LDFLAGS = -lstdc++ -lpthread -levent
-LBSRV_CPPFLAGS = -O2 -Wall -Werror -I./include
+CLBPL_TARGET := bin/clb-payload
+CLBPL_SRCS = examples/clb-payload/main.cpp
+CLBPL_SRCS += examples/clb-payload/http.cpp
+CLBPL_CPPFLAGS = -O2 -Wall -Werror -I examples/clb-payload/
+CLBPL_LDFLAGS = -lstdc++ -lpthread -lcurl
 
-LBPL_TARGET := bin/clb-payload
-LBPL_SRCS = examples/clb-payload/main.cpp
-LBPL_SRCS += examples/clb-payload/http.cpp
-LBPL_LDFLAGS = -lstdc++ -lpthread -lcurl
-LBPL_CPPFLAGS = -O2 -Wall -Werror -I examples/clb-payload/
+HUB_TARGET := bin/hub
+HUB_SRCS = examples/hub/main.cpp
+HUB_SRCS += examples/hub/clbsrv.cpp
+HUB_SRCS += src/evsock.cpp
+HUB_SRCS += src/logger.cpp
+HUB_CPPFLAGS = -O2 -Wall -Werror -I./include
+HUB_LDFLAGS = -lstdc++ -lpthread -levent
 
 .DEFAULT: all
 all: clb_fcgi clb_cmd clb_pl hub
@@ -41,35 +42,35 @@ all: clb_fcgi clb_cmd clb_pl hub
 .PHONY: clb_fcgi clb_cfgi_clean
 clb_fcgi: clb_cfgi_clean
 	@echo Building $@
-	@gcc $(LBCGI_CPPFLAGS) $(LBCGI_LDFLAGS) $(LBCGI_SRCS) -o $(LBCGI_TARGET)
+	@gcc $(CLBFCGI_CPPFLAGS) $(CLBFCGI_LDFLAGS) $(CLBFCGI_SRCS) -o $(CLBFCGI_TARGET)
 
 clb_cfgi_clean:
-	@rm -f $(TARLBCGI_TARGETGET) 
+	@rm -f $(TARCLBFCGI_TARGETGET) 
 	
 .PHONY: lb_cmd lb_cmd_clean
 clb_cmd: clb_cmd_clean
 	@echo Building $@
-	@gcc $(LBCMD_CPPFLAGS) $(LBCMD_LDFLAGS) $(LBCMD_SRCS) -o $(LBCMD_TARGET)
+	@gcc $(CLBCMD_CPPFLAGS) $(CLBCMD_LDFLAGS) $(CLBCMD_SRCS) -o $(CLBCMD_TARGET)
 
 clb_cmd_clean:
-	@rm -f $(LBCMD_TARGET)
+	@rm -f $(CLBCMD_TARGET)
 
 .PHONY: clb_pl clb_pl_clean
 clb_pl: clb_pl_clean
 	@echo Building $@
-	@gcc $(LBPL_CPPFLAGS) $(LBPL_LDFLAGS) $(LBPL_SRCS) -o $(LBPL_TARGET)
+	@gcc $(CLBPL_CPPFLAGS) $(CLBPL_LDFLAGS) $(CLBPL_SRCS) -o $(CLBPL_TARGET)
 
 clb_pl_clean:
-	@rm -f $(LBPL_TARGET)
+	@rm -f $(CLBPL_TARGET)
 	
 	
 .PHONY: hub hub_clean
 hub: hub_clean
 	@echo Building $@
-	@gcc $(LBSRV_CPPFLAGS) $(LBSRV_LDFLAGS) $(LBSRV_SRCS) -o $(LBSRV_TARGET)
+	@gcc $(HUB_CPPFLAGS) $(HUB_LDFLAGS) $(HUB_SRCS) -o $(HUB_TARGET)
 
 hub_clean:
-	@rm -f $(LBSRV_TARGET)
+	@rm -f $(HUB_TARGET)
 
 
 clean:

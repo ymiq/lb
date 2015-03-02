@@ -10,11 +10,11 @@
 #include <rcu_man.h>
 #include <lb_table.h>
 #include <log.h>
-#include <lbdb.h>
 #include <fcgi_stdio.h>  
 #include <openssl/md5.h>
 #include <evsrv.h>
 #include "cmdsrv.h"
+#include "cfg_db.h"
 
 using namespace std;
 #define CFG_CMDSRV_IP		"127.0.0.1"
@@ -22,11 +22,11 @@ using namespace std;
 
 #define CFG_WORKER_THREADS	1
 
-static int lb_init(void) {
+static int lb_init(lb_table *plb) {
 	int ret = 0;
 	
-	lbdb *db = new lbdb();
-	ret = db->lb_init();
+	cfg_db *db = new cfg_db();
+	ret = db->init_lb_table(plb);
 	if (ret < 0) {
 		LOGE("Can't create load balance talbe");
 	}
@@ -37,8 +37,8 @@ static int lb_init(void) {
 
 static int stat_init(stat_table *pstat) {
 	/* 该函数要求在所有stat_table创建后再调用 */
-	lbdb *db = new lbdb();
-	int ret = db->stat_init(pstat);
+	cfg_db *db = new cfg_db();
+	int ret = db->init_stat_table(pstat);
 	if (ret < 0) {
 		LOGE("Can't create stat talbe");
 	}
@@ -220,8 +220,15 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 	
+	/* 获取负载均衡HASH表 */
+	lb_table *plb = lb_table::get_inst();
+	if (plb == NULL) {
+		LOGE("Can't get load balance table");
+		return -1;
+	}
+	
 	/* 根据数据库信息创建负载均衡HASH表 */
-	if (lb_init() < 0) {
+	if (lb_init(plb) < 0) {
 		LOGE("Can't create hash table");
 		return -1;
 	}
