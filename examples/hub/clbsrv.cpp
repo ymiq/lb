@@ -6,15 +6,15 @@
 
 #include <unistd.h>
 #include <log.h>
-#include "lbsrv.h"
+#include "clbsrv.h"
 
 using namespace std;
 
-lbsrv::~lbsrv() {
+clbsrv::~clbsrv() {
 }
 
-void lbsrv::read(int sock, short event, void* arg) {
-	lbsrv *srv = (lbsrv *)arg;
+void clbsrv::read(int sock, short event, void* arg) {
+	clbsrv *srv = (clbsrv *)arg;
 	void *buffer;
 	size_t size = 0;
 	
@@ -32,11 +32,10 @@ void lbsrv::read(int sock, short event, void* arg) {
 //    syslog(LOG_INFO, "GET QUESTION: %s\n", buffer);
     
 	/* 释放缓冲区 */
-	srv->ev_recv_done(buffer);
+	srv->recv_done(buffer);
 }
 
-void lbsrv::ev_send_done(EV_SEND *send) {
+void clbsrv::send_done(unsigned long int token, void *buf, size_t len) {
 	/* 释放发送缓冲区 */
-	free(send);
 //	free(send->buf);
 }

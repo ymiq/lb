@@ -9,29 +9,38 @@
 
 using namespace std;
 
-typedef struct EV_SEND {
-	unsigned long int token;
-	void *buf;
-	size_t size;
-}EV_SEND;
-
 class evsock {
+private:
+	class EV_SEND {
+	public:
+		unsigned long int token;
+		void *buf;
+		size_t len;
+		
+	public:
+		~EV_SEND() {};
+		EV_SEND(unsigned long int token, void *buf, size_t len): token(token), buf(buf), len(len) {};
+			
+	protected:		
+	private:
+	};
+		
 public:
-	~evsock();
+	virtual ~evsock();
 	evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {};
     struct event read_ev;
     struct event write_ev;
 	
-	void *ev_recv(size_t *size);
-	void ev_recv_done(void *buf);
+	void *ev_recv(size_t *len);
+	void recv_done(void *buf);
 	
-	bool ev_send(EV_SEND *send);
-	virtual void ev_send_done(EV_SEND *send) = 0;
+	bool ev_send(unsigned long int token, void *buf, size_t len);
+	virtual void send_done(unsigned long int token, void *buf, size_t len) = 0;
 
 	queue<EV_SEND*> *ev_queue(void) {return &wq;}
 	
 	static void do_write(int sock, short event, void* arg);
-		
+
 protected:
 	
 private:

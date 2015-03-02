@@ -93,6 +93,7 @@ static void *pthread_ask_sim(void *args) {
 		/* 随机Sleep一段时间(50~200ms) */
 		rand_delay(1000, 2000);
 	}
+	return NULL;
 }
 
 

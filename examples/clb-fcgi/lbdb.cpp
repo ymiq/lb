@@ -150,12 +150,6 @@ int lbdb::lb_init(void) {
     }
 	result = mysql_store_result(&mysql);  
 
-    /* 返回记录集总数 */
-	int rowcount = mysql_num_rows(result); 
-	
-	/* 取得表的字段数组 数量 */
-	unsigned int feildcount = mysql_num_fields(result);  
-	
 	/* 获取负载均衡HASH表 */
 	lb_table *plb = lb_table::get_inst();
 	if (plb == NULL) {
@@ -197,12 +191,6 @@ int lbdb::stat_init(stat_table *pstat) {
     }
 	result = mysql_store_result(&mysql);  
 
-    /* 返回记录集总数 */
-	int rowcount = mysql_num_rows(result); 
-	
-	/* 取得表的字段数组 数量 */
-	unsigned int feildcount = mysql_num_fields(result);  
-	
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result))) {

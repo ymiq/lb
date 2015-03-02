@@ -11,12 +11,12 @@
 
 using namespace std;
 
-class lbsrv : public evsock {
+class clbsrv : public evsock {
 public:
-	~lbsrv();
-	lbsrv(int fd, struct event_base* base):evsock(fd, base) {}
+	~clbsrv();
+	clbsrv(int fd, struct event_base* base):evsock(fd, base) {}
 		
-	void ev_send_done(EV_SEND *send);
+	void send_done(unsigned long int token, void *buf, size_t len);
 	
 	static void read(int sock, short event, void* arg);
 protected:

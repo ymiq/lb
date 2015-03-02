@@ -25,7 +25,6 @@ cmdsrv::~cmdsrv() {
 void cmdsrv::read(int sock, short event, void* arg) {
 	cmdsrv *srv = (cmdsrv *)arg;
 	void *buffer;
-	char *resp_buf;
 	size_t size;
 	
 	/* 接收数据 */
@@ -46,26 +45,22 @@ void cmdsrv::read(int sock, short event, void* arg) {
     LOGD("   IP: 0x%08x", pcmd->ip);
     LOGD(" PORT: %d", pcmd->port);
     
-    EV_SEND send;
-    send.token = 0;
-    send.buf = malloc(1024);
-    if (send.buf == NULL) {
+    void *buf = malloc(1024);
+    if (buf == NULL) {
     	LOGE("no memory");
     	goto out;
     }
-    send.size = 16;
-    *(bool*)send.buf = true;
-    if (srv->ev_send(&send) == false) {
+    *(bool*)buf = true;
+    if (srv->ev_send(0, buf, 16) == false) {
     	LOGE("reponse error");
     }
 	
 	/* 释放缓冲区 */
 out:
-	srv->ev_recv_done(buffer);
+	srv->recv_done(buffer);
 }
 
-void cmdsrv::ev_send_done(EV_SEND *send) {
+void cmdsrv::send_done(unsigned long int token, void *buf, size_t len) {
 	/* 释放发送缓冲区 */
-	free(send->buf);
-	free(send);
+	free(buf);
 }

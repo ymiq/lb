@@ -8,7 +8,7 @@ using namespace std;
 class rcu_base {
 public:
 	rcu_base() {};
-	~rcu_base() {};
+	virtual ~rcu_base() {};
 	virtual void job_start(int id) = 0;
 	virtual void job_end(int id) = 0;
 	virtual void free(void) = 0;

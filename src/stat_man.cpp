@@ -268,7 +268,6 @@ int stat_man::clear(unsigned long int hash, unsigned int code) {
 
 
 int stat_man::read(unsigned long int hash, stat_info *pinfo, struct timeval *tm) {
-	int ret = 0;
 	thread_table *ptbl = stat_tbl;
 	stat_obj obj;
 	

@@ -51,7 +51,6 @@ int command::do_request(void *buf, size_t len) {
 
 
 int command::get_repsone(void *buf, int *size) {
-	void *pwrite;
 	
 	/* 确认连接已经建立 */
 	if ((sockfd < 0) || !buf || !size) {
@@ -59,7 +58,6 @@ int command::get_repsone(void *buf, int *size) {
 	}
 	
 	/* 等待数据 */
-	pwrite = buf;
 	while(1) {
 		fd_set fdread;
 		FD_ZERO(&fdread);  
@@ -112,12 +110,14 @@ int command::reponse(void) {
 	}
 	
 	/* 处理服务器应答 */
-	if (len >= sizeof(bool)) {
-		int ret = *(bool*)repbuf;
+	if (len >= (int)sizeof(bool)) {
+		bool ret;
+		memcpy(&ret, repbuf, sizeof(bool));
 		if (ret == false) {
 			printf("处理失败\n");
 			return -1;
 		} 
 		printf("处理成功\n");
 	}
+	return 0;
 }

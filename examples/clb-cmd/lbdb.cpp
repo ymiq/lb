@@ -31,8 +31,6 @@ using namespace std;
 #define CFG_ENTERPRISE_GROUPS	32
 #define CFG_RECEIVE_THREADS		32
 
-#pragma comment(lib,"libmysql.lib")  
-
 lbdb::lbdb() {
     /* 检查库文件 */
     if (mysql_library_init(0, NULL, NULL) != 0) {  
@@ -134,9 +132,6 @@ int lbdb::db_dump(void) {
     }
 	result = mysql_store_result(&mysql);  
 
-    /* 返回记录集总数 */
-	int rowcount = mysql_num_rows(result); 
-	
 	/* 取得表的字段数组 数量 */
 	unsigned int feildcount = mysql_num_fields(result);  
 	
@@ -151,7 +146,7 @@ int lbdb::db_dump(void) {
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result)) ) {  
-		for(int i=0; i<feildcount;i++) {  
+		for(unsigned int i=0; i<feildcount; i++) {  
 			if (i == 2) {
 				unsigned long int hash = strtoul(row[i], NULL, 10);
 				cout.width(16);  
@@ -167,7 +162,8 @@ int lbdb::db_dump(void) {
 	}  	
 	
 	/* 释放查询信息 */
-    mysql_free_result(result);  
+    mysql_free_result(result);
+    return 0; 
 }
 
 

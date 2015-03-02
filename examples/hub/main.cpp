@@ -10,18 +10,10 @@
 #include <event.h>
 #include <log.h>
 #include <evsrv.h>
-#include "lbsrv.h"
+#include "clbsrv.h"
 
 #define CFG_LISTEN_IP		"127.0.0.1"
 #define CFG_LISTEN_PORT		10000
-
-struct sock_ev {
-    struct event* read_ev;
-    struct event* write_ev;
-    char* buffer;
-};
-
-static struct event_base* base;
 
 static unsigned int port = CFG_LISTEN_PORT;
 static char ip_str[256] = CFG_LISTEN_IP;
@@ -45,10 +37,8 @@ static void help(void) {
 
 static bool parser_opt(int argc, char **argv) {
     int c;
-    int digit_optind = 0;
 	
     while (1) {
-        int this_option_optind = optind ? optind : 1;
         int option_index = 0;
 
         c = getopt_long(argc, argv, "hp:i:f",
@@ -78,8 +68,6 @@ static bool parser_opt(int argc, char **argv) {
 }
 
 int main(int argc, char* argv[]) {
-    struct sockaddr_in sk_addr;
-    int sock;
     int yes;
     
     /* 设置日志参数 */
@@ -95,9 +83,9 @@ int main(int argc, char* argv[]) {
     }
     
     /* 创建服务 */
-    evsrv<lbsrv> *srv;
+    evsrv<clbsrv> *srv;
     try {
-    	srv = new evsrv<lbsrv>(ip_str, (unsigned short)port);
+    	srv = new evsrv<clbsrv>(ip_str, (unsigned short)port);
     } catch(const char *msg) {
     	printf("Error out: %s\n", msg);
     	return -1;

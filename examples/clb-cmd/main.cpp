@@ -91,7 +91,6 @@ static int group_id(const char *str, unsigned int *id) {
 
 static int host_info(char *str, unsigned int *ip, unsigned int *port) {
 	char *pport;
-	char *psec;
 	unsigned int port_no;
 	unsigned int ip_addr;
 	

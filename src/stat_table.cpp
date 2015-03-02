@@ -47,7 +47,7 @@ stat_table::~stat_table() {
 stat_obj *stat_table::stat_get(unsigned long int hash) {
 	unsigned int index;
 	unsigned long int save_hash;
-	stat_index *pindex, *prev;
+	stat_index *pindex;
 	
 	if (!hash || (hash == -1UL)) {
 		LOGE("Input parameter error");
@@ -55,7 +55,7 @@ stat_obj *stat_table::stat_get(unsigned long int hash) {
 	}
 	
 	index = (unsigned int)(hash % CFG_INDEX_SIZE);
-	prev = pindex = &stat_idx[index];
+	pindex = &stat_idx[index];
 	
 	/* 匹配是否存在该条目 */
 	do {
