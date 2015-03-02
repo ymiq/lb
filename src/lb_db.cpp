@@ -3,6 +3,9 @@
 #include <sstream>
 #include <string>
 #include <stdio.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "lb_db.h"
 #include <openssl/md5.h>
 
@@ -141,9 +144,12 @@ int lb_db::db_dump(void) {
 	
 	/* 字段指针 遍历字段 */
 	MYSQL_FIELD *feild = NULL;  
+	const char *cltab[] = {
+		"\t", "\t\t", "\t\t\t", "\t\t", "\t", "\t", "\t", "\t"
+	};
 	for (unsigned int i=0; i<feildcount; i++) {  
 		feild = mysql_fetch_field_direct(result, i);  
-		cout << feild->name << "\t\t";  
+		cout << feild->name << cltab[i];  
 	}  
 	cout << endl;  
 	
@@ -156,8 +162,10 @@ int lb_db::db_dump(void) {
 				cout.width(16);  
 			    cout << hex << hash << "\t";  
 			} else if (i == 3) {
-				unsigned int master = strtoul(row[i], NULL, 10);
-			    cout << hex << master << "\t";  
+				struct in_addr in;
+				in.s_addr = ntohl(strtoul(row[i], NULL, 10));
+				char *ip_str = inet_ntoa(in);
+			    cout << ip_str << "\t";  
 			} else {
 		    	cout << row[i] << "\t";  
 		    }
@@ -198,7 +206,7 @@ unsigned long int lb_db::check_company(const char *company) {
 }
 
 
-bool lb_db::check_groupid(int groupid) {
+bool lb_db::check_groupid(unsigned int groupid) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
@@ -212,7 +220,7 @@ bool lb_db::check_groupid(int groupid) {
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result))) {
-		int gid = atoi(row[3]);
+		unsigned int gid = strtoul(row[3], NULL, 10);
 		if (gid == groupid) {
 		    mysql_free_result(result);  
 		    return true;

@@ -5,16 +5,16 @@
 #include <cstdio>
 #include <cstring>
 #include <unistd.h>
+#include <clb_cmd.h>
 
 using namespace std;
 
-class command {
+class cmd_clnt {
 public:
-	command();
-	~command();
+	cmd_clnt();
+	~cmd_clnt();
 	
-	int request(unsigned int cmd, unsigned long int hash, unsigned int id,
-					unsigned int ip, unsigned int port);
+	int request(clb_cmd &cmd);
 	int reponse(void);
 		
 protected:

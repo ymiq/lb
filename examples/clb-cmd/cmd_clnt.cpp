@@ -6,12 +6,12 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "command.h"
+#include "cmd_clnt.h"
 
 #define CFG_LB_IPADDR		"127.0.0.1"
 #define CFG_LB_CMDPORT		10000
 
-command::command() {
+cmd_clnt::cmd_clnt() {
 	struct sockaddr_in serv_addr;
 	
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -28,13 +28,13 @@ command::command() {
 	}
 }	
 
-command::~command() {
+cmd_clnt::~cmd_clnt() {
 	if (sockfd > 0) {
 		close(sockfd);
 	}
 }
 
-int command::do_request(void *buf, size_t len) {
+int cmd_clnt::do_request(void *buf, size_t len) {
 	
 	/* 参数检查 */
 	if ((sockfd < 0) || !buf || (len < 0)) {
@@ -50,7 +50,7 @@ int command::do_request(void *buf, size_t len) {
 }
 
 
-int command::get_repsone(void *buf, int *size) {
+int cmd_clnt::get_repsone(void *buf, int *size) {
 	
 	/* 确认连接已经建立 */
 	if ((sockfd < 0) || !buf || !size) {
@@ -79,12 +79,12 @@ int command::get_repsone(void *buf, int *size) {
 }
 
 
-int command::request(unsigned int cmd, unsigned long int hash, unsigned int id,
-					unsigned int ip, unsigned int port) {
+int cmd_clnt::request(clb_cmd &cmd) {
+#if 0	
 	LB_CMD req;
 	
 	/* 下发命令到服务器 */	
-	req.command = cmd;
+	req.cmd_clnt = cmd;
 	req.group = id;
 	req.hash = hash;
 	req.ip = ip;
@@ -93,11 +93,11 @@ int command::request(unsigned int cmd, unsigned long int hash, unsigned int id,
 		printf("连接服务器失败\n");
 		return -1;
 	}
-	
+#endif	
 	return 0;
 }
 
-int command::reponse(void) {
+int cmd_clnt::reponse(void) {
 	char repbuf[1024];
 	int len;
 	

@@ -24,7 +24,7 @@ public:
 	int db_create(void);
 	int db_dump(void);
 	unsigned long int check_company(const char *company);
-	bool check_groupid(int groupid);
+	bool check_groupid(unsigned int groupid);
 
 protected:
 	MYSQL mysql;

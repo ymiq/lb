@@ -25,13 +25,14 @@ int stat_obj::start(unsigned int code) {
 	return 0;
 }
 
+
 int stat_obj::stop(unsigned int code) {
 	flags &= ~code;
 	return 0;
 }
 
+
 int stat_obj::clear(unsigned int code) {
-	flags &= ~code;
 	memset(&info, 0, sizeof(info));
 	return 0;
 }
@@ -44,19 +45,25 @@ int stat_obj::read(stat_info *pinfo) {
 
 
 int stat_obj::stat(void *packet, int packet_size) {
-	info.total_packets++;
+	if (flags) {
+		info.total_packets++;
+	}
 	return 0;
 }
 
 
 int stat_obj::stat() {
-	info.total_packets++;
+	if (flags) {
+		info.total_packets++;
+	}
 	return 0;
 }
 
 
 int stat_obj::error_stat() {
-	info.error_packets++;
+	if (flags) {
+		info.error_packets++;
+	}
 	return 0;
 }
 

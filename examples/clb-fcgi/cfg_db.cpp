@@ -19,7 +19,7 @@ cfg_db::cfg_db(const char *ip, unsigned short port, const char *db_name) :
 			lb_db(ip, port, db_name) {
 	grp_idx = (group_index *) calloc(sizeof(group_index), 1);
 	if (grp_idx == NULL) {
-	        throw "No memory for create lbdb";
+		throw "No memory for create lbdb";
 	}
 }
 

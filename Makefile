@@ -16,8 +16,9 @@ CLBFCGI_LDFLAGS = -lstdc++ -lpthread -lfcgi -L/usr/lib64/mysql/ -lmysqlclient -l
 
 CLBCMD_TARGET := bin/clb-cmd
 CLBCMD_SRCS = examples/clb-cmd/main.cpp
-CLBCMD_SRCS += examples/clb-cmd/command.cpp
+CLBCMD_SRCS += examples/clb-cmd/cmd_clnt.cpp
 CLBCMD_SRCS += src/lb_db.cpp
+CLBCMD_SRCS += src/clb_cmd.cpp
 CLBCMD_CPPFLAGS = -O2 -Wall -Werror -I./include
 CLBCMD_LDFLAGS = -lstdc++ -lpthread -L/usr/lib64/mysql/ -lmysqlclient -lcrypto
 
