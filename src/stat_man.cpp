@@ -81,85 +81,6 @@ int stat_man::reg(stat_table *pstat) {
 }
 
 
-int stat_man::open(unsigned long int hash) {
-	thread_table *ptbl = stat_tbl;
-	stat_table *pstat;
-	int last = 0;
-	
-	/* 遍历所有注册统计对象表 */
-	do
-	{
-		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
-			pstat = ptbl->table[i];
-			
-			/* 搜索结束 */
-			if (pstat == NULL) {
-				return 0;
-			}
-			
-			/* 打开指定线程下相应统计对象 */
-			if (pstat->open(hash) < 0) {
-				
-				/* 回滚处理 */
-				last += i;
-				--last;
-				ptbl = stat_tbl;
-	
-				/* 遍历所有注册统计对象表, 进行销毁处理 */
-				while(ptbl && (last >= 0))
-				{
-					for (int j=0; j<CFG_THREAD_TABLE_SIZE; j++) {
-						stat_table *pclose = ptbl->table[j];
-						if (pclose) {
-							pclose->close(hash);
-						}
-						if (--last == 0) {
-							return -1;
-						}
-					}
-					ptbl = ptbl->next;
-				}
-				
-				/* 出错返回 */
-				return -1;
-			}
-		}
-		last += CFG_THREAD_TABLE_SIZE;
-		ptbl = ptbl->next;
-	}while (ptbl);
-	
-	return 0;
-}
-
-
-int stat_man::close(unsigned long int hash) {
-	int ret = 0;
-	thread_table *ptbl = stat_tbl;
-	stat_table *pstat;
-	
-	/* 遍历所有注册统计对象表 */
-	do
-	{
-		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
-			pstat = ptbl->table[i];
-
-			/* 搜索结束 */
-			if (pstat == NULL) {
-				return ret;
-			}
-			
-			/* 关闭指定线程下相应统计对象 */
-			if (pstat->close(hash) < 0) {
-				ret = -1;
-			}
-		}
-		ptbl = ptbl->next;
-	}while (ptbl);
-	
-	return ret;
-}
-
-
 int stat_man::start(unsigned long int hash, unsigned int code) {
 	int last = 0;
 	thread_table *ptbl = stat_tbl;
@@ -190,7 +111,7 @@ int stat_man::start(unsigned long int hash, unsigned int code) {
 					for (int j=0; j<CFG_THREAD_TABLE_SIZE; j++) {
 						stat_table *pstop = ptbl->table[j];
 						if (pstop) {
-							pstop->stop(hash, code);
+							pstop->stop(hash);
 						}
 						if (--last == 0) {
 							return -1;
@@ -211,7 +132,7 @@ int stat_man::start(unsigned long int hash, unsigned int code) {
 }
 
 
-int stat_man::stop(unsigned long int hash, unsigned int code) {
+int stat_man::stop(unsigned long int hash) {
 	int ret = 0;
 	thread_table *ptbl = stat_tbl;
 	stat_table *pstat;
@@ -228,7 +149,7 @@ int stat_man::stop(unsigned long int hash, unsigned int code) {
 			}
 			
 			/* 关闭指定线程下相应统计对象 */
-			if (pstat->stop(hash, code) < 0) {
+			if (pstat->stop(hash) < 0) {
 				ret = -1;
 			}
 		}
@@ -239,7 +160,7 @@ int stat_man::stop(unsigned long int hash, unsigned int code) {
 }
 
 
-int stat_man::clear(unsigned long int hash, unsigned int code) {
+int stat_man::clear(unsigned long int hash) {
 	int ret = 0;
 	thread_table *ptbl = stat_tbl;
 	stat_table *pstat;
@@ -256,7 +177,7 @@ int stat_man::clear(unsigned long int hash, unsigned int code) {
 			}
 			
 			/* 关闭指定线程下相应统计对象 */
-			if (pstat->clear(hash, code) < 0) {
+			if (pstat->clear(hash) < 0) {
 				ret = -1;
 			}
 		}

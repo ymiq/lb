@@ -13,10 +13,6 @@
 #include "lb_db.h"
 #include "cmd_clnt.h"
 
-#define CFG_LB_IPADDR		"127.0.0.1"
-#define CFG_LB_CMDPORT		8000
-
-int sockfd = -1;
 
 static int db_create(void) {
 	int ret;
@@ -104,7 +100,13 @@ static int company_hash(char *str, clb_cmd &cmd) {
 			delete db;
 			return -1;
 		}
-		pstart = pend++;
+		valids++;
+		
+		/* 退出 */
+		if (!pend) {
+			break;
+		}
+		pstart = pend + 1;
 	}
 	return valids;
 }
@@ -182,7 +184,10 @@ static int group_id(char *str, clb_cmd &cmd) {
 			return -1;
 		}
 		valids++;
-		pstart = pend++;
+		if (!pend) {
+			break;
+		}
+		pstart = pend + 1;
 	}
 	return valids;
 }
@@ -257,6 +262,8 @@ static void help(void) {
 
 
 int main(int argc, char *argv[]) {
+	bool monitor = false;
+	
 	/* 设置随机数种子 */
 	srand((int)time(NULL));
 	
@@ -294,6 +301,9 @@ int main(int argc, char *argv[]) {
 			command |= 2;
 		} else if (!strcmp(argv[2], "info")) {
 			command |= 4;
+		} else if (!strcmp(argv[2], "monitor")) {
+			command |= 4;
+			monitor = true;
 		} else {
 			help();
 			return 0;
@@ -318,6 +328,9 @@ int main(int argc, char *argv[]) {
 			command |= 2;
 		} else if (!strcmp(argv[2], "info")) {
 			command |= 4;
+		} else if (!strcmp(argv[2], "monitor")) {
+			command |= 4;
+			monitor = true;
 		} else if (!strcmp(argv[2], "switch")) {
 			command |= 8;
 		} else {
@@ -361,6 +374,14 @@ int main(int argc, char *argv[]) {
 	cmd.command = command;
 	
 	/* 命令处理 */
+	if (monitor) {
+		while (1) {
+			if (pclnt->request(cmd) >= 0) {
+				return pclnt->reponse();
+			}
+			sleep(1);
+		}
+	}
 	if (pclnt->request(cmd) >= 0) {
 		return pclnt->reponse();
 	}

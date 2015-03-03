@@ -28,8 +28,10 @@ void clbsrv::read(int sock, short event, void* arg) {
 	}
 	
     /* 处理数据 */
-//    buffer[256] = '\0';
+    char *request = (char*)buffer;
+    request[256] = '\0';
 //    syslog(LOG_INFO, "GET QUESTION: %s\n", buffer);
+	printf("GET QUESTION: %s\n", request);
     
 	/* 释放缓冲区 */
 	srv->recv_done(buffer);

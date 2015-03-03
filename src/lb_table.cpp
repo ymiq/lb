@@ -8,11 +8,6 @@
 
 lb_table::lb_table()
 {
-	/* 编译检查 */
-	if (sizeof(server_info) != sizeof(unsigned long int)) {
-		throw "server_info struct is illegal.";
-	}
-	
 	/* 申请哈希表索引 */
 	lb_idx_buf = (lb_index *) malloc(sizeof(lb_index) * CFG_INDEX_SIZE + CFG_CACHE_ALIGN);
 	if (lb_idx_buf == NULL) {
@@ -24,7 +19,7 @@ lb_table::lb_table()
 	lb_idx = (lb_index*) (((size_t)lb_idx_buf) & ~(CFG_CACHE_ALIGN - 1));		
 	
 	/* RCU初始化 */
-	info_list = new rcu_obj<server_info>();
+	info_list = new rcu_obj<lbsrv_info>();
 	if (info_list == NULL) {
 		throw "Can't create rcu_obj for lb_table";
 	}
@@ -36,7 +31,7 @@ lb_table::~lb_table()
 	/* 该类的实例创建了就不要考虑销毁了 */
 }
 
-server_info *lb_table::lb_get(unsigned long int hash)
+lbsrv_info *lb_table::lb_get(unsigned long int hash)
 {
 	unsigned int index;
 	unsigned long int save_hash;
@@ -71,12 +66,13 @@ server_info *lb_table::lb_get(unsigned long int hash)
 	return NULL;
 }
 
-server_info *lb_table::server_info_new(server_info *ref, int handle, int lb_status, int stat_status) {
-	server_info *server = (server_info *)malloc(sizeof(server_info));
+lbsrv_info *lb_table::lbsrv_info_new(lbsrv_info *ref, int handle, int lb_status, int stat_status) {
+	lbsrv_info *server = (lbsrv_info *)malloc(sizeof(lbsrv_info));
 	
 	if (server == NULL) {
-		throw "No memory to alloc server_info";
+		throw "No memory to alloc lbsrv_info";
 	}
+	memset(server, 0, sizeof(lbsrv_info));
 	
 	if (ref) {
 		*server = *ref;
@@ -108,12 +104,12 @@ server_info *lb_table::server_info_new(server_info *ref, int handle, int lb_stat
 }
 
 
-server_info *lb_table::lb_update(unsigned long int hash, int handle, int lb_status, int stat_status)
+lbsrv_info *lb_table::lb_update(unsigned long int hash, int handle, int lb_status, int stat_status)
 {
 	unsigned int index;
 	unsigned long int save_hash;
 	lb_index *pindex, *prev;
-	server_info *pserver;
+	lbsrv_info *pserver;
 	
 	if (!hash || (hash == -1UL)) {
 		return NULL;
@@ -126,7 +122,7 @@ server_info *lb_table::lb_update(unsigned long int hash, int handle, int lb_stat
 	do {
 		for (int i=0; i<CFG_ITEMS_SIZE; i++) {
 			save_hash = pindex->items[i].hash;
-
+			
 			/* 搜索结束 */
 			if (!save_hash) {
 				goto phase2;	
@@ -136,7 +132,7 @@ server_info *lb_table::lb_update(unsigned long int hash, int handle, int lb_stat
 			if (save_hash == hash) {
 				
 				/* 更新条目信息 */
-				pserver = server_info_new(pindex->items[i].server, 
+				pserver = lbsrv_info_new(pindex->items[i].server, 
 						handle, lb_status, stat_status);
 				wmb();
 				pindex->items[i].server = pserver;
@@ -157,7 +153,7 @@ phase2:
 			if (!save_hash || (save_hash == -1UL)) {				
 
 				/* 更新条目信息 */
-				pserver = server_info_new(NULL, handle, lb_status, stat_status);
+				pserver = lbsrv_info_new(NULL, handle, lb_status, stat_status);
 				pindex->items[i].server = pserver;
 
 				/* 增加内存屏障，确保写入先后顺序 */
@@ -177,7 +173,7 @@ phase2:
 	}
 	
 	/* 更新条目信息 */
-	pserver = server_info_new(NULL, handle, lb_status, stat_status);
+	pserver = lbsrv_info_new(NULL, handle, lb_status, stat_status);
 	pindex->items[0].server = pserver;
 	pindex->items[0].hash = hash;
 
@@ -231,7 +227,7 @@ bool lb_table::lb_delete(unsigned long int hash)
 
 
 int lb_table::get_handle(unsigned long int hash){
-	server_info *pserver;
+	lbsrv_info *pserver;
 	
 	pserver = lb_get(hash);
 	if (pserver == NULL) {
@@ -240,8 +236,9 @@ int lb_table::get_handle(unsigned long int hash){
 	return pserver->handle;
 }
 
-int lb_table::get_handle(unsigned long int hash, bool *lb_status) {
-	server_info *pserver;
+int lb_table::get_handle(unsigned long int hash,
+				 unsigned int *lb_status, unsigned int *stat_status) {
+	lbsrv_info *pserver;
 	
 	pserver = lb_get(hash);
 	if (pserver == NULL) {
@@ -250,11 +247,27 @@ int lb_table::get_handle(unsigned long int hash, bool *lb_status) {
 	if (lb_status) {
 		*lb_status = pserver->lb_status;
 	}
+	if (stat_status) {
+		*stat_status = pserver->stat_status;
+	}
 	return pserver->handle;
 }
 
+int lb_table::lb_info(unsigned long int hash, lbsrv_info *info) {
+	lbsrv_info *pserver;
+	
+	pserver = lb_get(hash);
+	if (pserver == NULL) {
+		return -1;
+	}
+	if (info) {
+		*info = *pserver;
+	}
+	return 0;
+}
+
 bool lb_table::is_lb_start(unsigned long int hash) {
-	server_info *pserver;
+	lbsrv_info *pserver;
 	
 	pserver = lb_get(hash);
 	if (pserver == NULL) {
@@ -264,7 +277,7 @@ bool lb_table::is_lb_start(unsigned long int hash) {
 }
 
 int lb_table::lb_start(unsigned long int hash) {
-	server_info *pserver;
+	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, -1, CFG_SERVER_LB_START, -1);
 	if (pserver == NULL) {
@@ -274,7 +287,7 @@ int lb_table::lb_start(unsigned long int hash) {
 }
 
 int lb_table::lb_start(unsigned long int hash, int handle) {
-	server_info *pserver;
+	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, handle, CFG_SERVER_LB_START, -1);
 	if (pserver == NULL) {
@@ -283,8 +296,9 @@ int lb_table::lb_start(unsigned long int hash, int handle) {
 	return 0;
 }
 
+
 int lb_table::lb_stop(unsigned long int hash) {
-	server_info *pserver;
+	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, -1, CFG_SERVER_LB_STOP, -1);
 	if (pserver == NULL) {
@@ -294,7 +308,7 @@ int lb_table::lb_stop(unsigned long int hash) {
 }
 
 int lb_table::lb_stop(unsigned long int hash, int handle) {
-	server_info *pserver;
+	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, handle, CFG_SERVER_LB_STOP, -1);
 	if (pserver == NULL) {
@@ -304,7 +318,7 @@ int lb_table::lb_stop(unsigned long int hash, int handle) {
 }
 
 bool lb_table::is_stat_start(unsigned long int hash) {
-	server_info *pserver;
+	lbsrv_info *pserver;
 	
 	pserver = lb_get(hash);
 	if (pserver == NULL) {
@@ -314,7 +328,7 @@ bool lb_table::is_stat_start(unsigned long int hash) {
 }
 
 int lb_table::stat_start(unsigned long int hash) {
-	server_info *pserver;
+	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, -1, -1, CFG_SERVER_STAT_START);
 	if (pserver == NULL) {
@@ -324,7 +338,7 @@ int lb_table::stat_start(unsigned long int hash) {
 }
 
 int lb_table::stat_stop(unsigned long int hash) {
-	server_info *pserver;
+	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, -1, -1, CFG_SERVER_STAT_STOP);
 	if (pserver == NULL) {

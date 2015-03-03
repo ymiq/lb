@@ -15,15 +15,17 @@ using namespace std;
 #define CFG_SERVER_STAT_STOP		0
 #define CFG_SERVER_STAT_START		1
 
-typedef struct server_info {
+typedef struct lbsrv_info {
 	int handle;
-	bool lb_status;
-	bool stat_status;
-}server_info;
+	unsigned int ip;
+	unsigned short port;
+	unsigned int lb_status;
+	unsigned int stat_status;
+}lbsrv_info;
 
 typedef struct lb_item{
 	unsigned long int hash;
-	server_info *server;
+	lbsrv_info *server;
 }lb_item;
 
 typedef struct lb_index {
@@ -40,7 +42,8 @@ public:
 
 	/* When stoped, handle return -1 */
 	int get_handle(unsigned long int hash);
-	int get_handle(unsigned long int hash, bool *lb_status);
+	int get_handle(unsigned long int hash, 
+			unsigned int *lb_status, unsigned int *stat_status);
 	
 	bool lb_delete(unsigned long int hash);
 	
@@ -49,6 +52,7 @@ public:
 	int lb_start(unsigned long int hash);
 	int lb_stop(unsigned long int hash, int handle);
 	int lb_start(unsigned long int hash, int handle);
+	int lb_info(unsigned long int hash, lbsrv_info *info);
 	
 	bool is_stat_start(unsigned long int hash);	
 	int stat_start(unsigned long int hash);
@@ -59,14 +63,14 @@ protected:
 private:
 	lb_index *lb_idx;
 	void *lb_idx_buf;
-	rcu_obj<server_info> *info_list;
+	rcu_obj<lbsrv_info> *info_list;
 	
 	lb_table();
 	~lb_table();
 	
-	server_info *server_info_new(server_info *ref, int handle, int lb_status, int stat_status);
-	server_info *lb_get(unsigned long int hash);
-	server_info *lb_update(unsigned long int hash, int handle, int lb_status, int stat_status);
+	lbsrv_info *lbsrv_info_new(lbsrv_info *ref, int handle, int lb_status, int stat_status);
+	lbsrv_info *lb_get(unsigned long int hash);
+	lbsrv_info *lb_update(unsigned long int hash, int handle, int lb_status, int stat_status);
 };
 
 #endif /* _LB_TABLE_H__ */

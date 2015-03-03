@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
     int yes;
     
     /* 设置日志参数 */
-    LOG_OPEN("robot");
+    LOG_OPEN("hub");
     
     /* 解析参数 */
     if (!parser_opt(argc, argv)) {

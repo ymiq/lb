@@ -31,8 +31,9 @@ typedef struct LB_CMD {
 
 	int sockfd;
 	
-	int do_request(void *buf, size_t len);
-	int get_repsone(void *buf, int *size);
+	void *do_recv(size_t *len);
+	void *get_repsone(size_t *len);
+	int do_request(const void *buf, size_t len);
 };
 
 #endif /* __COMMAND_H__ */

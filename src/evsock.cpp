@@ -97,7 +97,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 	ps->len = send(sock, ps->buf, ps->len, 0);
 	
 	/* 通知发送完成 */
-	evsk->send_done(ps->token, ps->buf, ps->len);
+	evsk->send_done(ps->token, (void*)ps->buf, ps->len);
 	
 	/* 释放EV_SEND */
 	delete ps;
@@ -116,7 +116,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 }
 
 
-bool evsock::ev_send(unsigned long int token, void *buf, size_t size) {
+bool evsock::ev_send(unsigned long int token, const void *buf, size_t size) {
 	bool empty;
 	
 	if (!buf || !size) {

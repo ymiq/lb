@@ -3,11 +3,12 @@
 
 #include <cstdlib>
 #include <cstdio>
-#include <cstring>
 #include <ctime>
+#include <string>
 #include <evsock.h>
 #include <stat_man.h>
 #include <lb_table.h>
+#include <clb_cmd.h>
 
 using namespace std;
 
@@ -34,10 +35,10 @@ private:
 	stat_man *pstat;
 	lb_table *plb;
 
-	void *company_stat(LB_CMD *cmd, size_t *size);
-	void *group_stat(LB_CMD *cmd, size_t *size);
-	void *company_lb(LB_CMD *cmd, size_t *size);
-	void *group_lb(LB_CMD *cmd, size_t *size);
+	clb_cmd_resp *company_stat(clb_cmd &cmd);
+	clb_cmd_resp *group_stat(clb_cmd &cmd);
+	clb_cmd_resp *company_lb(clb_cmd &cmd);
+	clb_cmd_resp *group_lb(clb_cmd &cmd);
 };
 
 

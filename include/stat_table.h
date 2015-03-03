@@ -32,13 +32,10 @@ public:
 	int stat(unsigned long int hash, void *packet, int packet_size);
 	int error_stat(unsigned long int hash);
 
-	int open(unsigned long int hash);		/* 创建一个统计对象 */
-	int close(unsigned long int hash);		/* 销毁一个统计对象 */
-	
 	int start(unsigned long int hash, unsigned int code);	/* 开启统计 */
-	int stop(unsigned long int hash, unsigned int code);		/* 暂停统计 */
-	int clear(unsigned long int hash, unsigned int code);	/* 清除统计 */
-	stat_obj *get(unsigned long int hash);				/* 获取对象 */
+	int stop(unsigned long int hash);						/* 暂停统计 */
+	int clear(unsigned long int hash);						/* 清除统计 */
+	stat_obj *get(unsigned long int hash);					/* 获取对象 */
 
 protected:
 	

@@ -206,22 +206,6 @@ bool stat_table::stat_delete(unsigned long int hash) {
 }
 
 
-int stat_table::open(unsigned long int hash) {
-	stat_obj *pobj = stat_new(hash);
-	if (pobj == NULL) {
-		return -1;
-	}
-	return 0;
-}
-
-
-int stat_table::close(unsigned long int hash) {
-	if (!stat_delete(hash))
-		return -1;
-	return 0;
-}
-
-
 int stat_table::start(unsigned long int hash, unsigned int code) {
 	stat_obj *pobj = stat_new(hash);
 	if (!pobj) {
@@ -231,26 +215,25 @@ int stat_table::start(unsigned long int hash, unsigned int code) {
 }
 
 
-int stat_table::stop(unsigned long int hash, unsigned int code) {
-	stat_obj *pobj = stat_new(hash);
-	if (!pobj) {
+int stat_table::stop(unsigned long int hash) {
+	if (!stat_delete(hash))
 		return -1;
-	}
-	return pobj->stop(code);
+	return 0;
 }
 
 
-int stat_table::clear(unsigned long int hash, unsigned int code) {
+
+int stat_table::clear(unsigned long int hash) {
 	stat_obj *pobj = stat_new(hash);
 	if (!pobj) {
 		return -1;
 	}
-	return pobj->clear(code);
+	return pobj->clear(hash);
 }
 
 
 stat_obj *stat_table::get(unsigned long int hash) {
-	stat_obj *pobj = stat_new(hash);
+	stat_obj *pobj = stat_get(hash);
 	if (!pobj) {
 		return NULL;
 	}
@@ -259,7 +242,7 @@ stat_obj *stat_table::get(unsigned long int hash) {
 
 
 int stat_table::stat(unsigned long int hash, void *packet, int packet_size) {
-	stat_obj *pobj = stat_new(hash);
+	stat_obj *pobj = stat_get(hash);
 	if (!pobj) {
 		return -1;
 	}
@@ -268,7 +251,7 @@ int stat_table::stat(unsigned long int hash, void *packet, int packet_size) {
 
 
 int stat_table::stat(unsigned long int hash) {
-	stat_obj *pobj = stat_new(hash);
+	stat_obj *pobj = stat_get(hash);
 	if (!pobj) {
 		return -1;
 	}
@@ -277,7 +260,7 @@ int stat_table::stat(unsigned long int hash) {
 
 
 int stat_table::error_stat(unsigned long int hash) {
-	stat_obj *pobj = stat_new(hash);
+	stat_obj *pobj = stat_get(hash);
 	if (!pobj) {
 		return -1;
 	}

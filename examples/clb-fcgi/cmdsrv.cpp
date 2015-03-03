@@ -8,6 +8,8 @@
 #include <log.h>
 #include <stat_man.h>
 #include <lb_table.h>
+#include <json_obj.h>
+#include <clb_cmd.h>
 #include "cmdsrv.h"
 
 using namespace std;
@@ -22,162 +24,148 @@ cmdsrv::~cmdsrv() {
 }
 
 
-void *cmdsrv::company_stat(LB_CMD *cmd, size_t *size) {
-	char *buf;
+clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
+	list<unsigned long int>::iterator it;
+	CLB_CMD_RESP100 resp;
+	clb_cmd_resp100 *ret = new clb_cmd_resp100;
 	
-	unsigned int command = cmd->cmd & 0x0fffffff;
+	memset(&resp, 0, sizeof(CLB_CMD_RESP100));
+	unsigned int command = cmd.command & 0x0fffffff;
 	switch(command) {
 		
 	/* 开启统计 */		
 	case 1:
-		buf = (char*)malloc(sizeof(bool));
-		if (buf == NULL) {
-			LOGE("No memory");
-			return NULL;
-		}
-		*size = sizeof(bool);
-		
-		if (pstat->start(cmd->hash, 1) < 0) {
-		    *(bool*)buf = false;
-			LOGE("start statics error");
-		} else {
-		    *(bool*)buf = false;
+		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+			unsigned long int hash = *it;
+			resp.hash = hash;
+
+			/* 创建统计对象 */
+			if (pstat->start(hash, 1) < 0) {
+				resp.success = false;
+			} else {
+				/* 打开统计开关 */
+				if (plb->stat_start(hash) <0 ) {
+					resp.success = false;
+				} else {
+					resp.success = true;
+				}
+			}
+			ret->resp_list.push_back(resp);
 		}
 		break;
 		
-	/* 关闭统计 */	
+	/* 关闭统计 */
 	case 2:
-		buf = (char*)malloc(sizeof(bool));
-		if (buf == NULL) {
-			LOGE("No memory");
-			return NULL;
+		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+			unsigned long int hash = *it;
+			resp.hash = hash;
+
+			/* 关闭统计开关 */
+			resp.success = true;
+			if (plb->stat_stop(hash) < 0) {
+				resp.success = false;
+			}
+			
+			/* 销毁统计对象 */
+			if (pstat->stop(hash) <0 ) {
+				resp.success = false;
+			}
+			
+			ret->resp_list.push_back(resp);
 		}
-		*size = sizeof(bool);
-		
-		if (pstat->start(cmd->hash, 0) < 0) {
-		    *(bool*)buf = false;
-			LOGE("stop statics error");
-		} else {
-		    *(bool*)buf = true;
-		}
-		break;
+ 		break;
 		
 	/* 获取统计信息 */	
-	case 3:
-		{
-			stat_info info;
-			struct timeval tm;
+	case 4:
+		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+			unsigned long int hash = *it;
+			resp.hash = hash;
 			
-			buf = (char*)malloc(sizeof(bool) + sizeof(info) + sizeof(tm));
-			if (buf == NULL) {
-				LOGE("No memory");
-				return NULL;
-			}
-			*size = sizeof(bool) + sizeof(info) + sizeof(tm);
-			
-			if (pstat->read(cmd->hash, &info, &tm) < 0) {
-			    *(bool*)buf = false;
-				LOGE("set_company_stat error");
-				break;
+			if (pstat->read(hash, &resp.info, &resp.tm) < 0) {
+				resp.success = false;
 			} else {
-				int len = sizeof(bool);
-				
- 			    *(bool*)buf = true;
-	   			memcpy(buf + len, &tm, sizeof(tm));
-    			len += sizeof(tm);
-    			memcpy(buf + len, &info, sizeof(info));
+				resp.success = true;
 			}
+			
+			ret->resp_list.push_back(resp);
 		}
 		
 	default:
-		buf = (char*)malloc(sizeof(bool));
-		if (buf == NULL) {
-			LOGE("No memory");
-			return NULL;
-		}
-		*size = sizeof(bool);
-	    *(bool*)buf = false;
+		ret->success = false;
 	}
-	return buf;
+	return ret;
 }
 
 
-void *cmdsrv::group_stat(LB_CMD *cmd, size_t *size) {
+clb_cmd_resp *cmdsrv::group_stat(clb_cmd &cmd) {
 	return NULL;
 }
 
 
-void *cmdsrv::company_lb(LB_CMD *cmd, size_t *size) {
-	char *buf;
+clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
+	list<unsigned long int>::iterator it;
+	CLB_CMD_RESP0 resp = {0};
+	clb_cmd_resp0 *ret = new clb_cmd_resp0;
 	
-	unsigned int command = cmd->cmd & 0x0fffffff;
+	memset(&resp, 0, sizeof(CLB_CMD_RESP0));
+	unsigned int command = cmd.command & 0x0fffffff;
 	switch(command) {
 		
-	/* 开启LB */		
+	/* 开启服务 */		
 	case 1:
-		buf = (char*)malloc(sizeof(bool));
-		if (buf == NULL) {
-			LOGE("No memory");
-			return NULL;
-		}
-		*size = sizeof(bool);
-		
-		if (plb->lb_start(cmd->hash) < 0) {
-		    *(bool*)buf = false;
-			LOGE("start statics error");
-		} else {
-		    *(bool*)buf = false;
+		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+			unsigned long int hash = *it;
+			resp.hash = hash;
+			
+			if (plb->lb_start(hash) < 0) {
+				resp.success = false;
+			} else {
+				resp.success = true;
+			}
+			ret->resp_list.push_back(resp);
 		}
 		break;
 		
-	/* 关闭LB */	
+	/* 关闭服务 */
 	case 2:
-		buf = (char*)malloc(sizeof(bool));
-		if (buf == NULL) {
-			LOGE("No memory");
-			return NULL;
+		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+			unsigned long int hash = *it;
+			resp.hash = hash;
+
+			if (plb->lb_stop(hash) < 0) {
+				resp.success = false;
+			} else {
+				resp.success = true;
+			}
+			ret->resp_list.push_back(resp);
 		}
-		*size = sizeof(bool);
+ 		break;
 		
-		if (plb->lb_stop(cmd->hash) < 0) {
-		    *(bool*)buf = false;
-			LOGE("stop statics error");
-		} else {
-		    *(bool*)buf = true;
+	/* 获取服务信息 */	
+	case 4:
+		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+			unsigned long int hash = *it;
+			lbsrv_info info;
+			resp.hash = hash;
+
+			if (plb->lb_info(hash, &info) < 0) {
+				resp.success = false;
+			} else {
+				resp.success = true;
+				resp.info = info;
+			}
+			
+			ret->resp_list.push_back(resp);
 		}
-		break;
-		
-	/* 获取LB状态 */	
-	case 3:
-		buf = (char*)malloc(2*sizeof(bool));
-		if (buf == NULL) {
-			LOGE("No memory");
-			return NULL;
-		}
-		*size = 2*sizeof(bool);
-	    *(bool*)buf = true;
-		
-		if (plb->is_lb_start(cmd->hash)) {
-		    *(bool*)(buf + sizeof(bool))= true;
-		} else {
-		    *(bool*)(buf + sizeof(bool))= false;
-		}
-		break;
 		
 	default:
-		buf = (char*)malloc(sizeof(bool));
-		if (buf == NULL) {
-			LOGE("No memory");
-			return NULL;
-		}
-		*size = sizeof(bool);
-	    *(bool*)buf = false;
+		ret->success = false;
 	}
-	return buf;
+	return ret;
 }
 
 
-void *cmdsrv::group_lb(LB_CMD *cmd, size_t *size) {
+clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 	return NULL;
 }
 
@@ -195,41 +183,55 @@ void cmdsrv::read(int sock, short event, void* arg) {
 		delete srv;
 		return;
 	}
+	// LOGI((const char*)buffer);
 	
 	/* 处理命令 */
-    LB_CMD *pcmd = (LB_CMD *) buffer;
-    LOGD("Get command");
-    LOGD("  CMD: 0x%08x", pcmd->cmd);
-    LOGD(" HASH: 0x%lx", pcmd->hash);
-    LOGD("GROUP: %d", pcmd->group);
-    LOGD("   IP: 0x%08x", pcmd->ip);
-    LOGD(" PORT: %d", pcmd->port);
-    
-    size_t resp_len;
-    void *resp_buf = NULL;
-    if (pcmd->cmd & 0x20000000) {
-
-	    /* 统计命令处理器 */
-	    if (pcmd->cmd & 0x10000000) {
-	    	resp_buf = srv->group_stat(pcmd, &resp_len);
-	    } else {
-	    	resp_buf = srv->company_stat(pcmd, &resp_len);
-	    }
-    } else {
+	try {
+		clb_cmd cmd((const char*)buffer);
 		
-		/* 负载均衡命令处理 */
-	    if (pcmd->cmd & 0x10000000) {
-	    	resp_buf = srv->group_lb(pcmd, &resp_len);
+		unsigned int command = cmd.command;
+		
+	    clb_cmd_resp *pjson = NULL;
+	    if (command & 0x20000000) {
+	
+		    /* 统计命令处理器 */
+		    if (command & 0x10000000) {
+		    	pjson = srv->group_stat(cmd);
+		    } else {
+		    	pjson = srv->company_stat(cmd);
+		    }
 	    } else {
-	    	resp_buf = srv->company_lb(pcmd, &resp_len);
-	    }		
-    }
-    
-    /* 发送应答消息 */
-    if (resp_buf) {
-	    if (srv->ev_send(0, resp_buf, resp_len) == false) {
-	    	LOGE("reponse error");
+			
+			/* 负载均衡命令处理 */
+		    if (command & 0x10000000) {
+		    	pjson = srv->group_lb(cmd);
+		    } else {
+		    	pjson = srv->company_lb(cmd);
+		    }		
 	    }
+	    
+	    if (pjson) {
+		    /* 发送应答消息 */
+		    string resp_str = pjson->serialization();
+		    int len = resp_str.length();
+		    if (len > 0) {
+			    char *obuf = (char*)malloc(len + 1);
+			    if (obuf) {
+				    strcpy(obuf, resp_str.c_str());
+				    if (srv->ev_send(0, obuf, len + 1) == false) {
+				    	LOGE("reponse error");
+				    }
+			    }
+			}
+			
+			/* 销毁对象 */
+			delete pjson;
+		}
+	} catch (const char *msg) {
+    	LOGE("Command json error");
+		/* 释放缓冲区 */
+		srv->recv_done(buffer);
+		return;
 	}
 	
 	/* 释放缓冲区 */

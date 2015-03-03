@@ -184,13 +184,15 @@ static void *thread_worker(void *args) {
 	    prcu->job_start(tid);
 	    
 	    /* 分发数据包 */
-	    bool running = false;
-	    int handle = plb->get_handle(hash, &running);
-	    if ((handle > 0) && running) {
-	    	/* 把数据包写入当前Socket */
+	    unsigned int lb_status = 0;
+	    unsigned int stat_status = 0;
+	    int handle = plb->get_handle(hash, &lb_status, &stat_status);
+    	/* 把数据包写入当前Socket */
+	    if ((handle > 0) && lb_status) {
 	    	write(handle, buffer, len);
-	    	
-		    /* 统计处理 */
+	    }
+	    /* 统计处理 */
+	    if (stat_status) {	
 		    pstat->stat(hash);	    
 	    }
 	    	    
@@ -211,7 +213,7 @@ static void *thread_worker(void *args) {
 
 int main(int argc, char *argv[]) {
 	/* 开启日志记录 */
-	LOG_OPEN("lb-cfgi");
+	LOG_OPEN("clb-cfgi");
 	
 	/* 创建RCU管理线程 */
 	pthread_t th_rcu;
@@ -244,7 +246,7 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 	}
-
+	
 	/* 创建动态配置命令服务 */
 	evsrv<cmdsrv> *srv;
 	try {

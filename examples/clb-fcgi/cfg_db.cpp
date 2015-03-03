@@ -150,7 +150,7 @@ int cfg_db::init_stat_table(stat_table *pstat) {
 		/* printf("hash: %x, master: %x, groupid: %d,  port: %x, handle: %d\n",
 			hash, master, groupid, qport, handle); */
 		if (qstat) {
-			pstat->open(hash);
+			pstat->start(hash, 1);
 		}
 	}  	
 	
