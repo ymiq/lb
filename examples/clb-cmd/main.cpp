@@ -247,6 +247,8 @@ static void help(void) {
 	printf("stat info group <groupid>     获取组<groupid>的统计信息\n");
 	printf("stat monitor <company>        实时显示公司<company>的统计信息\n");
 	printf("stat monitor group <groupid>  实时显示组<groupid>的统计信息\n");
+	printf("stat clear <company>          清除公司<company>的统计信息\n");
+	printf("stat clear group <groupid>    清除组<groupid>的统计信息\n");
 	printf("lb stop <company>             停止公司<company>的服务\n");
 	printf("lb stop group <groupid>       停止组<groupid>的服务\n");
 	printf("lb start <company>            开启公司<company>的服务\n");
@@ -304,6 +306,8 @@ int main(int argc, char *argv[]) {
 		} else if (!strcmp(argv[2], "monitor")) {
 			command |= 4;
 			monitor = true;
+		} else if (!strcmp(argv[2], "clear")) {
+			command |= 8;
 		} else {
 			help();
 			return 0;
@@ -375,12 +379,14 @@ int main(int argc, char *argv[]) {
 	
 	/* 命令处理 */
 	if (monitor) {
-		while (1) {
+		while(1) {
 			if (pclnt->request(cmd) >= 0) {
-				return pclnt->reponse();
+				printf("\33[2J");			/* 清除屏幕内容 */
+				printf("\33[1;1H");			/* 光标移到第一行第一列 */
+				pclnt->reponse();
 			}
 			sleep(1);
-		}
+		} 
 	}
 	if (pclnt->request(cmd) >= 0) {
 		return pclnt->reponse();

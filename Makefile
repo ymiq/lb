@@ -12,6 +12,7 @@ CLBFCGI_SRCS += src/stat_obj.cpp
 CLBFCGI_SRCS += src/stat_table.cpp
 CLBFCGI_SRCS += src/stat_man.cpp
 CLBFCGI_SRCS += src/clb_cmd.cpp
+CLBFCGI_SRCS += src/clb_grp.cpp
 CLBFCGI_CPPFLAGS = -O2 -Wall -Werror -I./include
 CLBFCGI_LDFLAGS = -lstdc++ -lpthread -lfcgi -L/usr/lib64/mysql/ -lmysqlclient -lcrypto -levent -ljsoncpp
 

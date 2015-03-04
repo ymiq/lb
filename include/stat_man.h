@@ -27,7 +27,7 @@ public:
 	/* 统计操作基本方法 */
 	int start(unsigned long int hash, unsigned int code);	/* 开启统计 */
 	int stop(unsigned long int hash);						/* 关闭统计 */
-	int clear(unsigned long int hash);						/* 清除统计 */
+	int clear(unsigned long int hash, unsigned int code);	/* 清除统计 */
 	int read(unsigned long int hash, stat_info *pinfo, struct timeval *tm);	/* 获取统计信息 */
 
 protected:

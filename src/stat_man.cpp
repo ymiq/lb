@@ -160,7 +160,7 @@ int stat_man::stop(unsigned long int hash) {
 }
 
 
-int stat_man::clear(unsigned long int hash) {
+int stat_man::clear(unsigned long int hash, unsigned int code) {
 	int ret = 0;
 	thread_table *ptbl = stat_tbl;
 	stat_table *pstat;
@@ -177,7 +177,7 @@ int stat_man::clear(unsigned long int hash) {
 			}
 			
 			/* 关闭指定线程下相应统计对象 */
-			if (pstat->clear(hash) < 0) {
+			if (pstat->clear(hash, code) < 0) {
 				ret = -1;
 			}
 		}

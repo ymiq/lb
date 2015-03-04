@@ -193,7 +193,7 @@ static void *thread_worker(void *args) {
 	    }
 	    /* 统计处理 */
 	    if (stat_status) {	
-		    pstat->stat(hash);	    
+		    pstat->stat(hash, 1);	    
 	    }
 	    	    
 		/* Worker线程主处理结束 */

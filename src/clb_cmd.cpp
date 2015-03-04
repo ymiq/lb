@@ -259,8 +259,10 @@ clb_cmd_resp100::clb_cmd_resp100(const char *str):clb_cmd_resp(100, false) {
 		resp.success = serial["resp_list"][i]["success"].asBool();
 		
 		Json::Value info = serial["resp_list"][i]["info"];
-		resp.info.total_packets = info["total_packets"].asUInt64();
-		resp.info.error_packets = info["error_packets"].asUInt64();
+		resp.info.total = info["total"].asUInt64();
+		resp.info.errors = info["errors"].asUInt64();
+		resp.info.drops = info["drops"].asUInt64();
+		resp.info.texts = info["texts"].asUInt64();
 		
 		Json::Value tm = serial["resp_list"][i]["tm"];
 		resp.tm.tv_sec = tm["tv_sec"].asUInt();
@@ -287,8 +289,10 @@ string clb_cmd_resp100::serialization(void) {
 		serial["resp_list"][idx]["success"] = resp.success;
 		
 		Json::Value info;
-		info["total_packets"] = (Json::UInt64)resp.info.total_packets;
-		info["error_packets"] = (Json::UInt64)resp.info.error_packets;
+		info["total"] = (Json::UInt64)resp.info.total;
+		info["errors"] = (Json::UInt64)resp.info.errors;
+		info["drops"] = (Json::UInt64)resp.info.drops;
+		info["texts"] = (Json::UInt64)resp.info.texts;
 		serial["resp_list"][idx]["info"] = info;
 		
 		Json::Value tm;
@@ -306,12 +310,12 @@ void clb_cmd_resp100::dump(void) {
 	
 	if (resp_list.size()) {
 		list<CLB_CMD_RESP100>::iterator it;
-		printf("HASH		STATUS	PACKETS	ERRORS\n");
+		printf("HASH			STATUS	TOTAL	DROPS	TEXTS	ERRORS	TIME\n");
 		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
 			CLB_CMD_RESP100 resp = *it;
 	
-			printf("%lx	%s	%ld	%ld\n", resp.hash, resp.success?"OK":"FAIL", 
-				resp.info.total_packets, resp.info.error_packets);
+			printf("%lx	%s	%ld	%ld	%ld	%ld	%ld\n", resp.hash, resp.success?"OK":"FAIL", 
+				resp.info.total, resp.info.drops, resp.info.texts, resp.info.errors, resp.tm.tv_sec);
 			
 		}
 	}

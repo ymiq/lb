@@ -223,7 +223,7 @@ int stat_table::stop(unsigned long int hash) {
 
 
 
-int stat_table::clear(unsigned long int hash) {
+int stat_table::clear(unsigned long int hash, unsigned int code) {
 	stat_obj *pobj = stat_new(hash);
 	if (!pobj) {
 		return -1;
@@ -250,22 +250,14 @@ int stat_table::stat(unsigned long int hash, void *packet, int packet_size) {
 }
 
 
-int stat_table::stat(unsigned long int hash) {
+int stat_table::stat(unsigned long int hash, unsigned int code) {
 	stat_obj *pobj = stat_get(hash);
 	if (!pobj) {
 		return -1;
 	}
-	return pobj->stat();
+	return pobj->stat(code);
 }
 
-
-int stat_table::error_stat(unsigned long int hash) {
-	stat_obj *pobj = stat_get(hash);
-	if (!pobj) {
-		return -1;
-	}
-	return pobj->error_stat();
-}
 
 
 

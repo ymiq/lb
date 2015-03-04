@@ -82,8 +82,11 @@ private:
 
 /* 启动/停止指定group服务 */
 typedef struct CLB_CMD_RESP1{
-	unsigned long int hash;
+	unsigned int group;
 	bool success;			/* 操作成功与否标志 */
+	unsigned int status;	
+	unsigned int ip;
+	unsigned short port;
 }CLB_CMD_RESP1;
 
 class clb_cmd_resp1: virtual public clb_cmd_resp {

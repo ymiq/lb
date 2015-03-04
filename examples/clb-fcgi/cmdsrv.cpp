@@ -10,6 +10,7 @@
 #include <lb_table.h>
 #include <json_obj.h>
 #include <clb_cmd.h>
+#include <clb_grp.h>
 #include "cmdsrv.h"
 
 using namespace std;
@@ -52,6 +53,7 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 			}
 			ret->resp_list.push_back(resp);
 		}
+		ret->success = true;
 		break;
 		
 	/* 关闭统计 */
@@ -73,6 +75,7 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 			
 			ret->resp_list.push_back(resp);
 		}
+		ret->success = true;
  		break;
 		
 	/* 获取统计信息 */	
@@ -89,6 +92,25 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 			
 			ret->resp_list.push_back(resp);
 		}
+		ret->success = true;
+		break;
+		
+	/* 清除统计信息 */	
+	case 8:
+		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+			unsigned long int hash = *it;
+			resp.hash = hash;
+			
+			if (pstat->clear(hash, 0xffffffff) < 0) {
+				resp.success = false;
+			} else {
+				resp.success = true;
+			}
+			
+			ret->resp_list.push_back(resp);
+		}
+		ret->success = true;
+		break;
 		
 	default:
 		ret->success = false;
@@ -124,6 +146,7 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 			}
 			ret->resp_list.push_back(resp);
 		}
+		ret->success = true;
 		break;
 		
 	/* 关闭服务 */
@@ -139,6 +162,7 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 			}
 			ret->resp_list.push_back(resp);
 		}
+		ret->success = true;
  		break;
 		
 	/* 获取服务信息 */	
@@ -157,6 +181,8 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 			
 			ret->resp_list.push_back(resp);
 		}
+		ret->success = true;
+		break;
 		
 	default:
 		ret->success = false;
@@ -166,7 +192,75 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 
 
 clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
-	return NULL;
+	list<unsigned int>::iterator it;
+	CLB_CMD_RESP1 resp = {0};
+	clb_cmd_resp1 *ret = new clb_cmd_resp1;
+	
+	memset(&resp, 0, sizeof(CLB_CMD_RESP1));
+	unsigned int command = cmd.command & 0x0fffffff;
+	switch(command) {
+		
+	/* 开启服务 */		
+	case 1:
+		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
+			unsigned int group = *it;
+			resp.group = group;
+			
+			if (plb->lb_start(group) < 0) {
+				resp.success = false;
+			} else {
+				resp.success = true;
+			}
+			ret->resp_list.push_back(resp);
+		}
+		ret->success = true;
+		break;
+		
+	/* 关闭服务 */
+	case 2:
+		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
+			unsigned int group = *it;
+			resp.group = group;
+
+			if (plb->lb_stop(group) < 0) {
+				resp.success = false;
+			} else {
+				resp.success = true;
+			}
+			ret->resp_list.push_back(resp);
+		}
+		ret->success = true;
+ 		break;
+		
+	/* 获取服务信息 */	
+#if 0
+	case 4:
+		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
+			unsigned int group = *it;
+			resp.group = group;
+			unsigned int ip;
+			unsigned short port;
+			unsigned int status;
+
+			if (plb->lb_info(group, &ip, &port, &status) < 0) {
+				resp.success = false;
+			} else {
+				resp.success = true;
+				resp.ip = ip;
+				resp.port = port;
+				resp.status = status;
+			}
+			
+			ret->resp_list.push_back(resp);
+		}
+		ret->success = true;
+		break;
+#endif
+		
+	default:
+		ret->success = false;
+	}
+	return ret;
 }
 
 

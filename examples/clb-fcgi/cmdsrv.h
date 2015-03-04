@@ -9,6 +9,7 @@
 #include <stat_man.h>
 #include <lb_table.h>
 #include <clb_cmd.h>
+#include <clb_grp.h>
 
 using namespace std;
 
@@ -34,6 +35,7 @@ protected:
 private:
 	stat_man *pstat;
 	lb_table *plb;
+	clb_grp *pgrp;
 
 	clb_cmd_resp *company_stat(clb_cmd &cmd);
 	clb_cmd_resp *group_stat(clb_cmd &cmd);
