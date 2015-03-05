@@ -112,6 +112,7 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result))) {
+		lbsrv_info info;
 		unsigned long hash = strtoull(row[2], NULL, 10);
 		unsigned int master = (unsigned int)strtoul(row[3], NULL, 10);
 		int groupid = atoi(row[4]);
@@ -122,7 +123,14 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 		if (handle < 0) {
 			LOGE("Can't open socket");
 		}
-		if (plb->lb_start(hash, handle) >= 0) {
+		info.hash = hash;
+		info.handle = handle;
+		info.group = groupid;
+		info.ip = master;
+		info.port = qport;
+		info.lb_status = 1;
+		info.stat_status = 0;
+		if (plb->create(info) >= 0) {
 			pgrp->update(groupid, hash);
 		} else {
 			LOGE("Can't start 0x%lx\n", hash);

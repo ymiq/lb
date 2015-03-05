@@ -186,7 +186,7 @@ static void *thread_worker(void *args) {
 	    /* 分发数据包 */
 	    unsigned int lb_status = 0;
 	    unsigned int stat_status = 0;
-	    int handle = plb->get_handle(hash, &lb_status, &stat_status);
+	    int handle = plb->lb_handle(hash, lb_status, stat_status);
     	/* 把数据包写入当前Socket */
 	    if ((handle > 0) && lb_status) {
 	    	write(handle, buffer, len);

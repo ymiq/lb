@@ -119,7 +119,6 @@ hash_tbl<T, INDEX_SIZE>::hash_tbl(const hash_tbl<T, INDEX_SIZE> &tbl) {
 
 template<typename T, unsigned int INDEX_SIZE>
 hash_tbl<T, INDEX_SIZE>::~hash_tbl() {
-#if 0	
 	/* 递归删除所有HASH条目 */
 	for(int x=0; x<mod_size; x++) {
 		hash_index *pindex = &hidx[x];
@@ -148,7 +147,6 @@ hash_tbl<T, INDEX_SIZE>::~hash_tbl() {
 	/* 删除NULL对象和索引表，保留RCU */	
 	delete end_it;
 	delete hidx;
-#endif
 }
 
 
