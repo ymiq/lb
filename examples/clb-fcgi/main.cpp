@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <rcu_man.h>
-#include <lb_table.h>
+#include <clb_tbl.h>
 #include <log.h>
 #include <fcgi_stdio.h>  
 #include <openssl/md5.h>
@@ -22,11 +22,11 @@ using namespace std;
 
 #define CFG_WORKER_THREADS	1
 
-static int lb_init(lb_table *plb) {
+static int lb_init(clb_tbl *plb, clb_grp *pgrp) {
 	int ret = 0;
 	
 	cfg_db *db = new cfg_db();
-	ret = db->init_lb_table(plb);
+	ret = db->init_lb_table(plb, pgrp);
 	if (ret < 0) {
 		LOGE("Can't create load balance talbe");
 	}
@@ -35,7 +35,7 @@ static int lb_init(lb_table *plb) {
 }
 
 
-static int stat_init(stat_table *pstat) {
+static int stat_init(stat_tbl *pstat) {
 	/* 该函数要求在所有stat_table创建后再调用 */
 	cfg_db *db = new cfg_db();
 	int ret = db->init_stat_table(pstat);
@@ -105,10 +105,10 @@ static bool content_parser(char *content, char *company, char *user, char *quest
 }
 
 
-static unsigned long int company_hash(const char *company) {
+static unsigned long company_hash(const char *company) {
 	MD5_CTX ctx;
 	unsigned char md5[16];
-	unsigned long int hash = 0;
+	unsigned long hash = 0;
 	
 	MD5_Init(&ctx);
 	MD5_Update(&ctx, company, strlen(company));
@@ -132,10 +132,10 @@ static void *thread_worker(void *args) {
 	int tid = prcu->tid_get();
 	
 	/* LB相关初始化 */
-	lb_table *plb = lb_table::get_inst();
+	clb_tbl *plb = clb_tbl::get_inst();
 		
 	/* 创建每线程统计表，并初始化 */
-	stat_table *pstat = new stat_table;
+	stat_tbl *pstat = new stat_tbl;
 	if (stat_init(pstat) < 0) {
 		LOGE("statics table init failed");
 		exit(1);
@@ -144,7 +144,7 @@ static void *thread_worker(void *args) {
 	/* 连接处理 */
     FCGX_InitRequest(&request, 0, 0);
     while (1) {
-		unsigned long int hash;
+		unsigned long hash;
 		
 		/* 接受请求。如果多线程，可能需要加锁 */
 		int rc = FCGX_Accept_r(&request);
@@ -223,18 +223,15 @@ int main(int argc, char *argv[]) {
 	}
 	
 	/* 获取负载均衡HASH表 */
-	lb_table *plb = lb_table::get_inst();
-	if (plb == NULL) {
-		LOGE("Can't get load balance table");
-		return -1;
-	}
+	clb_tbl *plb = clb_tbl::get_inst();
+	clb_grp *pgrp = clb_grp::get_inst();
 	
 	/* 根据数据库信息创建负载均衡HASH表 */
-	if (lb_init(plb) < 0) {
+	if (lb_init(plb, pgrp) < 0) {
 		LOGE("Can't create hash table");
 		return -1;
 	}
-		
+
 	/* FastCGI相关初始化 */
 	FCGX_Init();
 	

@@ -54,7 +54,7 @@ string clb_cmd::serialization(void) {
 	serial["ip"] = ip;
 	serial["port"] = port;
 	
-	list<unsigned long int>::iterator hit;
+	list<unsigned long>::iterator hit;
 	int idx = 0;
 	for (hit=hash_list.begin(); hit!=hash_list.end(); hit++) {
 		serial["hash_list"][idx++] = (Json::UInt64)(*hit);
@@ -219,6 +219,30 @@ void clb_cmd_resp0::dump(void) {
  * ==========================================================================================
  */
 clb_cmd_resp1::clb_cmd_resp1(const char *str):clb_cmd_resp(1, false) {
+	Json::Reader reader;
+	Json::Value serial;
+		
+	if (!reader.parse(str, serial, false)) {
+		throw "Json string error";
+	}
+	
+	type = serial["type"].asUInt();
+	success = serial["success"].asBool();
+	
+	int size = serial["resp_list"].size();
+	for (int i=0; i<size; i++) {
+		CLB_CMD_RESP1 resp = {0};
+		
+		resp.group = serial["resp_list"][i]["group"].asUInt();
+		resp.success = serial["resp_list"][i]["success"].asBool();
+		resp.lb_status = serial["resp_list"][i]["lb_status"].asUInt();
+		resp.stat_status = serial["resp_list"][i]["stat_status"].asUInt();
+		resp.ip = serial["resp_list"][i]["ip"].asUInt();
+		resp.port = (unsigned short)serial["resp_list"][i]["port"].asUInt();
+		resp.handle = serial["resp_list"][i]["handle"].asInt();
+
+		resp_list.push_back(resp);
+	}
 }
 
 
@@ -226,11 +250,44 @@ string clb_cmd_resp1::serialization(void) {
 	Json::Value serial;
 	Json::FastWriter writer;
 		
+	serial["type"] = type;
+	serial["success"] = success;
+	
+	list<CLB_CMD_RESP1>::iterator it;
+	int idx = 0;
+	for (it=resp_list.begin(); it!=resp_list.end(); it++, idx++) {
+		CLB_CMD_RESP1 resp = *it;
+				
+		serial["resp_list"][idx]["group"] = resp.group;
+		serial["resp_list"][idx]["success"] = resp.success;
+		serial["resp_list"][idx]["lb_status"] = resp.lb_status;
+		serial["resp_list"][idx]["stat_status"] = resp.stat_status;
+		serial["resp_list"][idx]["ip"] = resp.ip;
+		serial["resp_list"][idx]["port"] = resp.port;
+		serial["resp_list"][idx]["handle"] = resp.handle;
+	}
+
 	return writer.write(serial);
 }
 
 
 void clb_cmd_resp1::dump(void) {
+	printf("类型: %d, %s\n", type, success?"操作成功":"操作失败");
+		
+	if (resp_list.size()) {
+		list<CLB_CMD_RESP1>::iterator it;
+		printf("GROUP		STATUS	LB	STAT	HOST\n");
+		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
+			CLB_CMD_RESP1 resp = *it;
+			struct in_addr in;
+			in.s_addr = ntohl(resp.ip);
+			char *ip_str = inet_ntoa(in);
+	
+			printf("%08x	%s	0x%X	0x%X	%s:%d\n", resp.group, resp.success?"OK":"FAIL", 
+				resp.lb_status, resp.stat_status, ip_str, resp.port);
+			
+		}
+	}
 }
 
 

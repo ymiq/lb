@@ -10,7 +10,7 @@
 #include <json/json.h>
 #include <json_obj.h>
 #include <stat_man.h>
-#include <lb_table.h>
+#include <clb_tbl.h>
 
 using namespace std; 
 
@@ -25,7 +25,7 @@ public:
 	string serialization(void);
 
 public:
-	list<unsigned long int> hash_list;
+	list<unsigned long> hash_list;
 	list<unsigned int> group_list;
 	unsigned int command;
 	unsigned int ip;
@@ -57,7 +57,7 @@ private:
 
 /* 启动/停止指定company服务 */
 typedef struct CLB_CMD_RESP0{
-	unsigned long int hash;
+	unsigned long hash;
 	bool success;			/* 操作成功与否标志 */
 	lbsrv_info info;
 }CLB_CMD_RESP0;
@@ -84,7 +84,9 @@ private:
 typedef struct CLB_CMD_RESP1{
 	unsigned int group;
 	bool success;			/* 操作成功与否标志 */
-	unsigned int status;	
+	int handle;
+	unsigned int lb_status;	
+	unsigned int stat_status;	
 	unsigned int ip;
 	unsigned short port;
 }CLB_CMD_RESP1;
@@ -109,7 +111,7 @@ private:
 
 /* 启动/停止指定company服务 */
 typedef struct CLB_CMD_RESP100{
-	unsigned long int hash;
+	unsigned long hash;
 	bool success;			/* 操作成功与否标志 */
 	stat_info info;
 	struct timeval tm;

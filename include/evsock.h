@@ -13,13 +13,13 @@ class evsock {
 private:
 	class EV_SEND {
 	public:
-		unsigned long int token;
+		unsigned long token;
 		const void *buf;
 		size_t len;
 		
 	public:
 		~EV_SEND() {};
-		EV_SEND(unsigned long int token, const void *buf, size_t len): token(token), buf(buf), len(len) {};
+		EV_SEND(unsigned long token, const void *buf, size_t len): token(token), buf(buf), len(len) {};
 			
 	protected:		
 	private:
@@ -34,8 +34,8 @@ public:
 	void *ev_recv(size_t *len);
 	void recv_done(void *buf);
 	
-	bool ev_send(unsigned long int token, const void *buf, size_t len);
-	virtual void send_done(unsigned long int token, void *buf, size_t len) = 0;
+	bool ev_send(unsigned long token, const void *buf, size_t len);
+	virtual void send_done(unsigned long token, void *buf, size_t len) = 0;
 
 	queue<EV_SEND*> *ev_queue(void) {return &wq;}
 	

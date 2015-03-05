@@ -73,8 +73,8 @@ void log_trace(const char *file,
     vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
     va_end(ap);
     strcat(prefix, buf);
-    syslog(LOG_INFO, prefix);    
-//    cout << prefix << endl;
+//    syslog(LOG_INFO, prefix);    
+    cout << prefix << endl;
 }
 
 

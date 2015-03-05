@@ -12,7 +12,7 @@
 
 #include <pthread.h>
 #include <config.h>
-#include <stat_table.h>
+#include <stat_tbl.h>
 
 using namespace std;
 
@@ -22,13 +22,13 @@ public:
 		static stat_man stat_singleton;
 		return &stat_singleton;
 	};
-	int reg(stat_table *pstat);
+	int reg(stat_tbl *pstat);
 	
 	/* 统计操作基本方法 */
-	int start(unsigned long int hash, unsigned int code);	/* 开启统计 */
-	int stop(unsigned long int hash);						/* 关闭统计 */
-	int clear(unsigned long int hash, unsigned int code);	/* 清除统计 */
-	int read(unsigned long int hash, stat_info *pinfo, struct timeval *tm);	/* 获取统计信息 */
+	int start(unsigned long hash, unsigned int code);	/* 开启统计 */
+	int stop(unsigned long hash);						/* 关闭统计 */
+	int clear(unsigned long hash, unsigned int code);	/* 清除统计 */
+	int read(unsigned long hash, stat_info *pinfo, struct timeval *tm);	/* 获取统计信息 */
 
 protected:
 	
@@ -36,11 +36,11 @@ private:
 	#define CFG_THREAD_TABLE_SIZE	64
 
 	typedef struct thread_table {
-		stat_table *table[CFG_THREAD_TABLE_SIZE];
+		stat_tbl *table[CFG_THREAD_TABLE_SIZE];
 		struct thread_table *next;
 	} thread_table;
 
-	thread_table *stat_tbl;
+	thread_table *stat_table;
 	pthread_mutex_t stat_mtx;
 	
 	stat_man();

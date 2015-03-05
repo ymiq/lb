@@ -3,8 +3,9 @@
 #include <string>
 #include <cstdio>
 #include <log.h>
-#include <lb_table.h>
+#include <clb_tbl.h>
 #include <lb_db.h>
+#include <clb_grp.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/un.h>
@@ -97,7 +98,7 @@ int cfg_db::getsock(int groupid, unsigned int master, int qport) {
 }
 
 
-int cfg_db::init_lb_table(lb_table *plb) {
+int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
@@ -111,7 +112,7 @@ int cfg_db::init_lb_table(lb_table *plb) {
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result))) {
-		unsigned long int hash = strtoull(row[2], NULL, 10);
+		unsigned long hash = strtoull(row[2], NULL, 10);
 		unsigned int master = (unsigned int)strtoul(row[3], NULL, 10);
 		int groupid = atoi(row[4]);
 		int qport = atoi(row[5]);
@@ -121,7 +122,11 @@ int cfg_db::init_lb_table(lb_table *plb) {
 		if (handle < 0) {
 			LOGE("Can't open socket");
 		}
-		plb->lb_start(hash, handle);
+		if (plb->lb_start(hash, handle) >= 0) {
+			pgrp->update(groupid, hash);
+		} else {
+			LOGE("Can't start 0x%lx\n", hash);
+		}
 	}  	
 	
 	/* 释放查询信息 */
@@ -131,7 +136,7 @@ int cfg_db::init_lb_table(lb_table *plb) {
 
 
 
-int cfg_db::init_stat_table(stat_table *pstat) {
+int cfg_db::init_stat_table(stat_tbl *pstat) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
@@ -145,7 +150,7 @@ int cfg_db::init_stat_table(stat_table *pstat) {
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result))) {
-		unsigned long int hash = strtoull(row[2], NULL, 10);
+		unsigned long hash = strtoull(row[2], NULL, 10);
 		int qstat = atoi(row[3]);
 		/* printf("hash: %x, master: %x, groupid: %d,  port: %x, handle: %d\n",
 			hash, master, groupid, qport, handle); */

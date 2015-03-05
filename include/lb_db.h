@@ -11,7 +11,7 @@
 #include <mysql/mysql.h>
 
 #include <config.h>
-#include <stat_table.h>
+#include <stat_tbl.h>
 
 using namespace std; 
 
@@ -23,14 +23,14 @@ public:
 	
 	int db_create(void);
 	int db_dump(void);
-	unsigned long int check_company(const char *company);
+	unsigned long check_company(const char *company);
 	bool check_groupid(unsigned int groupid);
 
 protected:
 	MYSQL mysql;
 	
 private:
-	unsigned long int compute_hash(const char *company);
+	unsigned long compute_hash(const char *company);
 		
 };
 

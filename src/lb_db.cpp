@@ -66,10 +66,10 @@ lb_db::~lb_db() {
 }
 
 
-unsigned long int lb_db::compute_hash(const char *company) {
+unsigned long lb_db::compute_hash(const char *company) {
 	MD5_CTX ctx;
 	unsigned char md5[16];
-	unsigned long int hash = 0;
+	unsigned long hash = 0;
 	
 	MD5_Init(&ctx);
 	MD5_Update(&ctx, company, strlen(company));
@@ -95,7 +95,7 @@ int lb_db::db_create(void) {
 		unsigned int group = 0;		// ((unsigned int)rand()) % CFG_ENTERPRISE_GROUPS;
 		unsigned int qport = 10000 + group;
 		unsigned int aport = 11000 + group;
-		unsigned long int hash;
+		unsigned long hash;
 		
 		/* 添加数据到数据库 */
 		stringstream name;
@@ -158,7 +158,7 @@ int lb_db::db_dump(void) {
 	while (NULL != (row = mysql_fetch_row(result)) ) {  
 		for(unsigned int i=0; i<feildcount; i++) {  
 			if (i == 2) {
-				unsigned long int hash = strtoul(row[i], NULL, 10);
+				unsigned long hash = strtoul(row[i], NULL, 10);
 				cout.width(16);  
 			    cout << hex << hash << "\t";  
 			} else if (i == 3) {
@@ -179,7 +179,7 @@ int lb_db::db_dump(void) {
 }
 
 
-unsigned long int lb_db::check_company(const char *company) {
+unsigned long lb_db::check_company(const char *company) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  
@@ -194,7 +194,7 @@ unsigned long int lb_db::check_company(const char *company) {
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result)))	{
 		if (!strcmp(company, row[1])) {
-			unsigned long int hash = strtoull(row[2], NULL, 10);
+			unsigned long hash = strtoull(row[2], NULL, 10);
 		    mysql_free_result(result);  
 		    return hash;
 		}

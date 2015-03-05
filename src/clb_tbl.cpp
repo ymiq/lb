@@ -3,10 +3,10 @@
 #include <cstring>
 #include <exception>
 #include <log.h>
-#include <lb_table.h>
+#include <clb_tbl.h>
 #include <rcu_man.h>
 
-lb_table::lb_table()
+clb_tbl::clb_tbl()
 {
 	/* 申请哈希表索引 */
 	lb_idx_buf = (lb_index *) malloc(sizeof(lb_index) * CFG_INDEX_SIZE + CFG_CACHE_ALIGN);
@@ -21,20 +21,20 @@ lb_table::lb_table()
 	/* RCU初始化 */
 	info_list = new rcu_obj<lbsrv_info>();
 	if (info_list == NULL) {
-		throw "Can't create rcu_obj for lb_table";
+		throw "Can't create rcu_obj for clb_tbl";
 	}
 	info_list->set_type(OBJ_LIST_TYPE_STRUCT);
 }
 
-lb_table::~lb_table()
+clb_tbl::~clb_tbl()
 {
 	/* 该类的实例创建了就不要考虑销毁了 */
 }
 
-lbsrv_info *lb_table::lb_get(unsigned long int hash)
+lbsrv_info *clb_tbl::lb_get(unsigned long hash)
 {
 	unsigned int index;
-	unsigned long int save_hash;
+	unsigned long save_hash;
 	lb_index *pindex;
 	
 	if (!hash || (hash == -1UL)) {
@@ -66,7 +66,7 @@ lbsrv_info *lb_table::lb_get(unsigned long int hash)
 	return NULL;
 }
 
-lbsrv_info *lb_table::lbsrv_info_new(lbsrv_info *ref, int handle, int lb_status, int stat_status) {
+lbsrv_info *clb_tbl::lbsrv_info_new(lbsrv_info *ref, int handle, int lb_status, int stat_status) {
 	lbsrv_info *server = (lbsrv_info *)malloc(sizeof(lbsrv_info));
 	
 	if (server == NULL) {
@@ -104,10 +104,10 @@ lbsrv_info *lb_table::lbsrv_info_new(lbsrv_info *ref, int handle, int lb_status,
 }
 
 
-lbsrv_info *lb_table::lb_update(unsigned long int hash, int handle, int lb_status, int stat_status)
+lbsrv_info *clb_tbl::lb_update(unsigned long hash, int handle, int lb_status, int stat_status)
 {
 	unsigned int index;
-	unsigned long int save_hash;
+	unsigned long save_hash;
 	lb_index *pindex, *prev;
 	lbsrv_info *pserver;
 	
@@ -184,10 +184,10 @@ phase2:
 }
 
 
-bool lb_table::lb_delete(unsigned long int hash)
+bool clb_tbl::lb_delete(unsigned long hash)
 {
 	unsigned int index;
-	unsigned long int save_hash;
+	unsigned long save_hash;
 	lb_index *pindex;
 	
 	if (!hash || (hash == -1UL)) {
@@ -226,7 +226,7 @@ bool lb_table::lb_delete(unsigned long int hash)
 }
 
 
-int lb_table::get_handle(unsigned long int hash){
+int clb_tbl::get_handle(unsigned long hash){
 	lbsrv_info *pserver;
 	
 	pserver = lb_get(hash);
@@ -236,7 +236,7 @@ int lb_table::get_handle(unsigned long int hash){
 	return pserver->handle;
 }
 
-int lb_table::get_handle(unsigned long int hash,
+int clb_tbl::get_handle(unsigned long hash,
 				 unsigned int *lb_status, unsigned int *stat_status) {
 	lbsrv_info *pserver;
 	
@@ -253,7 +253,7 @@ int lb_table::get_handle(unsigned long int hash,
 	return pserver->handle;
 }
 
-int lb_table::lb_info(unsigned long int hash, lbsrv_info *info) {
+int clb_tbl::lb_info(unsigned long hash, lbsrv_info *info) {
 	lbsrv_info *pserver;
 	
 	pserver = lb_get(hash);
@@ -266,7 +266,7 @@ int lb_table::lb_info(unsigned long int hash, lbsrv_info *info) {
 	return 0;
 }
 
-bool lb_table::is_lb_start(unsigned long int hash) {
+bool clb_tbl::is_lb_start(unsigned long hash) {
 	lbsrv_info *pserver;
 	
 	pserver = lb_get(hash);
@@ -276,7 +276,7 @@ bool lb_table::is_lb_start(unsigned long int hash) {
 	return pserver->lb_status;
 }
 
-int lb_table::lb_start(unsigned long int hash) {
+int clb_tbl::lb_start(unsigned long hash) {
 	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, -1, CFG_SERVER_LB_START, -1);
@@ -286,7 +286,7 @@ int lb_table::lb_start(unsigned long int hash) {
 	return 0;
 }
 
-int lb_table::lb_start(unsigned long int hash, int handle) {
+int clb_tbl::lb_start(unsigned long hash, int handle) {
 	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, handle, CFG_SERVER_LB_START, -1);
@@ -297,7 +297,7 @@ int lb_table::lb_start(unsigned long int hash, int handle) {
 }
 
 
-int lb_table::lb_stop(unsigned long int hash) {
+int clb_tbl::lb_stop(unsigned long hash) {
 	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, -1, CFG_SERVER_LB_STOP, -1);
@@ -307,7 +307,7 @@ int lb_table::lb_stop(unsigned long int hash) {
 	return 0;
 }
 
-int lb_table::lb_stop(unsigned long int hash, int handle) {
+int clb_tbl::lb_stop(unsigned long hash, int handle) {
 	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, handle, CFG_SERVER_LB_STOP, -1);
@@ -317,7 +317,7 @@ int lb_table::lb_stop(unsigned long int hash, int handle) {
 	return 0;
 }
 
-bool lb_table::is_stat_start(unsigned long int hash) {
+bool clb_tbl::is_stat_start(unsigned long hash) {
 	lbsrv_info *pserver;
 	
 	pserver = lb_get(hash);
@@ -327,7 +327,7 @@ bool lb_table::is_stat_start(unsigned long int hash) {
 	return pserver->stat_status;
 }
 
-int lb_table::stat_start(unsigned long int hash) {
+int clb_tbl::stat_start(unsigned long hash) {
 	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, -1, -1, CFG_SERVER_STAT_START);
@@ -337,7 +337,7 @@ int lb_table::stat_start(unsigned long int hash) {
 	return 0;
 }
 
-int lb_table::stat_stop(unsigned long int hash) {
+int clb_tbl::stat_stop(unsigned long hash) {
 	lbsrv_info *pserver;
 	
 	pserver = lb_update(hash, -1, -1, CFG_SERVER_STAT_STOP);

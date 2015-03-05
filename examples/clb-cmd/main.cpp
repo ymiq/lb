@@ -46,7 +46,7 @@ static int db_dump(void) {
 
 
 static int company_hash(char *str, clb_cmd &cmd) {
-	unsigned long int hash_val;
+	unsigned long hash_val;
 	
 	/* 连接均衡配置数据库 */
 	lb_db *db;
@@ -351,7 +351,7 @@ int main(int argc, char *argv[]) {
 					help();
 					return 0;
 				}
-				if (host_info(argv[4], cmd) < 0) {
+				if (host_info(argv[5], cmd) < 0) {
 					printf("无效IP:PORT地址\n");
 					return 0;
 				}

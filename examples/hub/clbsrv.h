@@ -16,7 +16,7 @@ public:
 	~clbsrv();
 	clbsrv(int fd, struct event_base* base):evsock(fd, base) {}
 		
-	void send_done(unsigned long int token, void *buf, size_t len);
+	void send_done(unsigned long token, void *buf, size_t len);
 	
 	static void read(int sock, short event, void* arg);
 protected:

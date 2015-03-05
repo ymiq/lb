@@ -23,7 +23,7 @@ private:
 typedef struct LB_CMD {
 	unsigned int command;
 	unsigned int group;
-	unsigned long int hash; 
+	unsigned long hash; 
 	unsigned int ip;
 	unsigned int port;
 	unsigned char data[0];

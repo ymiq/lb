@@ -1,4 +1,7 @@
-﻿
+﻿/*
+ * 公司组管理HASH表
+ * 一个二级HASH表
+ */
 
 #ifndef __CLB_GRP_H__
 #define __CLB_GRP_H__
@@ -7,27 +10,26 @@
 #include <cstddef>
 #include <config.h>
 #include <hash_tbl.h>
+#include <clb_tbl.h>
+#include <stat_tbl.h>
 
+#define CLB_COMPANY_TBL		hash_tbl<clb_hash_info, 1024>
 
-class clb_info
+struct clb_hash_info
 {
-public:
-	clb_info() {};
-	~clb_info() {};
-	
-	unsigned int ip;
-	unsigned short port;
-	int handle;
-	bool lb_enable;
-	bool stat_enable;
-	
-protected:
-	
-private:	
+	unsigned long hash;
 };
 
+struct clb_grp_info {
+	unsigned int group;
+	int handle;
+	unsigned int ip;
+	unsigned short port;
+	unsigned lb_status;
+	unsigned stat_status;
+	CLB_COMPANY_TBL *company_tbl;
+};
 
-#define GRP_TBL		hash_tbl<clb_info, 1024>		
 
 class clb_grp {
 public:
@@ -36,19 +38,24 @@ public:
 		return &clb_grp_singleton;
 	};
 	
-	void remove(unsigned int group, unsigned long hash);
-	clb_info *find(unsigned int group, unsigned long hash);
-	clb_info *update(unsigned int group, unsigned long hash, clb_info &info);
+	void remove(unsigned int group);
+	clb_grp_info *find(unsigned int group);
+	clb_grp_info *update(unsigned int group, clb_grp_info &info);
+	clb_hash_info *update(unsigned int group, unsigned long hash);
 	
 	int lb_start(unsigned int group);
+	int lb_stop(unsigned int group);
+	int stat_start(unsigned int group);
+	int stat_stop(unsigned int group);
 
 protected:
 	
 private:	
-	hash_tbl<GRP_TBL, 64> table;
+	hash_tbl<clb_grp_info, 64> table;
+	clb_tbl *pclb;
 	
-	clb_grp() {};
-	~clb_grp() {};
+	clb_grp();
+	~clb_grp();
 	unsigned long group_hash(unsigned int group);
 };
 

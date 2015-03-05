@@ -116,7 +116,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 }
 
 
-bool evsock::ev_send(unsigned long int token, const void *buf, size_t size) {
+bool evsock::ev_send(unsigned long token, const void *buf, size_t size) {
 	bool empty;
 	
 	if (!buf || !size) {

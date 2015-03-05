@@ -17,10 +17,10 @@ using namespace std;
 #define CFG_STAT_MASK		(CFG_STAT_TOTAL | CFG_STAT_DROP | CFG_STAT_ERROR | CFG_STAT_TEXT)
 
 typedef struct stat_info {
-	unsigned long int total;
-	unsigned long int errors;
-	unsigned long int drops;
-	unsigned long int texts;
+	unsigned long total;
+	unsigned long errors;
+	unsigned long drops;
+	unsigned long texts;
 }__attribute__((packed)) stat_info;
 
 /* 该对象在单线程中调用，不用考虑重入问题!!! */

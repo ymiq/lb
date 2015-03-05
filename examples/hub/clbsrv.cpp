@@ -37,7 +37,7 @@ void clbsrv::read(int sock, short event, void* arg) {
 	srv->recv_done(buffer);
 }
 
-void clbsrv::send_done(unsigned long int token, void *buf, size_t len) {
+void clbsrv::send_done(unsigned long token, void *buf, size_t len) {
 	/* 释放发送缓冲区 */
 //	free(send->buf);
 }

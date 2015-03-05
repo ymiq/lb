@@ -4,10 +4,7 @@
 #include <stat_man.h>
 
 stat_man::stat_man() {
-	stat_tbl = (thread_table*) calloc(sizeof(thread_table), 1);
-	if (stat_tbl  == NULL) {
-		throw "No memory to construct stat_man";
-	}
+	stat_table = new thread_table();
 	pthread_mutex_init(&stat_mtx, NULL);
 }
 
@@ -27,9 +24,9 @@ void stat_man::unlock(void) {
 }
 
 
-int stat_man::reg(stat_table *pstat) {
+int stat_man::reg(stat_tbl *pstat) {
 	int ret;
-	thread_table *ptbl = stat_tbl;
+	thread_table *ptbl = stat_table;
 	thread_table *prev_tbl;
 	
 	/* 检查线程是否已经注册 */
@@ -50,7 +47,7 @@ int stat_man::reg(stat_table *pstat) {
 	
 	/* 注册线程 */
 	ret = 0;
-	ptbl = stat_tbl;
+	ptbl = stat_table;
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
@@ -81,10 +78,10 @@ int stat_man::reg(stat_table *pstat) {
 }
 
 
-int stat_man::start(unsigned long int hash, unsigned int code) {
+int stat_man::start(unsigned long hash, unsigned int code) {
 	int last = 0;
-	thread_table *ptbl = stat_tbl;
-	stat_table *pstat;
+	thread_table *ptbl = stat_table;
+	stat_tbl *pstat;
 	
 	/* 遍历所有注册统计对象表 */
 	do
@@ -103,13 +100,13 @@ int stat_man::start(unsigned long int hash, unsigned int code) {
 				/* 回滚处理 */
 				last += i;
 				--last;
-				ptbl = stat_tbl;
+				ptbl = stat_table;
 	
 				/* 遍历所有注册统计对象表, 进行销毁处理 */
 				while(ptbl && (last >= 0))
 				{
 					for (int j=0; j<CFG_THREAD_TABLE_SIZE; j++) {
-						stat_table *pstop = ptbl->table[j];
+						stat_tbl *pstop = ptbl->table[j];
 						if (pstop) {
 							pstop->stop(hash);
 						}
@@ -132,10 +129,10 @@ int stat_man::start(unsigned long int hash, unsigned int code) {
 }
 
 
-int stat_man::stop(unsigned long int hash) {
+int stat_man::stop(unsigned long hash) {
 	int ret = 0;
-	thread_table *ptbl = stat_tbl;
-	stat_table *pstat;
+	thread_table *ptbl = stat_table;
+	stat_tbl *pstat;
 	
 	/* 遍历所有注册统计对象表 */
 	do
@@ -160,10 +157,10 @@ int stat_man::stop(unsigned long int hash) {
 }
 
 
-int stat_man::clear(unsigned long int hash, unsigned int code) {
+int stat_man::clear(unsigned long hash, unsigned int code) {
 	int ret = 0;
-	thread_table *ptbl = stat_tbl;
-	stat_table *pstat;
+	thread_table *ptbl = stat_table;
+	stat_tbl *pstat;
 	
 	/* 遍历所有注册统计对象表 */
 	do
@@ -188,8 +185,8 @@ int stat_man::clear(unsigned long int hash, unsigned int code) {
 }
 
 
-int stat_man::read(unsigned long int hash, stat_info *pinfo, struct timeval *tm) {
-	thread_table *ptbl = stat_tbl;
+int stat_man::read(unsigned long hash, stat_info *pinfo, struct timeval *tm) {
+	thread_table *ptbl = stat_table;
 	stat_obj obj;
 	
 	/* 遍历所有注册统计对象表 */
