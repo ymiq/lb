@@ -126,8 +126,6 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 		info.hash = hash;
 		info.handle = handle;
 		info.group = groupid;
-		info.ip = master;
-		info.port = qport;
 		info.lb_status = 1;
 		info.stat_status = 0;
 		if (plb->create(info) >= 0) {

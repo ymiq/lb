@@ -155,8 +155,7 @@ clb_cmd_resp0::clb_cmd_resp0(const char *str):clb_cmd_resp(0, false){
 
 		resp.info.lb_status = info["lb_status"].asUInt();
 		resp.info.stat_status = info["stat_status"].asUInt();
-		resp.info.ip = info["ip"].asUInt();
-		resp.info.port = (unsigned short)info["port"].asUInt();
+		resp.info.group = info["group"].asUInt();
 		resp.info.handle = info["handle"].asInt();
 
 		resp_list.push_back(resp);
@@ -182,8 +181,7 @@ string clb_cmd_resp0::serialization(void) {
 		Json::Value info;
 		info["lb_status"] = resp.info.lb_status;
 		info["stat_status"] = resp.info.stat_status;
-		info["ip"] = resp.info.ip;
-		info["port"] = resp.info.port;
+		info["group"] = resp.info.group;
 		info["handle"] = resp.info.handle;
 		serial["resp_list"][idx]["info"] = info;
 	}
@@ -197,15 +195,12 @@ void clb_cmd_resp0::dump(void) {
 		
 	if (resp_list.size()) {
 		list<CLB_CMD_RESP0>::iterator it;
-		printf("HASH			STATUS	LB	STAT	HOST\n");
+		printf("HASH			GROUP	STATUS	LB	STAT\n");
 		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
 			CLB_CMD_RESP0 resp = *it;
-			struct in_addr in;
-			in.s_addr = ntohl(resp.info.ip);
-			char *ip_str = inet_ntoa(in);
 	
-			printf("%016lx	%s	0x%X	0x%X	%s:%d\n", resp.hash, resp.success?"OK":"FAIL", 
-				resp.info.lb_status, resp.info.stat_status, ip_str, resp.info.port);
+			printf("%016lx	%d	%s	0x%X	0x%X\n", resp.hash, resp.info.group, 
+				resp.success?"OK":"FAIL", resp.info.lb_status, resp.info.stat_status);
 			
 		}
 	}

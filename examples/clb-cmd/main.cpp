@@ -237,28 +237,36 @@ static int host_info(char *str, clb_cmd &cmd) {
 
 
 static void help(void) {
-	printf("db create   创建负载均衡数据库\n");
-	printf("db dump     显示负载均衡数据内容\n");
-	printf("stat start <company>          开启公司<company>的数据统计\n");
-	printf("stat start group <groupid>    开启组<groupid>的数据统计\n");
-	printf("stat stop <company>           关闭公司<company>的数据统计\n");
-	printf("stat stop group <groupid>     关闭公司<company>的数据统计\n");
-	printf("stat info <company>           获取公司<company>的统计信息\n");
-	printf("stat info group <groupid>     获取组<groupid>的统计信息\n");
-	printf("stat monitor <company>        实时显示公司<company>的统计信息\n");
-	printf("stat monitor group <groupid>  实时显示组<groupid>的统计信息\n");
-	printf("stat clear <company>          清除公司<company>的统计信息\n");
-	printf("stat clear group <groupid>    清除组<groupid>的统计信息\n");
-	printf("lb stop <company>             停止公司<company>的服务\n");
-	printf("lb stop group <groupid>       停止组<groupid>的服务\n");
-	printf("lb start <company>            开启公司<company>的服务\n");
-	printf("lb start group <groupid>      开启组<groupid>的服务\n");
-	printf("lb info <company>             获取公司<company>的服务器信息\n");
-	printf("lb info group <groupid>       获取组<groupid>的服务器信息\n");
-	printf("lb monitor <company>          实时显示公司<company>的服务器信息\n");
-	printf("lb monitor group <groupid>    实时显示组<groupid>的服务器信息\n");
-	printf("lb switch <company> <host:port>        切换公司<company>到指定服务器\n");
-	printf("lb switch group <groupid> <host:port>  切换组<groupid>到指定服务器\n");
+	printf("db create                   创建负载均衡数据库\n");
+	printf("db dump                     显示负载均衡数据内容\n");
+	printf("stat start <name>           开启公司<name>的数据统计\n");
+	printf("stat start -g <id>          开启组<id>的数据统计\n");
+	printf("stat stop <name>            关闭公司<name>的数据统计\n");
+	printf("stat stop -g <id>           关闭公司<name>的数据统计\n");
+	printf("stat info <name>            获取公司<name>的统计信息\n");
+	printf("stat info -g <id>           获取组<id>的统计信息\n");
+	printf("stat monitor <name>         实时显示公司<name>的统计信息\n");
+	printf("stat monitor -g <id>        实时显示组<id>的统计信息\n");
+	printf("stat clear <name>           清除公司<name>的统计信息\n");
+	printf("stat clear -g <id>          清除组<id>的统计信息\n");
+	printf("stat create -g <id> <name>  在组<id>中新建公司<name>\n");
+	printf("stat create -g <id>         新建组<id>\n");
+	printf("stat delete <name>          删除公司<name>\n");
+	printf("stat delete -g <id>         删除组<id>\n");
+	printf("lb stop <name>              停止公司<name>的服务\n");
+	printf("lb stop -g <id>             停止组<id>的服务\n");
+	printf("lb start <name>             开启公司<name>的服务\n");
+	printf("lb start -g <id>            开启组<id>的服务\n");
+	printf("lb info <name>              获取公司<name>的服务器信息\n");
+	printf("lb info -g <id>             获取组<id>的服务器信息\n");
+	printf("lb monitor <name>           实时显示公司<name>的服务器信息\n");
+	printf("lb monitor -g <id>          实时显示组<id>的服务器信息\n");
+	printf("lb create <id> <name>       在组<id>中新建<name>\n");
+	printf("lb create -g <id>           新建组<group>\n");
+	printf("lb delete <name>            删除公司<name>\n");
+	printf("lb delete -g <id>           删除组<id>\n");
+	printf("lb switch <name> -g <id>    切换公司<name>到指定组<id>\n");
+	printf("lb switch -g <id0> <id1>    切换组<id0>中所有公司到组<id1>\n");
 	printf("\n");
 }
 
@@ -312,7 +320,7 @@ int main(int argc, char *argv[]) {
 			help();
 			return 0;
 		}
-		if ((argc > 4) && (!strcmp(argv[3], "group"))) { 
+		if ((argc > 4) && (!strcmp(argv[3], "-g"))) { 
 			command |= 0x10000000;
 			if (group_id(argv[4], cmd) < 0) {
 				return 0;
@@ -341,7 +349,7 @@ int main(int argc, char *argv[]) {
 			help();
 			return 0;
 		}
-		if ((argc > 4) && (!strcmp(argv[3], "group"))) { 
+		if ((argc > 4) && (!strcmp(argv[3], "-g"))) { 
 			command |= 0x10000000;
 			if (group_id(argv[4], cmd) < 0) {
 				return 0;

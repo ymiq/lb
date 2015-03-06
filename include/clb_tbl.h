@@ -17,11 +17,9 @@ using namespace std;
 #define CFG_SERVER_STAT_START		1
 
 typedef struct lbsrv_info {
-	int handle;
 	unsigned long hash;
 	unsigned int group;
-	unsigned int ip;
-	unsigned short port;
+	int handle;
 	unsigned int lb_status;
 	unsigned int stat_status;
 }lbsrv_info;
