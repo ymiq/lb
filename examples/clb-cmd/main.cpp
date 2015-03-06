@@ -13,6 +13,7 @@
 #include "lb_db.h"
 #include "cmd_clnt.h"
 
+static bool monitor = false;
 
 static int db_create(void) {
 	int ret;
@@ -262,7 +263,7 @@ static void help(void) {
 	printf("lb monitor <name>           实时显示公司<name>的服务器信息\n");
 	printf("lb monitor -g <id>          实时显示组<id>的服务器信息\n");
 	printf("lb create <id> <name>       在组<id>中新建<name>\n");
-	printf("lb create -g <id>           新建组<group>\n");
+	printf("lb create -g <id> <host>    新建组<id>,其服务器地址为<host>(IP:PORT)\n");
 	printf("lb delete <name>            删除公司<name>\n");
 	printf("lb delete -g <id>           删除组<id>\n");
 	printf("lb switch <name> -g <id>    切换公司<name>到指定组<id>\n");
@@ -271,23 +272,124 @@ static void help(void) {
 }
 
 
+int db_parser(int argc, char *argv[]) {
+	if ((argc == 3) && !strcmp(argv[1], "db")) {
+		if (!strcmp(argv[2], "create")) {
+			db_create();
+			return 1;
+		} else if (!strcmp(argv[2], "dump")) {
+			db_dump();
+			return 1;
+		} else {
+			help();
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+int lb_parser(int argc, char *argv[], clb_cmd &cmd) {
+	unsigned int command = 0;
+	
+	/* 均衡相关命令处理 */
+	if (!strcmp(argv[2], "start")) {
+		command |= 1;
+	} else if (!strcmp(argv[2], "stop")) {
+		command |= 2;
+	} else if (!strcmp(argv[2], "info")) {
+		command |= 4;
+	} else if (!strcmp(argv[2], "monitor")) {
+		command |= 4;
+		monitor = true;
+	} else if (!strcmp(argv[2], "switch")) {
+		command |= 8;
+	} else {
+		help();
+		return 0;
+	}
+	if ((argc > 4) && (!strcmp(argv[3], "-g"))) { 
+		command |= 0x10000000;
+		if (group_id(argv[4], cmd) < 0) {
+			return 0;
+		}
+		if ((command & 0x0fffffff) == 0x08) {
+			if (argc != 6) {
+				help();
+				return 0;
+			}
+			if (host_info(argv[5], cmd) < 0) {
+				printf("无效IP:PORT地址\n");
+				return 0;
+			}
+		}
+	} else {
+		if (company_hash(argv[3], cmd) < 0) {
+			return 0;
+		}
+		if ((command & 0x0fffffff) == 0x08) {
+			if (argc != 5) {
+				help();
+				return 0;
+			}
+			if (host_info(argv[4], cmd) < 0) {
+				printf("无效IP:PORT地址\n");
+				return 0;
+			}
+		}
+	}
+	cmd.command = command;
+	return 1;
+}
+
+
+
+int stat_parser(int argc, char *argv[], clb_cmd &cmd) {
+	unsigned int command = 0x20000000;
+	
+	/* 统计相关命令处理 */
+	if (!strcmp(argv[2], "start")) {
+		command |= 1;
+	} else if (!strcmp(argv[2], "stop")) {
+		command |= 2;
+	} else if (!strcmp(argv[2], "info")) {
+		command |= 4;
+	} else if (!strcmp(argv[2], "monitor")) {
+		command |= 4;
+		monitor = true;
+	} else if (!strcmp(argv[2], "clear")) {
+		command |= 8;
+	} else {
+		help();
+		return 0;
+	}
+	if ((argc > 4) && (!strcmp(argv[3], "-g"))) { 
+		command |= 0x10000000;
+		if (group_id(argv[4], cmd) < 0) {
+			return 0;
+		}
+	} else {
+		if (company_hash(argv[3], cmd) < 0) {
+			return 0;
+		}
+	}
+	cmd.command = command;
+	return 1;
+}
+
+
+
+
 int main(int argc, char *argv[]) {
-	bool monitor = false;
 	
 	/* 设置随机数种子 */
 	srand((int)time(NULL));
 	
 	/* 均衡数据库命令 */
-	if ((argc == 3) && !strcmp(argv[1], "db")) {
-		if (!strcmp(argv[2], "create")) {
-			return db_create();
-		} else if (!strcmp(argv[2], "dump")) {
-			return db_dump();
-		} else {
-			help();
-			return 0;
-		}
+	if (!db_parser(argc, argv)) {
+		return 0;
 	}
+		
 	
 	/* 创建命令对象 */
 	cmd_clnt *pclnt;
@@ -300,90 +402,18 @@ int main(int argc, char *argv[]) {
 	
 	/* 统计相关命令 */
 	clb_cmd cmd;
-	unsigned int command = 0;
 	if ((argc > 3) && (!strcmp(argv[1], "stat"))) {
-		command = 0x20000000;
-		
-		/* 统计相关命令处理 */
-		if (!strcmp(argv[2], "start")) {
-			command |= 1;
-		} else if (!strcmp(argv[2], "stop")) {
-			command |= 2;
-		} else if (!strcmp(argv[2], "info")) {
-			command |= 4;
-		} else if (!strcmp(argv[2], "monitor")) {
-			command |= 4;
-			monitor = true;
-		} else if (!strcmp(argv[2], "clear")) {
-			command |= 8;
-		} else {
-			help();
+		if (!stat_parser(argc, argv, cmd)) {
 			return 0;
-		}
-		if ((argc > 4) && (!strcmp(argv[3], "-g"))) { 
-			command |= 0x10000000;
-			if (group_id(argv[4], cmd) < 0) {
-				return 0;
-			}
-		} else {
-			if (company_hash(argv[3], cmd) < 0) {
-				return 0;
-			}
 		}
 	} else if ((argc > 3) && (!strcmp(argv[1], "lb"))) {
-		command = 0;
-		
-		/* 均衡相关命令处理 */
-		if (!strcmp(argv[2], "start")) {
-			command |= 1;
-		} else if (!strcmp(argv[2], "stop")) {
-			command |= 2;
-		} else if (!strcmp(argv[2], "info")) {
-			command |= 4;
-		} else if (!strcmp(argv[2], "monitor")) {
-			command |= 4;
-			monitor = true;
-		} else if (!strcmp(argv[2], "switch")) {
-			command |= 8;
-		} else {
-			help();
+		if (!lb_parser(argc, argv, cmd)) {
 			return 0;
-		}
-		if ((argc > 4) && (!strcmp(argv[3], "-g"))) { 
-			command |= 0x10000000;
-			if (group_id(argv[4], cmd) < 0) {
-				return 0;
-			}
-			if ((command & 0x0fffffff) == 0x08) {
-				if (argc != 6) {
-					help();
-					return 0;
-				}
-				if (host_info(argv[5], cmd) < 0) {
-					printf("无效IP:PORT地址\n");
-					return 0;
-				}
-			}
-		} else {
-			if (company_hash(argv[3], cmd) < 0) {
-				return 0;
-			}
-			if ((command & 0x0fffffff) == 0x08) {
-				if (argc != 5) {
-					help();
-					return 0;
-				}
-				if (host_info(argv[4], cmd) < 0) {
-					printf("无效IP:PORT地址\n");
-					return 0;
-				}
-			}
 		}
 	} else {
 		help();
 		return 0;
 	}
-	cmd.command = command;
 	
 	/* 命令处理 */
 	if (monitor) {
