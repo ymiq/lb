@@ -36,7 +36,7 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 	switch(command) {
 		
 	/* 开启统计 */		
-	case 1:
+	case 0x01:
 		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
@@ -58,7 +58,7 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 		break;
 		
 	/* 关闭统计 */
-	case 2:
+	case 0x02:
 		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
@@ -80,7 +80,7 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
  		break;
 		
 	/* 获取统计信息 */	
-	case 4:
+	case 0x04:
 		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
@@ -96,8 +96,18 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 		ret->success = true;
 		break;
 		
+	/* 创建指定公司 */	
+	case 0x08:
+		ret->success = false;
+		break;
+
+	/* 删除指定公司 */	
+	case 0x10:
+		ret->success = false;
+		break;
+
 	/* 清除统计信息 */	
-	case 8:
+	case 0x20:
 		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
@@ -135,7 +145,7 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 	switch(command) {
 		
 	/* 开启服务 */		
-	case 1:
+	case 0x01:
 		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
@@ -151,7 +161,7 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 		break;
 		
 	/* 关闭服务 */
-	case 2:
+	case 0x02:
 		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
@@ -167,7 +177,7 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
  		break;
 		
 	/* 获取服务信息 */	
-	case 4:
+	case 0x04:
 		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			lbsrv_info info;
@@ -185,6 +195,21 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 		ret->success = true;
 		break;
 		
+	/* 创建指定公司 */	
+	case 0x08:
+		ret->success = false;
+		break;
+
+	/* 删除指定公司 */	
+	case 0x10:
+		ret->success = false;
+		break;
+
+	/* 切换均衡服务器 */	
+	case 0x20:
+		ret->success = false;
+		break;
+
 	default:
 		ret->success = false;
 	}

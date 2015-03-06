@@ -25,6 +25,8 @@ clb_cmd::clb_cmd(const char *str):command(0), ip(0), port(0) {
 	command = serial["command"].asUInt();
 	ip = serial["ip"].asUInt();
 	port = (unsigned short)serial["port"].asUInt();
+	src_groupid = serial["src_groupid"].asUInt();
+	dst_groupid = (unsigned short)serial["dst_groupid"].asUInt();
 	
 	int size = serial["hash_list"].size();
 	for (int i=0; i<size; i++) {
@@ -43,6 +45,8 @@ clb_cmd::clb_cmd(const clb_cmd& c) {
 	command = c.command;
 	ip = c.ip;
 	port = c.port;
+	src_groupid = c.src_groupid;
+	dst_groupid = c.dst_groupid;
 }
 
 

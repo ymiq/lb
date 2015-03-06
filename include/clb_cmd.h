@@ -28,6 +28,8 @@ public:
 	list<unsigned long> hash_list;
 	list<unsigned int> group_list;
 	unsigned int command;
+	unsigned int src_groupid;
+	unsigned int dst_groupid;
 	unsigned int ip;
 	unsigned short port;
 protected:

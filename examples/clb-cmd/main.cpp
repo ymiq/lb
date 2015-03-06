@@ -10,8 +10,12 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <clb_cmd.h>
+#include <openssl/md5.h>
 #include "lb_db.h"
 #include "cmd_clnt.h"
+
+/* 定义是否从数据库检查输入参数正确性 */
+#define CFG_CHECK_PARAM		0
 
 static bool monitor = false;
 
@@ -45,11 +49,27 @@ static int db_dump(void) {
 	return ret; 
 }
 
+#if !CFG_CHECK_PARAM	
+unsigned long compute_hash(const char *company) {
+	MD5_CTX ctx;
+	unsigned char md5[16];
+	unsigned long hash = 0;
+	
+	MD5_Init(&ctx);
+	MD5_Update(&ctx, company, strlen(company));
+	MD5_Final(md5, &ctx);
+	
+	memcpy(&hash, md5, sizeof(hash));
+	
+	return hash;
+}
+#endif
 
-static int company_hash(char *str, clb_cmd &cmd) {
+static int get_hash_list(char *str, clb_cmd &cmd) {
 	unsigned long hash_val;
 	
 	/* 连接均衡配置数据库 */
+#if CFG_CHECK_PARAM	
 	lb_db *db;
 	try {
 		db = new lb_db("localhost", 3306, "lb_db");
@@ -57,6 +77,7 @@ static int company_hash(char *str, clb_cmd &cmd) {
 		printf("连接数据失败: %s\n", msg);
 		return -1;
 	}
+#endif
 	
 	/* 简单统计输入有多少个公司名称 */
 	int companys = 1;
@@ -80,7 +101,9 @@ static int company_hash(char *str, clb_cmd &cmd) {
 		if (!*pstart) {
 			if (!valids) {
 				printf("无效公司名\n");
+#if CFG_CHECK_PARAM	
 				delete db;
+#endif
 				return -1;
 			}
 			break;
@@ -93,14 +116,24 @@ static int company_hash(char *str, clb_cmd &cmd) {
 		}
 		
 		/* 检查名称是否存在 */
+#if CFG_CHECK_PARAM	
 		hash_val = db->check_company(pstart);
-		if (hash_val) {
+		if (hash_val && (hash_val != -1UL)) {
 			cmd.hash_list.push_back(hash_val);
 		} else {
 			printf("无效公司名: %s\n", pstart);
 			delete db;
 			return -1;
 		}
+#else
+		hash_val = compute_hash(pstart);
+		if (hash_val && (hash_val != -1UL)) {
+			cmd.hash_list.push_back(hash_val);
+		} else {
+			printf("无效公司名: %s\n", pstart);
+			return -1;
+		}
+#endif
 		valids++;
 		
 		/* 退出 */
@@ -109,14 +142,18 @@ static int company_hash(char *str, clb_cmd &cmd) {
 		}
 		pstart = pend + 1;
 	}
+#if CFG_CHECK_PARAM	
+	delete db;
+#endif
 	return valids;
 }
 
 
-static int group_id(char *str, clb_cmd &cmd) {
+static int get_group_list(char *str, clb_cmd &cmd) {
 	unsigned int groupid = 0;
 	
 	/* 检查groupid是否有效 */
+#if CFG_CHECK_PARAM	
 	lb_db *db;
 	try {
 		db = new lb_db("localhost", 3306, "lb_db");
@@ -124,6 +161,7 @@ static int group_id(char *str, clb_cmd &cmd) {
 		printf("连接数据失败: %s\n", msg);
 		return -1;
 	}
+#endif
 
 	/* 简单统计输入有多少个公司名称 */
 	int groups = 1;
@@ -147,7 +185,9 @@ static int group_id(char *str, clb_cmd &cmd) {
 		if (!*pstart) {
 			if (!valids) {
 				printf("无效公司名\n");
+#if CFG_CHECK_PARAM	
 				delete db;
+#endif
 				return -1;
 			}
 			break;
@@ -161,21 +201,22 @@ static int group_id(char *str, clb_cmd &cmd) {
 		
 		/* 读取参数，获取groupid */
 		errno = 0;
-		if (strlen(pstart) >= 2) {
-			if ((pstart[0] == '0') 
+		if ((strlen(pstart) >= 2) && (pstart[0] == '0') 
 				&& ((pstart[1] == 'x') || (pstart[1] == 'X'))) {
-				groupid = (unsigned int)strtoul(pstart, NULL, 16);
-			}
+			groupid = (unsigned int)strtoul(pstart, NULL, 16);
 		} else {
 			groupid = (unsigned int)strtoul(pstart, NULL, 10);
 		}
 		if ((errno == ERANGE) || (errno == EINVAL)) {
 			printf("无效组名: %s\n", pstart);
+#if CFG_CHECK_PARAM	
 			delete db;
+#endif
 			return -1;
 		}
 		
 		/* 检查组名称是否存在 */
+#if CFG_CHECK_PARAM	
 		bool ret = db->check_groupid(groupid);
 		if (ret) {
 			cmd.group_list.push_back(groupid);
@@ -184,13 +225,73 @@ static int group_id(char *str, clb_cmd &cmd) {
 			delete db;
 			return -1;
 		}
+#else
+		cmd.group_list.push_back(groupid);
+#endif
 		valids++;
 		if (!pend) {
 			break;
 		}
 		pstart = pend + 1;
 	}
+#if CFG_CHECK_PARAM	
+	delete db;
+#endif
 	return valids;
+}
+
+
+static int get_group_id(char *str, clb_cmd &cmd, bool src_group) {
+	unsigned int groupid = 0;
+	
+	/* 连接均衡配置数据库 */
+#if CFG_CHECK_PARAM	
+	lb_db *db;
+	try {
+		db = new lb_db("localhost", 3306, "lb_db");
+	} catch (const char *msg) {
+		printf("连接数据失败: %s\n", msg);
+		return -1;
+	}
+#endif
+	
+	if ((strlen(str) >= 2) && (str[0] == '0') 
+			&& ((str[1] == 'x') || (str[1] == 'X'))) {
+		groupid = (unsigned int)strtoul(str, NULL, 16);
+	} else {
+		groupid = (unsigned int)strtoul(str, NULL, 10);
+	}
+	if ((errno == ERANGE) || (errno == EINVAL)) {
+		printf("无效组名: %s\n", str);
+#if CFG_CHECK_PARAM	
+		delete db;
+#endif
+		return -1;
+	}
+	
+	/* 检查组名称是否存在 */
+#if CFG_CHECK_PARAM	
+	bool ret = db->check_groupid(groupid);
+	if (ret) {
+		if (src_group) {
+			cmd.src_groupid = groupid;
+		} else {
+			cmd.dst_groupid = groupid;
+		}
+	} else {
+		printf("无效组名: %s\n", str);
+		delete db;
+		return -1;
+	}
+	delete db;
+#else
+	if (src_group) {
+		cmd.src_groupid = groupid;
+	} else {
+		cmd.dst_groupid = groupid;
+	}
+#endif
+	return 0;
 }
 
 
@@ -238,39 +339,109 @@ static int host_info(char *str, clb_cmd &cmd) {
 
 
 static void help(void) {
-	printf("db create                   创建负载均衡数据库\n");
-	printf("db dump                     显示负载均衡数据内容\n");
-	printf("stat start <name>           开启公司<name>的数据统计\n");
-	printf("stat start -g <id>          开启组<id>的数据统计\n");
-	printf("stat stop <name>            关闭公司<name>的数据统计\n");
-	printf("stat stop -g <id>           关闭公司<name>的数据统计\n");
-	printf("stat info <name>            获取公司<name>的统计信息\n");
-	printf("stat info -g <id>           获取组<id>的统计信息\n");
-	printf("stat monitor <name>         实时显示公司<name>的统计信息\n");
-	printf("stat monitor -g <id>        实时显示组<id>的统计信息\n");
-	printf("stat clear <name>           清除公司<name>的统计信息\n");
-	printf("stat clear -g <id>          清除组<id>的统计信息\n");
-	printf("stat create -g <id> <name>  在组<id>中新建公司<name>\n");
-	printf("stat create -g <id>         新建组<id>\n");
-	printf("stat delete <name>          删除公司<name>\n");
-	printf("stat delete -g <id>         删除组<id>\n");
-	printf("lb stop <name>              停止公司<name>的服务\n");
-	printf("lb stop -g <id>             停止组<id>的服务\n");
-	printf("lb start <name>             开启公司<name>的服务\n");
-	printf("lb start -g <id>            开启组<id>的服务\n");
-	printf("lb info <name>              获取公司<name>的服务器信息\n");
-	printf("lb info -g <id>             获取组<id>的服务器信息\n");
-	printf("lb monitor <name>           实时显示公司<name>的服务器信息\n");
-	printf("lb monitor -g <id>          实时显示组<id>的服务器信息\n");
-	printf("lb create <id> <name>       在组<id>中新建<name>\n");
-	printf("lb create -g <id> <host>    新建组<id>,其服务器地址为<host>(IP:PORT)\n");
-	printf("lb delete <name>            删除公司<name>\n");
-	printf("lb delete -g <id>           删除组<id>\n");
-	printf("lb switch <name> -g <id>    切换公司<name>到指定组<id>\n");
-	printf("lb switch -g <id0> <id1>    切换组<id0>中所有公司到组<id1>\n");
+	printf("db create                       创建负载均衡数据库\n");
+	printf("db dump                         显示负载均衡数据内容\n");
+	printf("stat start <names>              开启公司<name>的数据统计\n");
+	printf("stat start group <ids>          开启组<id>的数据统计\n");
+	printf("stat stop <names>               关闭公司<name>的数据统计\n");
+	printf("stat stop group <ids>           关闭公司<name>的数据统计\n");
+	printf("stat info <names>               获取公司<name>的统计信息\n");
+	printf("stat info group <ids>           获取组<id>的统计信息\n");
+	printf("stat create group <id> <names>  在组<id>中新建公司<name>\n");
+	printf("stat delete <names>             删除公司<name>\n");
+	printf("stat delete group <ids>         删除组<id>\n");
+	printf("stat clear <names>              清除公司<name>的统计信息\n");
+	printf("stat clear group <ids>          清除组<id>的统计信息\n");
+	printf("stat monitor <names>            实时显示公司<name>的统计信息\n");
+	printf("stat monitor group <ids>        实时显示组<id>的统计信息\n");
+	printf("lb stop <names>                 停止公司<name>的服务\n");
+	printf("lb stop group <ids>             停止组<id>的服务\n");
+	printf("lb start <names>                开启公司<name>的服务\n");
+	printf("lb start group <ids>            开启组<id>的服务\n");
+	printf("lb info <names>                 获取公司<name>的服务器信息\n");
+	printf("lb info group <ids>             获取组<id>的服务器信息\n");
+	printf("lb create <id> <names>          在组<id>中新建<name>\n");
+	printf("lb create group <id> <host>     新建组<id>,其服务器地址为<host>(IP:PORT)\n");
+	printf("lb delete <names>               删除公司<name>\n");
+	printf("lb delete group <ids>           删除组<id>\n");
+	printf("lb switch <names> to <id>       切换公司<name>到指定组<id>\n");
+	printf("lb switch group <id0> <id1>     切换组<id0>中所有公司到组<id1>\n");
+	printf("lb monitor <names>              实时显示公司<name>的服务器信息\n");
+	printf("lb monitor group <ids>          实时显示组<id>的服务器信息\n");
 	printf("\n");
 }
 
+
+int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cmd) {
+	/* 组命令解析 */
+	if ((argc > 2) && (!strcmp(argv[0], "group"))) {
+		cmd.command |= 0x10000000;
+		
+		/* 获取group后第一个参数 */
+		if (!strcmp(pattern, "lb_create")) {
+			if (get_group_id(argv[1], cmd, 0) < 0) {
+				return 0;
+			}
+		} else if (!strcmp(pattern, "lb_switch")) {
+			if (get_group_id(argv[1], cmd, 1) < 0) {
+				return 0;
+			}
+		} else {
+			if (get_group_list(argv[1], cmd) < 0) {
+				return 0;
+			}
+		}
+		
+		/* 获取特殊命令group后第二个参数 */
+		/*  1. 特殊命令 stat create group ... */
+		if (!strcmp(pattern, "stat_create")) {
+			if (argc < 3) {
+				return 0;
+			}
+			if (get_hash_list(argv[2], cmd) < 0) {
+				return 0;
+			}
+		}
+
+		/*  2. 特殊命令 lb create group ... */
+		if (!strcmp(pattern, "lb_create")) {
+			if (argc < 3) {
+				return 0;
+			}
+			if (host_info(argv[2], cmd) < 0) {
+				return 0;
+			}
+		}
+
+		/*  3. 特殊命令 lb switch group ... */
+		if (!strcmp(pattern, "lb_switch")) {
+			if (argc < 3) {
+				return 0;
+			}
+			/* 获取目的Group ID */
+			if (get_group_id(argv[2], cmd, 0) < 0) {
+				return 0;
+			}
+		}
+	} else {
+		/* 获取第一个参数：公司名称列表 */
+		if (get_hash_list(argv[0], cmd) < 0) {
+			return 0;
+		}
+		
+		/* 获取特殊命令第二个参数 */
+		/*  1. 特殊命令 lb switch group ... */
+		if (!strcmp(pattern, "lb_switch")) {
+			if ((argc < 3) || (strcmp(argv[1], "to") != 0)) {
+				return 0;
+			}
+			if (get_group_id(argv[2], cmd, 0) < 0) {
+				return 0;
+			}
+		}
+	}	
+	return 1;
+}
 
 int db_parser(int argc, char *argv[]) {
 	if ((argc == 3) && !strcmp(argv[1], "db")) {
@@ -290,90 +461,78 @@ int db_parser(int argc, char *argv[]) {
 
 
 int lb_parser(int argc, char *argv[], clb_cmd &cmd) {
-	unsigned int command = 0;
+	if (argc < 2) {
+		help();
+		return 0;
+	}
 	
-	/* 均衡相关命令处理 */
-	if (!strcmp(argv[2], "start")) {
-		command |= 1;
-	} else if (!strcmp(argv[2], "stop")) {
-		command |= 2;
-	} else if (!strcmp(argv[2], "info")) {
-		command |= 4;
-	} else if (!strcmp(argv[2], "monitor")) {
-		command |= 4;
+	argc--;
+	cmd.command = 0;
+	if (!strcmp(argv[0], "start")) {
+		cmd.command |= 0x01;
+		return param_parser(argc, &argv[1], "lb_start", cmd);
+	} else if (!strcmp(argv[0], "stop")) {
+		cmd.command |= 0x02;
+		return param_parser(argc, &argv[1], "lb_stop", cmd);
+	} else if (!strcmp(argv[0], "info")) {
+		cmd.command |= 0x04;
+		return param_parser(argc, &argv[1], "lb_info", cmd);
+	} else if (!strcmp(argv[0], "create")) {
+		cmd.command |= 0x08;
+		return param_parser(argc, &argv[1], "lb_create", cmd);
+	} else if (!strcmp(argv[0], "delete")) {
+		cmd.command |= 0x10;
+		return param_parser(argc, &argv[1], "lb_delete", cmd);
+	} else if (!strcmp(argv[0], "switch")) {
+		cmd.command |= 0x20;
+		return param_parser(argc, &argv[1], "lb_switch", cmd);
+	} else if (!strcmp(argv[0], "monitor")) {
+		cmd.command |= 0x04;
 		monitor = true;
-	} else if (!strcmp(argv[2], "switch")) {
-		command |= 8;
+		return param_parser(argc, &argv[1], "lb_monitor", cmd);
 	} else {
 		help();
 		return 0;
 	}
-	if ((argc > 4) && (!strcmp(argv[3], "-g"))) { 
-		command |= 0x10000000;
-		if (group_id(argv[4], cmd) < 0) {
-			return 0;
-		}
-		if ((command & 0x0fffffff) == 0x08) {
-			if (argc != 6) {
-				help();
-				return 0;
-			}
-			if (host_info(argv[5], cmd) < 0) {
-				printf("无效IP:PORT地址\n");
-				return 0;
-			}
-		}
-	} else {
-		if (company_hash(argv[3], cmd) < 0) {
-			return 0;
-		}
-		if ((command & 0x0fffffff) == 0x08) {
-			if (argc != 5) {
-				help();
-				return 0;
-			}
-			if (host_info(argv[4], cmd) < 0) {
-				printf("无效IP:PORT地址\n");
-				return 0;
-			}
-		}
-	}
-	cmd.command = command;
-	return 1;
 }
 
 
 
 int stat_parser(int argc, char *argv[], clb_cmd &cmd) {
-	unsigned int command = 0x20000000;
-	
+	if (argc < 2) {
+		help();
+		return 0;
+	}
+
 	/* 统计相关命令处理 */
-	if (!strcmp(argv[2], "start")) {
-		command |= 1;
-	} else if (!strcmp(argv[2], "stop")) {
-		command |= 2;
-	} else if (!strcmp(argv[2], "info")) {
-		command |= 4;
-	} else if (!strcmp(argv[2], "monitor")) {
-		command |= 4;
+	argc--;
+	cmd.command = 0x20000000;
+	if (!strcmp(argv[0], "start")) {
+		cmd.command |= 0x01;
+		return param_parser(argc, &argv[1], "stat_start", cmd);
+	} else if (!strcmp(argv[0], "stop")) {
+		cmd.command |= 0x02;
+		return param_parser(argc, &argv[1], "stat_stop", cmd);
+	} else if (!strcmp(argv[0], "info")) {
+		cmd.command |= 0x04;
+		return param_parser(argc, &argv[1], "stat_info", cmd);
+	} else if (!strcmp(argv[0], "create")) {
+		cmd.command |= 0x08;
+		return param_parser(argc, &argv[1], "stat_create", cmd);
+	} else if (!strcmp(argv[0], "delete")) {
+		cmd.command |= 0x10;
+		return param_parser(argc, &argv[1], "stat_delete", cmd);
+	} else if (!strcmp(argv[0], "switch")) {
+		cmd.command |= 0x20;
+		return param_parser(argc, &argv[1], "stat_switch", cmd);
+	} else if (!strcmp(argv[0], "monitor")) {
+		cmd.command |= 0x04;
 		monitor = true;
-	} else if (!strcmp(argv[2], "clear")) {
-		command |= 8;
+		return param_parser(argc, &argv[1], "stat_monitor", cmd);
 	} else {
 		help();
 		return 0;
 	}
-	if ((argc > 4) && (!strcmp(argv[3], "-g"))) { 
-		command |= 0x10000000;
-		if (group_id(argv[4], cmd) < 0) {
-			return 0;
-		}
-	} else {
-		if (company_hash(argv[3], cmd) < 0) {
-			return 0;
-		}
-	}
-	cmd.command = command;
 	return 1;
 }
 
@@ -403,11 +562,11 @@ int main(int argc, char *argv[]) {
 	/* 统计相关命令 */
 	clb_cmd cmd;
 	if ((argc > 3) && (!strcmp(argv[1], "stat"))) {
-		if (!stat_parser(argc, argv, cmd)) {
+		if (!stat_parser(argc-1, &argv[1], cmd)) {
 			return 0;
 		}
 	} else if ((argc > 3) && (!strcmp(argv[1], "lb"))) {
-		if (!lb_parser(argc, argv, cmd)) {
+		if (!lb_parser(argc-1, &argv[1], cmd)) {
 			return 0;
 		}
 	} else {
