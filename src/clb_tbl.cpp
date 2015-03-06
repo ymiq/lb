@@ -60,6 +60,7 @@ int clb_tbl::lb_info(unsigned long hash, lbsrv_info *info) {
 	return 0;
 }
 
+
 bool clb_tbl::is_lb_start(unsigned long hash) {
 	lbsrv_info *pserver = table.find(hash);
 	if (pserver == NULL) {
@@ -67,6 +68,7 @@ bool clb_tbl::is_lb_start(unsigned long hash) {
 	}
 	return pserver->lb_status ? true : false;
 }
+
 
 int clb_tbl::lb_start(unsigned long hash) {
 	lbsrv_info *pserver = table.find(hash);
@@ -85,7 +87,7 @@ int clb_tbl::lb_stop(unsigned long hash) {
 		return -1;
 	}
 	int ret = pserver->lb_status;
-	pserver->lb_status = 1;
+	pserver->lb_status = 0;
 	return ret;
 }
 

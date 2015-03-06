@@ -39,9 +39,9 @@ public:
 	};
 	
 	void remove(unsigned int group);
+	void remove(unsigned int group, unsigned long hash);
 	clb_grp_info *find(unsigned int group);
-	clb_grp_info *update(unsigned int group, clb_grp_info &info);
-	clb_hash_info *update(unsigned int group, unsigned long hash);
+	clb_grp_info *create(clb_grp_info &info, unsigned long hash);
 	
 	int lb_start(unsigned int group);
 	int lb_stop(unsigned int group);

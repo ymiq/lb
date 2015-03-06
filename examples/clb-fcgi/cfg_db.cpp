@@ -131,7 +131,15 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 		info.lb_status = 1;
 		info.stat_status = 0;
 		if (plb->create(info) >= 0) {
-			pgrp->update(groupid, hash);
+			clb_grp_info grp_info;
+			
+			grp_info.group = groupid;
+			grp_info.handle = handle;
+			grp_info.ip = master;
+			grp_info.port = qport;
+			grp_info.lb_status = 1;
+			grp_info.stat_status = 0;
+			pgrp->create(grp_info, hash);
 		} else {
 			LOGE("Can't start 0x%lx\n", hash);
 		}

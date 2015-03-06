@@ -35,33 +35,39 @@ void clb_grp::remove(unsigned int group) {
 }
 
 
+void clb_grp::remove(unsigned int group, unsigned long hash) {
+	clb_grp_info *grp_info = table.find(group_hash(group));
+	if (grp_info && grp_info->company_tbl) {
+		grp_info->company_tbl->remove(hash);
+	}
+}
+
+
 clb_grp_info *clb_grp::find(unsigned int group) {
 	return table.find(group_hash(group));
 }
 
 
-clb_grp_info *clb_grp::update(unsigned int group, clb_grp_info &info) {
-	return table.update(group_hash(group), info);
-}
-
-
-clb_hash_info *clb_grp::update(unsigned int group, unsigned long hash) {
+clb_grp_info *clb_grp::create(clb_grp_info &info, unsigned long hash) {
+	unsigned int group = info.group;
 	unsigned long ghash;
 	clb_grp_info *grp_info;
 	
 	ghash = group_hash(group);
 	grp_info = table.find(ghash);
 	if (grp_info == NULL) {
-		grp_info = table.get(ghash);
+		info.company_tbl = new CLB_COMPANY_TBL();
+		grp_info = table.update(ghash, info);
 		if (grp_info == NULL) {
 			return NULL;
 		}
-		grp_info->company_tbl = new CLB_COMPANY_TBL();
 	}
 	clb_hash_info hash_info;
 	hash_info.hash = hash;
-	clb_hash_info *ret = grp_info->company_tbl->update(hash, hash_info);
-	return ret;
+	if (grp_info->company_tbl->update(hash, hash_info) == NULL) {
+		return NULL;
+	}
+	return grp_info;
 }
 
 
