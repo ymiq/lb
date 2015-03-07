@@ -364,7 +364,7 @@ void cmdsrv::read(int sock, short event, void* arg) {
 		delete srv;
 		return;
 	}
-//	LOGI("RECV: %s\n", (const char*)buffer);
+	LOGI("RECV: %s\n", (const char*)buffer);
 	
 	/* 处理命令 */
 	try {
@@ -399,7 +399,7 @@ void cmdsrv::read(int sock, short event, void* arg) {
 			    char *obuf = (char*)malloc(len + 1);
 			    if (obuf) {
 				    strcpy(obuf, resp_str.c_str());
-//				    LOGI("SEND: %s\n", obuf);
+				    LOGI("SEND: %s\n", obuf);
 				    if (srv->ev_send(0, obuf, len + 1) == false) {
 				    	LOGE("reponse error");
 				    }

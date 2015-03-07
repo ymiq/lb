@@ -26,7 +26,7 @@ cmd_clnt::cmd_clnt() {
 
 	/* 发送连接请求 */
 	if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)) < 0) {
-		throw "connect failed";
+		throw "connect to fcgi program failed";
 	}
 }	
 

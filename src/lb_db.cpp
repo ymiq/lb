@@ -23,7 +23,7 @@ using namespace std;
 	qstat:  客户请求统计信息
 	astat:  客户请求统计信息
 	
-	create databse lb_db;
+	create database lb_db;
 	use lb_db;
 	create table lb (id int, name varchar(256), hash bigint unsigned, master int unsigned, slave int unsigned, groupid int, qport int, aport int, qstat int unsigned, astat int unsigned); 
 	create unique index lb_uidx on lb(id, hash);
