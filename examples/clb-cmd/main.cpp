@@ -371,7 +371,7 @@ static void help(void) {
 
 int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cmd) {
 	/* 组命令解析 */
-	if ((argc > 2) && (!strcmp(argv[0], "group"))) {
+	if ((argc >= 2) && (!strcmp(argv[0], "group"))) {
 		cmd.command |= 0x10000000;
 		
 		/* 获取group后第一个参数 */
@@ -431,11 +431,11 @@ int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cmd) {
 }
 
 int db_parser(int argc, char *argv[]) {
-	if ((argc == 3) && !strcmp(argv[1], "db")) {
-		if (!strcmp(argv[2], "create")) {
+	if ((argc == 2) && !strcmp(argv[0], "db")) {
+		if (!strcmp(argv[1], "create")) {
 			db_create();
 			return 1;
-		} else if (!strcmp(argv[2], "dump")) {
+		} else if (!strcmp(argv[1], "dump")) {
 			db_dump();
 			return 1;
 		} else {
@@ -526,10 +526,9 @@ int main(int argc, char *argv[]) {
 	srand((int)time(NULL));
 	
 	/* 均衡数据库命令 */
-	if (!db_parser(argc, argv)) {
+	if (db_parser(argc-1, &argv[1])) {
 		return 0;
 	}
-		
 	
 	/* 创建命令对象 */
 	cmd_clnt *pclnt;
