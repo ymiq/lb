@@ -347,9 +347,6 @@ static void help(void) {
 	printf("stat stop group <ids>           关闭公司<name>的数据统计\n");
 	printf("stat info <names>               获取公司<name>的统计信息\n");
 	printf("stat info group <ids>           获取组<id>的统计信息\n");
-	printf("stat create group <id> <names>  在组<id>中新建公司<name>\n");
-	printf("stat delete <names>             删除公司<name>\n");
-	printf("stat delete group <ids>         删除组<id>\n");
 	printf("stat clear <names>              清除公司<name>的统计信息\n");
 	printf("stat clear group <ids>          清除组<id>的统计信息\n");
 	printf("stat monitor <names>            实时显示公司<name>的统计信息\n");
@@ -393,17 +390,7 @@ int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cmd) {
 		}
 		
 		/* 获取特殊命令group后第二个参数 */
-		/*  1. 特殊命令 stat create group ... */
-		if (!strcmp(pattern, "stat_create")) {
-			if (argc < 3) {
-				return 0;
-			}
-			if (get_hash_list(argv[2], cmd) < 0) {
-				return 0;
-			}
-		}
-
-		/*  2. 特殊命令 lb create group ... */
+		/*  1. 特殊命令 lb create group ... */
 		if (!strcmp(pattern, "lb_create")) {
 			if (argc < 3) {
 				return 0;
@@ -413,7 +400,7 @@ int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cmd) {
 			}
 		}
 
-		/*  3. 特殊命令 lb switch group ... */
+		/*  2. 特殊命令 lb switch group ... */
 		if (!strcmp(pattern, "lb_switch")) {
 			if (argc < 3) {
 				return 0;
@@ -468,7 +455,7 @@ int lb_parser(int argc, char *argv[], clb_cmd &cmd) {
 	
 	argc--;
 	cmd.command = 0;
-	if (!strcmp(argv[0], "start")) {
+	if (!strcmp(argv[0], "lb")) {
 		cmd.command |= 0x01;
 		return param_parser(argc, &argv[1], "lb_start", cmd);
 	} else if (!strcmp(argv[0], "stop")) {
@@ -516,15 +503,9 @@ int stat_parser(int argc, char *argv[], clb_cmd &cmd) {
 	} else if (!strcmp(argv[0], "info")) {
 		cmd.command |= 0x04;
 		return param_parser(argc, &argv[1], "stat_info", cmd);
-	} else if (!strcmp(argv[0], "create")) {
+	} else if (!strcmp(argv[0], "clear")) {
 		cmd.command |= 0x08;
 		return param_parser(argc, &argv[1], "stat_create", cmd);
-	} else if (!strcmp(argv[0], "delete")) {
-		cmd.command |= 0x10;
-		return param_parser(argc, &argv[1], "stat_delete", cmd);
-	} else if (!strcmp(argv[0], "switch")) {
-		cmd.command |= 0x20;
-		return param_parser(argc, &argv[1], "stat_switch", cmd);
 	} else if (!strcmp(argv[0], "monitor")) {
 		cmd.command |= 0x04;
 		monitor = true;

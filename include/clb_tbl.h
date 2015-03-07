@@ -34,11 +34,14 @@ public:
 	void remove(unsigned long hash);
 	int create(lbsrv_info &info);
 	
+	unsigned int group_id(unsigned long hash);
+	
 	int lb_handle(unsigned long hash);
 	int lb_handle(unsigned long hash, unsigned int &lb_status, unsigned int &stat_status);
 	bool is_lb_start(unsigned long hash);
 	int lb_stop(unsigned long hash);
 	int lb_start(unsigned long hash);
+	int lb_switch(unsigned long hash, unsigned int group, int handle);
 	int lb_info(unsigned long hash, lbsrv_info *info);
 	
 	bool is_stat_start(unsigned long hash);	

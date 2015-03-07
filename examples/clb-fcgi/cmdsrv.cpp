@@ -96,18 +96,8 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 		ret->success = true;
 		break;
 		
-	/* 创建指定公司 */	
-	case 0x08:
-		ret->success = false;
-		break;
-
-	/* 删除指定公司 */	
-	case 0x10:
-		ret->success = false;
-		break;
-
 	/* 清除统计信息 */	
-	case 0x20:
+	case 0x08:
 		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
@@ -195,20 +185,91 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 		ret->success = true;
 		break;
 		
-	/* 创建指定公司 */	
+	/* 新增公司 */	
 	case 0x08:
-		ret->success = false;
+		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+			unsigned long hash = *it;
+			clb_grp_info grp_info;
+			grp_info.group = cmd.dst_groupid;
+			grp_info.handle = -1;
+			grp_info.ip = cmd.ip;
+			grp_info.port = cmd.port;
+			grp_info.lb_status = 1;
+			grp_info.stat_status = 0;
+			
+			/* 创建/填充Group表 */
+			if (pgrp->create(grp_info, hash) < 0) {
+				resp.success = false;
+			} else {
+				lbsrv_info info;
+				
+				/* 填充clb hash表 */
+				info.hash = hash;
+				info.group = cmd.dst_groupid;
+				info.lb_status = 1;
+				info.stat_status= 0;
+				info.handle = grp_info.handle;
+				if (plb->create(info) < 0) {
+					resp.success = false;
+					pgrp->remove(cmd.dst_groupid, hash);
+				} else {
+					resp.success = true;
+					resp.info = info;
+				}
+			}		
+			resp.hash = hash;	
+			ret->resp_list.push_back(resp);
+		}
+		ret->success = true;
 		break;
 
 	/* 删除指定公司 */	
 	case 0x10:
-		ret->success = false;
+		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+			unsigned long hash = *it;
+			unsigned int group = plb->group_id(hash);
+			resp.hash = hash;
+			
+			if (group != -1u) {
+				plb->remove(hash);
+				pgrp->remove(group, hash);
+				resp.success = true;
+			} else {
+				resp.success = false;
+			}
+			
+			ret->resp_list.push_back(resp);
+		}
+		ret->success = true;
 		break;
 
 	/* 切换均衡服务器 */	
 	case 0x20:
-		ret->success = false;
+	{
+		unsigned int group = cmd.dst_groupid;
+		if (group == -1u) {
+			ret->success = false;
+			break;
+		}
+		int handle = pgrp->get_handle(group);
+		if (handle < 0) {
+			ret->success = false;
+			break;
+		}
+		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+			unsigned long hash = *it;
+			resp.hash = hash;
+
+			if (plb->lb_switch(hash, group, handle) < 0) {
+				resp.success = false;
+			} else {
+				resp.success = true;
+			}
+			ret->resp_list.push_back(resp);
+		}
+		ret->success = true;
 		break;
+	}
 
 	default:
 		ret->success = false;
@@ -227,7 +288,7 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 	switch(command) {
 		
 	/* 开启服务 */		
-	case 1:
+	case 0x01:
 		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
 			unsigned int group = *it;
 			resp.group = group;
@@ -243,7 +304,7 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 		break;
 		
 	/* 关闭服务 */
-	case 2:
+	case 0x02:
 		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
 			unsigned int group = *it;
 			resp.group = group;
@@ -260,7 +321,7 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 		
 	/* 获取服务信息 */	
 #if 0
-	case 4:
+	case 0x04:
 		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
 			unsigned int group = *it;
 			resp.group = group;

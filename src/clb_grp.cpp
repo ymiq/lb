@@ -2,6 +2,12 @@
 #include <cstdio>
 #include <cstring>
 #include <exception>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <sys/un.h>
+#include <sys/socket.h>
+#include <sys/unistd.h>
+#include <arpa/inet.h>
 #include <log.h>
 #include <clb_grp.h>
 #include <clb_tbl.h>
@@ -48,6 +54,37 @@ clb_grp_info *clb_grp::find(unsigned int group) {
 }
 
 
+int clb_grp::get_handle(unsigned int group) {
+	clb_grp_info *grp_info;
+	grp_info = table.find(group_hash(group));
+	if (grp_info == NULL) {
+		return -1;
+	} else {
+		return grp_info->handle;
+	}
+}
+
+
+int clb_grp::open_sock(unsigned int master, unsigned short port) {
+	int sockfd;
+	struct sockaddr_in serv_addr;
+	
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	
+	/* 设置连接目的地址 */
+	memset(&serv_addr, 0, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(port);
+	serv_addr.sin_addr.s_addr = htonl(master);
+ 
+	/* 发送连接请求 */
+	if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)) < 0) {
+		return -1;
+	}
+	return sockfd;
+}
+
+
 clb_grp_info *clb_grp::create(clb_grp_info &info, unsigned long hash) {
 	unsigned int group = info.group;
 	unsigned long ghash;
@@ -57,6 +94,9 @@ clb_grp_info *clb_grp::create(clb_grp_info &info, unsigned long hash) {
 	grp_info = table.find(ghash);
 	if (grp_info == NULL) {
 		info.company_tbl = new CLB_COMPANY_TBL();
+		if (info.handle < 0) {
+			info.handle = open_sock(info.ip, info.port);
+		}
 		grp_info = table.update(ghash, info);
 		if (grp_info == NULL) {
 			return NULL;
@@ -141,4 +181,5 @@ int clb_grp::stat_stop(unsigned int group) {
 	
 	return 0;
 }
+
 

@@ -29,6 +29,15 @@ void clb_tbl::remove(unsigned long hash) {
 }
 
 
+unsigned int clb_tbl::group_id(unsigned long hash) {
+	lbsrv_info *pserver = table.find(hash);
+	if (pserver == NULL) {
+		return -1u;
+	}
+	return pserver->group;
+}
+
+
 int clb_tbl::lb_handle(unsigned long hash) {
 	lbsrv_info *pserver = table.find(hash);
 	if (pserver == NULL) {
@@ -89,6 +98,22 @@ int clb_tbl::lb_stop(unsigned long hash) {
 	int ret = pserver->lb_status;
 	pserver->lb_status = 0;
 	return ret;
+}
+
+
+int clb_tbl::lb_switch(unsigned long hash, unsigned int group, int handle) {
+	lbsrv_info *pserver = table.find(hash);
+	if (pserver == NULL) {
+		return -1;
+	}
+	lbsrv_info new_info = *pserver;
+	new_info.group = group;
+	new_info.handle = handle;
+	pserver = table.update(hash, new_info);
+	if (pserver == NULL) {
+		return -1;
+	}
+	return 0;
 }
 
 

@@ -112,7 +112,6 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 	/* 行指针 遍历行 */
 	MYSQL_ROW row =NULL;  
 	while (NULL != (row = mysql_fetch_row(result))) {
-		lbsrv_info info;
 		unsigned long hash = strtoull(row[2], NULL, 10);
 		unsigned int master = (unsigned int)strtoul(row[3], NULL, 10);
 		int groupid = atoi(row[4]);
@@ -123,23 +122,26 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 		if (handle < 0) {
 			LOGE("Can't open socket");
 		}
-		info.hash = hash;
-		info.handle = handle;
-		info.group = groupid;
-		info.lb_status = 1;
-		info.stat_status = 0;
-		if (plb->create(info) >= 0) {
-			clb_grp_info grp_info;
-			
-			grp_info.group = groupid;
-			grp_info.handle = handle;
-			grp_info.ip = master;
-			grp_info.port = qport;
-			grp_info.lb_status = 1;
-			grp_info.stat_status = 0;
-			pgrp->create(grp_info, hash);
-		} else {
-			LOGE("Can't start 0x%lx\n", hash);
+		clb_grp_info grp_info;
+		
+		grp_info.group = groupid;
+		grp_info.handle = -1;
+		grp_info.ip = master;
+		grp_info.port = qport;
+		grp_info.lb_status = 1;
+		grp_info.stat_status = 0;
+		if (pgrp->create(grp_info, hash) > 0) {
+			lbsrv_info info;
+	
+			info.hash = hash;
+			info.handle = grp_info.handle;
+			info.group = groupid;
+			info.lb_status = 1;
+			info.stat_status = 0;
+			if (plb->create(info) < 0) {
+				LOGE("Can't start 0x%lx\n", hash);
+				pgrp->remove(groupid, hash);
+			}
 		}
 	}  	
 	
