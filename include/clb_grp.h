@@ -41,6 +41,7 @@ public:
 	void remove(unsigned int group);
 	void remove(unsigned int group, unsigned long hash);
 	clb_grp_info *find(unsigned int group);
+	clb_grp_info *create(clb_grp_info &info);
 	clb_grp_info *create(clb_grp_info &info, unsigned long hash);
 	int get_handle(unsigned int group);
 	

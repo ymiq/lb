@@ -18,83 +18,10 @@ using namespace std;
 
 cfg_db::cfg_db(const char *ip, unsigned short port, const char *db_name) :
 			lb_db(ip, port, db_name) {
-	grp_idx = (group_index *) calloc(sizeof(group_index), 1);
-	if (grp_idx == NULL) {
-		throw "No memory for create lbdb";
-	}
 }
 
 
 cfg_db::~cfg_db() {
-	free(grp_idx);
-}
-
-
-int cfg_db::opensock(unsigned int master, int port) {
-	int sockfd;
-	struct sockaddr_in serv_addr;
-	
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	
-	/* 设置连接目的地址 */
-	memset(&serv_addr, 0, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(10000);
-	serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
- 
-	/* 发送连接请求 */
-	if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)) < 0) {
-		perror("connect failed");
-		return -1;
-	}
-	return sockfd;
-}
-
-
-int cfg_db::getsock(int groupid, unsigned int master, int qport) {
-	group_index *prev;
-	group_index *pgrp;
-	prev = pgrp = grp_idx;
-	do {
-		group_info *pinfo = pgrp->items;
-		for (int i=0; i<CFG_GROUP_INDEX_SIZE; i++) {
-			if (!pinfo->handle) {
-				int handle = opensock(master, qport);
-				if (handle < 0) {
-					throw "Open socket failed";
-				}
-				pinfo->handle = handle;
-				pinfo->groupid = groupid;
-				pinfo->master = master;
-				pinfo->port = qport;
-				return handle;
-			} 
-			if (pinfo->groupid == groupid) {
-				return pinfo->handle;
-			}
-			pinfo++;
-		}
-		prev = pgrp;
-		pgrp = pgrp->next;
-	} while(pgrp);
-	
-	pgrp = (group_index*)calloc(sizeof(group_index), 1);
-	if (pgrp == NULL) {
-		throw "No memory create group_index";
-	}
-	prev->next = pgrp;
-	
-	int handle = opensock(master, qport);
-	if (handle < 0) {
-		throw "Open socket failed";
-	}
-	group_info *pinfo = pgrp->items;
-	pinfo->handle = handle;
-	pinfo->groupid = groupid;
-	pinfo->master = master;
-	pinfo->port = qport;
-	
-	return handle;
 }
 
 
@@ -116,12 +43,9 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 		unsigned int master = (unsigned int)strtoul(row[3], NULL, 10);
 		int groupid = atoi(row[4]);
 		int qport = atoi(row[5]);
-		int handle = getsock(groupid, master, qport);
 		/* printf("hash: %x, master: %x, groupid: %d,  port: %x, handle: %d\n",
 			hash, master, groupid, qport, handle); */
-		if (handle < 0) {
-			LOGE("Can't open socket");
-		}
+
 		clb_grp_info grp_info;
 		
 		grp_info.group = groupid;
@@ -130,7 +54,7 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 		grp_info.port = qport;
 		grp_info.lb_status = 1;
 		grp_info.stat_status = 0;
-		if (pgrp->create(grp_info, hash) > 0) {
+		if (pgrp->create(grp_info, hash) != NULL) {
 			lbsrv_info info;
 	
 			info.hash = hash;

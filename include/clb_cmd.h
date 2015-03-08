@@ -17,7 +17,7 @@ using namespace std;
 
 class clb_cmd: virtual public json_object {
 public:
-	clb_cmd():command(0), ip(0), port(0) {};
+	clb_cmd():command(0), src_groupid(-1), dst_groupid(-1), ip(0), port(0) {};
 	clb_cmd(const char *str);
 	~clb_cmd() {};
 	clb_cmd(const clb_cmd& c); 

@@ -198,11 +198,11 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 			grp_info.stat_status = 0;
 			
 			/* 创建/填充Group表 */
-			if (pgrp->create(grp_info, hash) < 0) {
+			if (pgrp->create(grp_info, hash) == NULL) {
 				resp.success = false;
 			} else {
 				lbsrv_info info;
-				
+
 				/* 填充clb hash表 */
 				info.hash = hash;
 				info.group = cmd.dst_groupid;
@@ -320,30 +320,75 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
  		break;
 		
 	/* 获取服务信息 */	
-#if 0
 	case 0x04:
 		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
 			unsigned int group = *it;
 			resp.group = group;
-			unsigned int ip;
-			unsigned short port;
-			unsigned int status;
-
-			if (plb->lb_info(group, &ip, &port, &status) < 0) {
+			
+			clb_grp_info *grp_info = pgrp->find(group);
+			if (grp_info == NULL) {
+				resp.ip = 0;
+				resp.port = 0;
+				resp.lb_status = 0;
+				resp.stat_status = 0;
+				resp.handle = -1;
 				resp.success = false;
 			} else {
+				resp.ip = grp_info->ip;
+				resp.port = grp_info->port;
+				resp.lb_status = grp_info->lb_status;
+				resp.stat_status = grp_info->stat_status;
+				resp.handle = grp_info->handle;
 				resp.success = true;
-				resp.ip = ip;
-				resp.port = port;
-				resp.status = status;
 			}
 			
 			ret->resp_list.push_back(resp);
 		}
 		ret->success = true;
 		break;
-#endif
 		
+	/* 新增组 */	
+	case 0x08:
+	{
+		clb_grp_info grp_info;
+		grp_info.group = resp.group = cmd.dst_groupid;
+		grp_info.ip = resp.ip = cmd.ip;
+		grp_info.port = resp.port = cmd.port;
+		grp_info.lb_status = 1;
+		grp_info.stat_status = 0;
+		grp_info.handle = -1;
+		
+		clb_grp_info *ret_grp_info = pgrp->create(grp_info);
+		if (ret_grp_info == NULL) {
+			resp.success = false;
+			resp.handle = -1;
+		} else {
+			resp.success = true;
+			resp.handle = ret_grp_info->handle;
+		}
+		ret->resp_list.push_back(resp);
+		break;
+	}
+		
+	/* 删除组 */
+	case 0x10:
+		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
+			unsigned int group = *it;
+			resp.group = group;
+			
+			/* 删除当前组下所有公司CLB信息 */
+			
+			/* 删除组信息 */
+			pgrp->remove(group);
+			ret->resp_list.push_back(resp);
+		}
+		ret->success = true;
+ 		break;
+
+	/* 切换组 */
+	case 0x20:
+		break;
+
 	default:
 		ret->success = false;
 	}

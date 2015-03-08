@@ -411,13 +411,31 @@ int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cmd) {
 			}
 		}
 	} else {
+		/* 获取特殊命令处理 */
+		/*  1. 特殊命令 lb create <id> <names> ... */
+		if (!strcmp(pattern, "lb_create")) {
+			if (argc < 2) {
+				return 0;
+			}
+			
+			if (get_group_id(argv[0], cmd, 0) < 0) {
+				return 0;
+			}
+			
+			/* 获取第一个参数：公司名称列表 */
+			if (get_hash_list(argv[1], cmd) < 0) {
+				return 0;
+			}
+			return 1;
+		} 
+		
 		/* 获取第一个参数：公司名称列表 */
 		if (get_hash_list(argv[0], cmd) < 0) {
 			return 0;
 		}
 		
 		/* 获取特殊命令第二个参数 */
-		/*  1. 特殊命令 lb switch group ... */
+		/*  1. 特殊命令 lb switch names ... */
 		if (!strcmp(pattern, "lb_switch")) {
 			if ((argc < 3) || (strcmp(argv[1], "to") != 0)) {
 				return 0;
@@ -455,32 +473,36 @@ int lb_parser(int argc, char *argv[], clb_cmd &cmd) {
 	
 	argc--;
 	cmd.command = 0;
-	if (!strcmp(argv[0], "lb")) {
+	int ret = 0;
+	if (!strcmp(argv[0], "start")) {
 		cmd.command |= 0x01;
-		return param_parser(argc, &argv[1], "lb_start", cmd);
+		ret = param_parser(argc, &argv[1], "lb_start", cmd);
 	} else if (!strcmp(argv[0], "stop")) {
 		cmd.command |= 0x02;
-		return param_parser(argc, &argv[1], "lb_stop", cmd);
+		ret = param_parser(argc, &argv[1], "lb_stop", cmd);
 	} else if (!strcmp(argv[0], "info")) {
 		cmd.command |= 0x04;
-		return param_parser(argc, &argv[1], "lb_info", cmd);
+		ret = param_parser(argc, &argv[1], "lb_info", cmd);
 	} else if (!strcmp(argv[0], "create")) {
 		cmd.command |= 0x08;
-		return param_parser(argc, &argv[1], "lb_create", cmd);
+		ret = param_parser(argc, &argv[1], "lb_create", cmd);
 	} else if (!strcmp(argv[0], "delete")) {
 		cmd.command |= 0x10;
-		return param_parser(argc, &argv[1], "lb_delete", cmd);
+		ret = param_parser(argc, &argv[1], "lb_delete", cmd);
 	} else if (!strcmp(argv[0], "switch")) {
 		cmd.command |= 0x20;
-		return param_parser(argc, &argv[1], "lb_switch", cmd);
+		ret = param_parser(argc, &argv[1], "lb_switch", cmd);
 	} else if (!strcmp(argv[0], "monitor")) {
 		cmd.command |= 0x04;
 		monitor = true;
-		return param_parser(argc, &argv[1], "lb_monitor", cmd);
-	} else {
+		ret = param_parser(argc, &argv[1], "lb_monitor", cmd);
+	}
+	
+	if (!ret) {
 		help();
 		return 0;
 	}
+	return 1;
 }
 
 
@@ -494,23 +516,26 @@ int stat_parser(int argc, char *argv[], clb_cmd &cmd) {
 	/* 统计相关命令处理 */
 	argc--;
 	cmd.command = 0x20000000;
+	int ret = 0;
 	if (!strcmp(argv[0], "start")) {
 		cmd.command |= 0x01;
-		return param_parser(argc, &argv[1], "stat_start", cmd);
+		ret = param_parser(argc, &argv[1], "stat_start", cmd);
 	} else if (!strcmp(argv[0], "stop")) {
 		cmd.command |= 0x02;
-		return param_parser(argc, &argv[1], "stat_stop", cmd);
+		ret = param_parser(argc, &argv[1], "stat_stop", cmd);
 	} else if (!strcmp(argv[0], "info")) {
 		cmd.command |= 0x04;
-		return param_parser(argc, &argv[1], "stat_info", cmd);
+		ret = param_parser(argc, &argv[1], "stat_info", cmd);
 	} else if (!strcmp(argv[0], "clear")) {
 		cmd.command |= 0x08;
-		return param_parser(argc, &argv[1], "stat_create", cmd);
+		ret = param_parser(argc, &argv[1], "stat_create", cmd);
 	} else if (!strcmp(argv[0], "monitor")) {
 		cmd.command |= 0x04;
 		monitor = true;
-		return param_parser(argc, &argv[1], "stat_monitor", cmd);
-	} else {
+		ret = param_parser(argc, &argv[1], "stat_monitor", cmd);
+	}
+	
+	if (!ret) {
 		help();
 		return 0;
 	}
@@ -542,11 +567,11 @@ int main(int argc, char *argv[]) {
 	/* 统计相关命令 */
 	clb_cmd cmd;
 	if ((argc > 3) && (!strcmp(argv[1], "stat"))) {
-		if (!stat_parser(argc-1, &argv[1], cmd)) {
+		if (!stat_parser(argc-2, &argv[2], cmd)) {
 			return 0;
 		}
 	} else if ((argc > 3) && (!strcmp(argv[1], "lb"))) {
-		if (!lb_parser(argc-1, &argv[1], cmd)) {
+		if (!lb_parser(argc-2, &argv[2], cmd)) {
 			return 0;
 		}
 	} else {

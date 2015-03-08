@@ -14,10 +14,11 @@
 using namespace std;
 
 
-clb_cmd::clb_cmd(const char *str):command(0), ip(0), port(0) {
+clb_cmd::clb_cmd(const char *str): command(0), src_groupid(-1), 
+			dst_groupid(-1), ip(0), port(0) {
 	Json::Reader reader;
 	Json::Value serial;
-		
+	
 	if (!reader.parse(str, serial, false)) {
 		throw "Json string error";
 	}
@@ -26,7 +27,7 @@ clb_cmd::clb_cmd(const char *str):command(0), ip(0), port(0) {
 	ip = serial["ip"].asUInt();
 	port = (unsigned short)serial["port"].asUInt();
 	src_groupid = serial["src_groupid"].asUInt();
-	dst_groupid = (unsigned short)serial["dst_groupid"].asUInt();
+	dst_groupid = serial["dst_groupid"].asUInt();
 	
 	int size = serial["hash_list"].size();
 	for (int i=0; i<size; i++) {
@@ -57,6 +58,8 @@ string clb_cmd::serialization(void) {
 	serial["command"] = command;
 	serial["ip"] = ip;
 	serial["port"] = port;
+	serial["src_groupid"] = src_groupid;
+	serial["dst_groupid"] = dst_groupid;
 	
 	list<unsigned long>::iterator hit;
 	int idx = 0;
@@ -275,15 +278,15 @@ void clb_cmd_resp1::dump(void) {
 		
 	if (resp_list.size()) {
 		list<CLB_CMD_RESP1>::iterator it;
-		printf("GROUP		STATUS	LB	STAT	HOST\n");
+		printf("GROUP		STATUS	LB	STAT	HANDLE	HOST\n");
 		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
 			CLB_CMD_RESP1 resp = *it;
 			struct in_addr in;
 			in.s_addr = ntohl(resp.ip);
 			char *ip_str = inet_ntoa(in);
 	
-			printf("%08x	%s	0x%X	0x%X	%s:%d\n", resp.group, resp.success?"OK":"FAIL", 
-				resp.lb_status, resp.stat_status, ip_str, resp.port);
+			printf("%08x	%s	0x%X	0x%X	%d	%s:%d\n", resp.group, resp.success?"OK":"FAIL", 
+				resp.lb_status, resp.stat_status, resp.handle, ip_str, resp.port);
 			
 		}
 	}

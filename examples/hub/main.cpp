@@ -17,13 +17,13 @@
 
 static unsigned int port = CFG_LISTEN_PORT;
 static char ip_str[256] = CFG_LISTEN_IP;
-static bool foreground = false;
+static bool fork_to_background = false;
 
 static struct option long_options[] = {
     {"help",  no_argument, 0,  'h' },
     {"port",    required_argument, 0,  'p' },
     {"ip",      required_argument, 0,  'i' },
-    {"foreground",    no_argument, 0,  'f' },
+    {"deamon",  no_argument, 0,  'd' },
     {0,         0,                 0,  0 }
 };
 
@@ -32,7 +32,7 @@ static void help(void) {
 	printf("	-h, --help       display this help and exit\n");
 	printf("	-i, --ip         setting listen ip address\n");
 	printf("	-p, --port       setting listen port\n");
-	printf("	-f, --foreground running in foreground\n");
+	printf("	-d, --deamon     daemonize\n");
 }
 
 static bool parser_opt(int argc, char **argv) {
@@ -41,7 +41,7 @@ static bool parser_opt(int argc, char **argv) {
     while (1) {
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "hp:i:f",
+        c = getopt_long(argc, argv, "hp:i:d",
                  long_options, &option_index);
         if (c == -1)
             break;
@@ -55,8 +55,8 @@ static bool parser_opt(int argc, char **argv) {
         	strncpy(ip_str, optarg, 255);
             break;
 
-        case 'f':
-        	foreground = true;
+        case 'd':
+        	fork_to_background = true;
             break;
 
         default:
@@ -82,6 +82,22 @@ int main(int argc, char* argv[]) {
     	return 0;
     }
     
+     if (fork_to_background) {
+         int pid = fork();
+         switch (pid) {
+         case -1:
+             LOGE("can't fork() to background");
+             break;
+         case 0:
+             /* child process */
+             break;
+         default:
+             /* parent process */
+             LOGI("forked to background, pid is %d", pid);
+             return 0;
+         }
+     }
+
     /* 创建服务 */
     evsrv<clbsrv> *srv;
     try {

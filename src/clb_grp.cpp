@@ -65,7 +65,7 @@ int clb_grp::get_handle(unsigned int group) {
 }
 
 
-int clb_grp::open_sock(unsigned int master, unsigned short port) {
+int clb_grp::open_sock(unsigned int ip, unsigned short port) {
 	int sockfd;
 	struct sockaddr_in serv_addr;
 	
@@ -75,17 +75,18 @@ int clb_grp::open_sock(unsigned int master, unsigned short port) {
 	memset(&serv_addr, 0, sizeof(serv_addr));
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(port);
-	serv_addr.sin_addr.s_addr = htonl(master);
+	serv_addr.sin_addr.s_addr = htonl(ip);
  
 	/* 发送连接请求 */
 	if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)) < 0) {
+		LOGE("connet to %x, %d failed", ip, port);
 		return -1;
 	}
 	return sockfd;
 }
 
 
-clb_grp_info *clb_grp::create(clb_grp_info &info, unsigned long hash) {
+clb_grp_info *clb_grp::create(clb_grp_info &info) {
 	unsigned int group = info.group;
 	unsigned long ghash;
 	clb_grp_info *grp_info;
@@ -93,15 +94,37 @@ clb_grp_info *clb_grp::create(clb_grp_info &info, unsigned long hash) {
 	ghash = group_hash(group);
 	grp_info = table.find(ghash);
 	if (grp_info == NULL) {
-		info.company_tbl = new CLB_COMPANY_TBL();
 		if (info.handle < 0) {
+			if (!info.ip || !info.port) {
+				LOGE("No ip address and port");
+				return NULL;
+			}
 			info.handle = open_sock(info.ip, info.port);
+			if (info.handle < 0) {
+				return NULL;
+			}
 		}
+		info.company_tbl = new CLB_COMPANY_TBL();
 		grp_info = table.update(ghash, info);
 		if (grp_info == NULL) {
+			delete info.company_tbl;
+			info.company_tbl = NULL;
 			return NULL;
 		}
 	}
+	if (info.handle < 0) {
+		info.handle = grp_info->handle;
+	}
+	return grp_info;
+}
+
+
+clb_grp_info *clb_grp::create(clb_grp_info &info, unsigned long hash) {
+	clb_grp_info *grp_info = create(info);
+	if (grp_info == NULL) {
+		return NULL;
+	}
+	
 	clb_hash_info hash_info;
 	hash_info.hash = hash;
 	if (grp_info->company_tbl->update(hash, hash_info) == NULL) {

@@ -10,22 +10,6 @@
 
 using namespace std;
 
-#define CFG_GROUP_INDEX_SIZE		128
-
-typedef struct group_info {
-	int handle;
-	int groupid;
-	unsigned int master;
-	unsigned int slave;
-	int port;
-} group_info;
-
-
-typedef struct group_index {
-	group_info  items[CFG_GROUP_INDEX_SIZE];
-	group_index *next;
-} group_index;
-
 
 class cfg_db : public lb_db {
 public:
@@ -38,10 +22,6 @@ public:
 protected:
 	
 private:
-	group_index *grp_idx;
-
-	int opensock(unsigned int master, int port);
-	int getsock(int groupid, unsigned int master, int qport);
 };
 
 
