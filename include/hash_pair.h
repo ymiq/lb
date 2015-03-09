@@ -1,10 +1,10 @@
 ﻿/*
- *	无锁HASH表，64位HASH值
+ *	无锁HASH对，64位HASH值
  * 	支持多个读者，但支持一个写者!	     
  */
 
-#ifndef __HASH_TABLE_H__
-#define __HASH_TABLE_H__
+#ifndef __HASH_PAIR_H__
+#define __HASH_PAIR_H__
 
 #include <cstdlib>
 #include <cstddef>
@@ -16,21 +16,21 @@ using namespace std;
 
 
 template<typename T, unsigned int INDEX_SIZE>
-class hash_tbl {
+class hash_pair {
 
 public:
-	hash_tbl(const hash_tbl &tbl);
-	hash_tbl();
-	~hash_tbl();
+	hash_pair(const hash_pair &tbl);
+	hash_pair();
+	~hash_pair();
 
 	void remove(unsigned long hash);
-	T *update(unsigned long hash, T &obj);
+	T *update(unsigned long hash, T &pair);
 	T *get(unsigned long hash);
 	T *find(unsigned long hash);
 	
 	class it {
 	public:
-	    it(hash_tbl *instance = NULL, int end_x=0) 
+	    it(hash_pair *instance = NULL, int end_x=0) 
 	    			:instance(instance), pos_x(end_x), pos_y(0), pos_n(0) {}
 	    ~it(){};
 
@@ -46,7 +46,7 @@ public:
 	    void next(void);
 	
 	private:
-		hash_tbl *instance;
+		hash_pair *instance;
 		int pos_x;
 		int pos_y;
 		int pos_n;
@@ -60,31 +60,33 @@ protected:
 	
 private:
 	/* 定义为2^n - 1 */
-	#define CFG_HASH_ITEM_SIZE		7
+	#define CFG_PAIR_ITEM_SIZE		7
 
 	typedef struct hash_item{
 		unsigned long hash;
-		T *obj;
+		T pair;
 	}hash_item;
 	
 	typedef struct hash_index {
-		hash_item  items[CFG_HASH_ITEM_SIZE];
+		hash_item  items[CFG_PAIR_ITEM_SIZE];
 		hash_index *next;
 		void *reserve;
 	}hash_index;
 	
 	unsigned int mod_size;
 	hash_index *hidx;
-	rcu_obj<T> *prcu;
-	it *end_it;
-	
+	it *end_it;	
 };
 
 
 template<typename T, unsigned int INDEX_SIZE>
-hash_tbl<T, INDEX_SIZE>::hash_tbl()
+hash_pair<T, INDEX_SIZE>::hash_pair()
 {
 	unsigned int size = INDEX_SIZE;
+	
+	if (sizeof(T) != sizeof(void*)) {
+		throw "size of template is too large";
+	}
 	
 	/* 调整参数size为2^n */
 	if (size >= 0x40000000) {
@@ -102,27 +104,23 @@ hash_tbl<T, INDEX_SIZE>::hash_tbl()
 	/* 申请哈希表索引 */
 	hidx = new hash_index[mod_size]();
 	
-	/* RCU初始化 */
-	prcu = new rcu_obj<T>();
-	prcu->set_type(OBJ_LIST_TYPE_CLASS);
-	
 	end_it = new it(NULL, mod_size);
 }
 
 
 template<typename T, unsigned int INDEX_SIZE>
-hash_tbl<T, INDEX_SIZE>::hash_tbl(const hash_tbl<T, INDEX_SIZE> &tbl) {
-	throw "copy construct for hash_tbl is disabled";
+hash_pair<T, INDEX_SIZE>::hash_pair(const hash_pair<T, INDEX_SIZE> &tbl) {
+	throw "copy construct for hash_pair is disabled";
 }
 
 
 template<typename T, unsigned int INDEX_SIZE>
-hash_tbl<T, INDEX_SIZE>::~hash_tbl() {
+hash_pair<T, INDEX_SIZE>::~hash_pair() {
 	/* 递归删除所有HASH条目 */
 	for(int x=0; x<mod_size; x++) {
 		hash_index *pindex = &hidx[x];
 		do {
-			for (int n=0; n<CFG_HASH_ITEM_SIZE; n++) {
+			for (int n=0; n<CFG_PAIR_ITEM_SIZE; n++) {
 				
 				unsigned long hash = pindex->items[n].hash;
 				
@@ -133,10 +131,6 @@ hash_tbl<T, INDEX_SIZE>::~hash_tbl() {
 					/* 删除条目 */
 					pindex->items[n].hash = -1UL;
 					wmb();
-					if (pindex->items[n].obj) {
-						prcu->add(pindex->items[n].obj);
-					}
-					pindex->items[n].obj = NULL;
 				}
 			}
 			pindex = pindex->next;
@@ -150,7 +144,7 @@ hash_tbl<T, INDEX_SIZE>::~hash_tbl() {
 
 
 template<typename T, unsigned int INDEX_SIZE>
-T *hash_tbl<T, INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n, int inc)
+T *hash_pair<T, INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n, int inc)
 {
 	int x, y, n;
 	unsigned long hash;
@@ -166,7 +160,7 @@ T *hash_tbl<T, INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n, int inc)
 	y = pos_y;
 	n = pos_n;
 	if (inc) {
-		if (++n >= CFG_HASH_ITEM_SIZE) {
+		if (++n >= CFG_PAIR_ITEM_SIZE) {
 			n = 0;
 			y += 1;
 		}
@@ -194,7 +188,7 @@ T *hash_tbl<T, INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n, int inc)
 	/* 定位下一个 */
 	while(1) {
 		do {
-			for (int idn=n; idn<CFG_HASH_ITEM_SIZE; idn++) {
+			for (int idn=n; idn<CFG_PAIR_ITEM_SIZE; idn++) {
 				
 				hash = pindex->items[idn].hash;
 				
@@ -207,7 +201,7 @@ T *hash_tbl<T, INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n, int inc)
 					pos_x = x;
 					pos_y = y;
 					pos_n = idn;
-					return pindex->items[idn].obj;
+					return &pindex->items[idn].pair;
 				}
 			}
 			y++;
@@ -233,7 +227,7 @@ next:
 
 
 template<typename T, unsigned int INDEX_SIZE>
-T *hash_tbl<T, INDEX_SIZE>::find(unsigned long hash)
+T *hash_pair<T, INDEX_SIZE>::find(unsigned long hash)
 {
 	unsigned int index;
 	unsigned long save_hash;
@@ -247,7 +241,7 @@ T *hash_tbl<T, INDEX_SIZE>::find(unsigned long hash)
 	pindex = &hidx[index];
 	
 	do {
-		for (int i=0; i<CFG_HASH_ITEM_SIZE; i++) {
+		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
 			save_hash = pindex->items[i].hash;
 			
 			/* 搜索结束 */
@@ -258,7 +252,7 @@ T *hash_tbl<T, INDEX_SIZE>::find(unsigned long hash)
 			/* 获得匹配 */
 			if (save_hash == hash) {
 				rmb();
-				return pindex->items[i].obj;
+				return &pindex->items[i].pair;
 			}
 		}
 		pindex = pindex->next;
@@ -269,7 +263,7 @@ T *hash_tbl<T, INDEX_SIZE>::find(unsigned long hash)
 
 
 template<typename T, unsigned int INDEX_SIZE>
-T *hash_tbl<T, INDEX_SIZE>::update(unsigned long hash, T &obj)
+T *hash_pair<T, INDEX_SIZE>::update(unsigned long hash, T &pair)
 {
 	unsigned int index;
 	unsigned long save_hash;
@@ -279,13 +273,12 @@ T *hash_tbl<T, INDEX_SIZE>::update(unsigned long hash, T &obj)
 		return NULL;
 	}
 	
-	T *pobj = new T(obj);
 	index = (unsigned int)(hash % mod_size);
 	prev = pindex = &hidx[index];
 	
 	/* 第一轮搜索，匹配是否存在该条目 */
 	do {
-		for (int i=0; i<CFG_HASH_ITEM_SIZE; i++) {
+		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
 			save_hash = pindex->items[i].hash;
 			
 			/* 搜索结束 */
@@ -296,8 +289,8 @@ T *hash_tbl<T, INDEX_SIZE>::update(unsigned long hash, T &obj)
 			/* 获得匹配 */
 			if (save_hash == hash) {
 				wmb();
-				pindex->items[i].obj = pobj;
-				return pobj;
+				pindex->items[i].pair = pair;
+				return &pindex->items[i].pair;
 			}
 		}
 		pindex = pindex->next;
@@ -307,19 +300,19 @@ T *hash_tbl<T, INDEX_SIZE>::update(unsigned long hash, T &obj)
 phase2:
 	pindex = prev;
 	do {
-		for (int i=0; i<CFG_HASH_ITEM_SIZE; i++) {
+		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
 			save_hash = pindex->items[i].hash;
 
 			/* 搜索结束，创建新条目 */
 			if (!save_hash || (save_hash == -1UL)) {				
 
 				/* 更新条目信息 */
-				pindex->items[i].obj = pobj;
+				pindex->items[i].pair = pair;
 
 				/* 增加内存屏障，确保写入先后顺序 */
 				wmb();
 				pindex->items[i].hash = hash;
-				return pobj;
+				return &pindex->items[i].hash;
 			}
 		}
 		prev = pindex;
@@ -330,18 +323,18 @@ phase2:
 	pindex = new hash_index();
 	
 	/* 更新条目信息 */
-	pindex->items[0].obj = pobj;
+	pindex->items[0].pair = pair;
 	pindex->items[0].hash = hash;
 
 	/* 增加内存屏障，确保写入先后顺序 */
 	wmb();
 	prev->next = pindex;	
-	return pobj;
+	return &pindex->items[0].pair;
 }
 
 
 template<typename T, unsigned int INDEX_SIZE>
-T *hash_tbl<T, INDEX_SIZE>::get(unsigned long hash) {
+T *hash_pair<T, INDEX_SIZE>::get(unsigned long hash) {
 	unsigned int index;
 	unsigned long save_hash;
 	hash_index *pindex, *prev;
@@ -355,7 +348,7 @@ T *hash_tbl<T, INDEX_SIZE>::get(unsigned long hash) {
 	
 	/* 第一轮搜索，匹配是否存在该条目 */
 	do {
-		for (int i=0; i<CFG_HASH_ITEM_SIZE; i++) {
+		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
 			save_hash = pindex->items[i].hash;
 			
 			/* 搜索结束 */
@@ -366,7 +359,7 @@ T *hash_tbl<T, INDEX_SIZE>::get(unsigned long hash) {
 			/* 获得匹配 */
 			if (save_hash == hash) {
 				rmb();
-				return pindex->items[i].obj;
+				return &pindex->items[i].pair;
 			}
 		}
 		pindex = pindex->next;
@@ -377,19 +370,19 @@ phase2:
 	T *pobj = new T();
 	pindex = prev;
 	do {
-		for (int i=0; i<CFG_HASH_ITEM_SIZE; i++) {
+		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
 			save_hash = pindex->items[i].hash;
 
 			/* 搜索结束，创建新条目 */
 			if (!save_hash || (save_hash == -1UL)) {				
 
 				/* 更新条目信息 */
-				pindex->items[i].obj = pobj;
+				pindex->items[i].pair = pair;
 
 				/* 增加内存屏障，确保写入先后顺序 */
 				wmb();
 				pindex->items[i].hash = hash;
-				return pobj;
+				return &pindex->items[i].pair;
 			}
 		}
 		prev = pindex;
@@ -400,19 +393,19 @@ phase2:
 	pindex = new hash_index();
 	
 	/* 更新条目信息 */
-	pindex->items[0].obj = pobj;
+	pindex->items[0].pair = pair;
 	pindex->items[0].hash = hash;
 
 	/* 增加内存屏障，确保写入先后顺序 */
 	wmb();
 	prev->next = pindex;	
-	return pobj;
+	return &pindex->items[0].pair;
 }
 
 
 
 template<typename T, unsigned int INDEX_SIZE>
-void hash_tbl<T, INDEX_SIZE>::remove(unsigned long hash)
+void hash_pair<T, INDEX_SIZE>::remove(unsigned long hash)
 {
 	unsigned int index;
 	unsigned long save_hash;
@@ -426,7 +419,7 @@ void hash_tbl<T, INDEX_SIZE>::remove(unsigned long hash)
 	pindex = &hidx[index];
 	
 	do {
-		for (int i=0; i<CFG_HASH_ITEM_SIZE; i++) {
+		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
 			save_hash = pindex->items[i].hash;
 			
 			/* 搜索结束 */
@@ -440,10 +433,6 @@ void hash_tbl<T, INDEX_SIZE>::remove(unsigned long hash)
 				/* 增加删除标记 */
 				pindex->items[i].hash = -1UL;
 				wmb();
-				if (pindex->items[i].obj) {
-					prcu->add(pindex->items[i].obj);
-				}
-				pindex->items[i].obj = NULL;
 				return;
 			}
 		}
@@ -455,20 +444,20 @@ void hash_tbl<T, INDEX_SIZE>::remove(unsigned long hash)
 
 
 template<typename T, unsigned int INDEX_SIZE>
-typename hash_tbl<T, INDEX_SIZE>::it hash_tbl<T, INDEX_SIZE>::begin(void) {
+typename hash_pair<T, INDEX_SIZE>::it hash_pair<T, INDEX_SIZE>::begin(void) {
 	it ret(this);
 	return ret;
 }
 
 
 template<typename T, unsigned int INDEX_SIZE>
-typename hash_tbl<T, INDEX_SIZE>::it &hash_tbl<T, INDEX_SIZE>::end(void) {
+typename hash_pair<T, INDEX_SIZE>::it &hash_pair<T, INDEX_SIZE>::end(void) {
 	return *end_it;
 }
 
 
 template<typename T, unsigned int INDEX_SIZE>
-T *hash_tbl<T, INDEX_SIZE>::it::operator*() {
+T *hash_pair<T, INDEX_SIZE>::it::operator*() {
 	if (instance) {
 		return instance->locate(pos_x, pos_y, pos_n, 0);
 	}
@@ -477,7 +466,7 @@ T *hash_tbl<T, INDEX_SIZE>::it::operator*() {
 
 
 template<typename T, unsigned int INDEX_SIZE>
-bool hash_tbl<T, INDEX_SIZE>::it::operator==(const typename hash_tbl<T, INDEX_SIZE>::it& rv) {
+bool hash_pair<T, INDEX_SIZE>::it::operator==(const typename hash_pair<T, INDEX_SIZE>::it& rv) {
 	/* 判断是否等于end对象 */
 	if (rv.instance == NULL) {
 		if (rv.pos_x == this->pos_x) {
@@ -496,7 +485,7 @@ bool hash_tbl<T, INDEX_SIZE>::it::operator==(const typename hash_tbl<T, INDEX_SI
 
 
 template<typename T, unsigned int INDEX_SIZE>
-bool hash_tbl<T, INDEX_SIZE>::it::operator!=(const typename hash_tbl<T, INDEX_SIZE>::it& rv) {
+bool hash_pair<T, INDEX_SIZE>::it::operator!=(const typename hash_pair<T, INDEX_SIZE>::it& rv) {
 	/* 判断是否等于end对象 */
 	if (rv.instance == NULL) {
 		if (rv.pos_x != this->pos_x) {
@@ -515,8 +504,8 @@ bool hash_tbl<T, INDEX_SIZE>::it::operator!=(const typename hash_tbl<T, INDEX_SI
 
 
 template<typename T, unsigned int INDEX_SIZE>
-typename hash_tbl<T, INDEX_SIZE>::it& hash_tbl<T, INDEX_SIZE>::it::operator=
-								(const typename hash_tbl<T, INDEX_SIZE>::it& rv) {
+typename hash_pair<T, INDEX_SIZE>::it& hash_pair<T, INDEX_SIZE>::it::operator=
+								(const typename hash_pair<T, INDEX_SIZE>::it& rv) {
 	if (this != &rv) {
 		this->instance = rv.instance;
 		this->pos_x = rv.pos_x;
@@ -529,7 +518,7 @@ typename hash_tbl<T, INDEX_SIZE>::it& hash_tbl<T, INDEX_SIZE>::it::operator=
 
 
 template<typename T, unsigned int INDEX_SIZE>
-typename hash_tbl<T, INDEX_SIZE>::it hash_tbl<T, INDEX_SIZE>::it::operator++(int) {
+typename hash_pair<T, INDEX_SIZE>::it hash_pair<T, INDEX_SIZE>::it::operator++(int) {
 	it ret(this);
 	if (instance) {
 		instance->locate(pos_x, pos_y, pos_n, 1);
@@ -539,11 +528,11 @@ typename hash_tbl<T, INDEX_SIZE>::it hash_tbl<T, INDEX_SIZE>::it::operator++(int
 
 
 template<typename T, unsigned int INDEX_SIZE>
-typename hash_tbl<T, INDEX_SIZE>::it& hash_tbl<T, INDEX_SIZE>::it::operator++() {
+typename hash_pair<T, INDEX_SIZE>::it& hash_pair<T, INDEX_SIZE>::it::operator++() {
 	if (instance) {
 		instance->locate(pos_x, pos_y, pos_n, 1);
 	}
 	return *this;
 }
 
-#endif /* __HASH_TABLE_H__ */
+#endif /* __HASH_PAIR_H__ */

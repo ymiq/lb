@@ -63,11 +63,7 @@ int stat_man::reg(stat_tbl *pstat) {
 	}while (ptbl);
 	
 	/* 重新申请缓冲区 */
-	thread_table *new_tbl = (thread_table*) calloc(sizeof(thread_table), 1);
-	if (new_tbl  == NULL) {
-		unlock();
-		throw "No memory to construct stat_man";
-	}
+	thread_table *new_tbl = new thread_table();
 	new_tbl->table[0] = pstat;
 	
 	/* 避免乱序造成问题 */

@@ -43,7 +43,7 @@ all: clb_fcgi clb_cmd clb_pl hub
 	@echo "All done."
 
 .PHONY: clb_fcgi clb_cfgi_clean
-clb_fcgi: clb_cfgi_clean
+clb_fcgi: prepare clb_cfgi_clean
 	@echo Building $@
 	@gcc $(CLBFCGI_CPPFLAGS) $(CLBFCGI_LDFLAGS) $(CLBFCGI_SRCS) -o $(CLBFCGI_TARGET)
 
@@ -51,7 +51,7 @@ clb_cfgi_clean:
 	@rm -f $(TARCLBFCGI_TARGETGET) 
 	
 .PHONY: lb_cmd lb_cmd_clean
-clb_cmd: clb_cmd_clean
+clb_cmd: prepare clb_cmd_clean
 	@echo Building $@
 	@gcc $(CLBCMD_CPPFLAGS) $(CLBCMD_LDFLAGS) $(CLBCMD_SRCS) -o $(CLBCMD_TARGET)
 
@@ -59,7 +59,7 @@ clb_cmd_clean:
 	@rm -f $(CLBCMD_TARGET)
 
 .PHONY: clb_pl clb_pl_clean
-clb_pl: clb_pl_clean
+clb_pl: prepare clb_pl_clean
 	@echo Building $@
 	@gcc $(CLBPL_CPPFLAGS) $(CLBPL_LDFLAGS) $(CLBPL_SRCS) -o $(CLBPL_TARGET)
 
@@ -68,13 +68,16 @@ clb_pl_clean:
 	
 	
 .PHONY: hub hub_clean
-hub: hub_clean
+hub: prepare hub_clean
 	@echo Building $@
 	@gcc $(HUB_CPPFLAGS) $(HUB_LDFLAGS) $(HUB_SRCS) -o $(HUB_TARGET)
 
 hub_clean:
 	@rm -f $(HUB_TARGET)
 
+.PHONY:prepare
+prepare:
+	@if [ ! -d ./bin ]; then mkdir -p ./bin; fi
 
 clean:
-	@rm -fr ./bin/*
+	@rm -fr ./bin

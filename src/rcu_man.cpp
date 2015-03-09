@@ -4,14 +4,8 @@
 #include <rcu_man.h>
 
 rcu_man::rcu_man() {
-	obj_tbl = (obj_table*) calloc(sizeof(obj_table), 1);
-	if (obj_tbl  == NULL) {
-		throw "No memory to construct rcu_man";
-	}
-	tid_tbl = (thread_table*) calloc(sizeof(thread_table), 1);
-	if (tid_tbl  == NULL) {
-		throw "No memory to construct rcu_man";
-	}
+	obj_tbl = new obj_table();
+	tid_tbl = new thread_table();
 	pthread_mutex_init(&obj_mutex, NULL);
 	pthread_mutex_init(&tid_mutex, NULL);
 }
@@ -75,11 +69,7 @@ bool rcu_man::obj_reg(rcu_base *obj) {
 	}while (ptbl);
 	
 	/* 重新申请缓冲区 */
-	obj_table *new_tbl = (obj_table*) calloc(sizeof(obj_table), 1);
-	if (new_tbl  == NULL) {
-		obj_unlock();
-		throw "No memory to construct rcu_man";
-	}
+	obj_table *new_tbl = new obj_table();
 	new_tbl->table[0] = obj;
 	
 	/* 避免乱序造成问题 */
@@ -132,11 +122,7 @@ int rcu_man::tid_reg(pthread_t tid) {
 	}while (ptbl);
 	
 	/* 重新申请缓冲区 */
-	thread_table *new_tbl = (thread_table*) calloc(sizeof(thread_table), 1);
-	if (new_tbl  == NULL) {
-		tid_unlock();
-		throw "No memory to construct rcu_man";
-	}
+	thread_table *new_tbl = new thread_table();
 	new_tbl->table[0] = tid;
 	
 	/* 避免乱序造成问题 */

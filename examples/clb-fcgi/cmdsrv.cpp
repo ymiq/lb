@@ -376,9 +376,7 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 			unsigned int group = *it;
 			resp.group = group;
 			
-			/* 删除当前组下所有公司CLB信息 */
-			
-			/* 删除组信息 */
+			/* 删除组信息, 同时删除当前组下所有公司CLB信息 */
 			pgrp->remove(group);
 			ret->resp_list.push_back(resp);
 		}
@@ -387,7 +385,29 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 
 	/* 切换组 */
 	case 0x20:
+	{
+		unsigned int dst_group = cmd.dst_groupid;
+		unsigned int src_group = cmd.src_groupid;
+		
+		clb_grp_info *grp_info = pgrp->move(src_group, dst_group);
+		if (grp_info == NULL) {
+			resp.ip = 0;
+			resp.port = 0;
+			resp.lb_status = 0;
+			resp.stat_status = 0;
+			resp.handle = -1;
+			resp.success = false;
+		} else {
+			resp.ip = grp_info->ip;
+			resp.port = grp_info->port;
+			resp.lb_status = grp_info->lb_status;
+			resp.stat_status = grp_info->stat_status;
+			resp.handle = grp_info->handle;
+			resp.success = true;
+		}
+		ret->resp_list.push_back(resp);
 		break;
+	}
 
 	default:
 		ret->success = false;

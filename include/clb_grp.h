@@ -9,16 +9,12 @@
 #include <cstdlib>
 #include <cstddef>
 #include <config.h>
+#include <hash_array.h>
 #include <hash_tbl.h>
 #include <clb_tbl.h>
 #include <stat_tbl.h>
 
-#define CLB_COMPANY_TBL		hash_tbl<clb_hash_info, 1024>
-
-struct clb_hash_info
-{
-	unsigned long hash;
-};
+#define GROUP_HASH_ARRAY		hash_array<1024>
 
 struct clb_grp_info {
 	unsigned int group;
@@ -27,7 +23,7 @@ struct clb_grp_info {
 	unsigned short port;
 	unsigned lb_status;
 	unsigned stat_status;
-	CLB_COMPANY_TBL *company_tbl;
+	GROUP_HASH_ARRAY *phashs;
 };
 
 
@@ -40,6 +36,7 @@ public:
 	
 	void remove(unsigned int group);
 	void remove(unsigned int group, unsigned long hash);
+	clb_grp_info *move(unsigned int src_group, unsigned int dst_group);
 	clb_grp_info *find(unsigned int group);
 	clb_grp_info *create(clb_grp_info &info);
 	clb_grp_info *create(clb_grp_info &info, unsigned long hash);

@@ -49,6 +49,7 @@ static int db_dump(void) {
 	return ret; 
 }
 
+
 #if !CFG_CHECK_PARAM	
 unsigned long compute_hash(const char *company) {
 	MD5_CTX ctx;
@@ -64,6 +65,7 @@ unsigned long compute_hash(const char *company) {
 	return hash;
 }
 #endif
+
 
 static int get_hash_list(char *str, clb_cmd &cmd) {
 	unsigned long hash_val;
@@ -369,7 +371,7 @@ static void help(void) {
 }
 
 
-int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cmd) {
+static int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cmd) {
 	/* 组命令解析 */
 	if ((argc >= 2) && (!strcmp(argv[0], "group"))) {
 		cmd.command |= 0x10000000;
@@ -448,7 +450,7 @@ int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cmd) {
 	return 1;
 }
 
-int db_parser(int argc, char *argv[]) {
+static int db_parser(int argc, char *argv[]) {
 	if ((argc == 2) && !strcmp(argv[0], "db")) {
 		if (!strcmp(argv[1], "create")) {
 			db_create();
@@ -465,7 +467,7 @@ int db_parser(int argc, char *argv[]) {
 }
 
 
-int lb_parser(int argc, char *argv[], clb_cmd &cmd) {
+static int lb_parser(int argc, char *argv[], clb_cmd &cmd) {
 	if (argc < 2) {
 		help();
 		return 0;
@@ -506,8 +508,7 @@ int lb_parser(int argc, char *argv[], clb_cmd &cmd) {
 }
 
 
-
-int stat_parser(int argc, char *argv[], clb_cmd &cmd) {
+static int stat_parser(int argc, char *argv[], clb_cmd &cmd) {
 	if (argc < 2) {
 		help();
 		return 0;
@@ -541,8 +542,6 @@ int stat_parser(int argc, char *argv[], clb_cmd &cmd) {
 	}
 	return 1;
 }
-
-
 
 
 int main(int argc, char *argv[]) {
