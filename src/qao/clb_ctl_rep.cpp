@@ -95,6 +95,8 @@ clb_ctl_rep0::clb_ctl_rep0(const char *str, size_t len) {
 	memcpy(&header, str, sizeof(serial_data));
 	qao_token = header.token;
 	qao_type = header.type;
+	qao_version = header.version & 0x3f;
+	qao_qos = (header.version & 0xc0) >> 6;
 	str += sizeof(serial_data);
 
 	if (!reader.parse(str, serial, false)) {
@@ -151,7 +153,7 @@ void *clb_ctl_rep0::serialization(size_t &len, unsigned long token) {
 	pserial->token = token;
 	pserial->length = buf_len;
 	pserial->type = QAO_CLB_CTL_REP0;
-	pserial->version = 0;
+	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
 	pserial->packet_len = json_len;
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;
@@ -197,6 +199,8 @@ clb_ctl_rep1::clb_ctl_rep1(const char *str, size_t len) {
 	memcpy(&header, str, sizeof(serial_data));
 	qao_token = header.token;
 	qao_type = header.type;
+	qao_version = header.version & 0x3f;
+	qao_qos = (header.version & 0xc0) >> 6;
 	str += sizeof(serial_data);
 		
 	if (!reader.parse(str, serial, false)) {
@@ -249,7 +253,7 @@ void *clb_ctl_rep1::serialization(size_t &len, unsigned long token) {
 	pserial->token = token;
 	pserial->length = buf_len;
 	pserial->type = QAO_CLB_CTL_REP1;
-	pserial->version = 0;
+	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
 	pserial->packet_len = json_len;
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;
@@ -299,6 +303,8 @@ clb_ctl_rep2::clb_ctl_rep2(const char *str, size_t len) {
 	memcpy(&header, str, sizeof(serial_data));
 	qao_token = header.token;
 	qao_type = header.type;
+	qao_version = header.version & 0x3f;
+	qao_qos = (header.version & 0xc0) >> 6;
 	str += sizeof(serial_data);
 		
 	if (!reader.parse(str, serial, false)) {
@@ -363,7 +369,7 @@ void *clb_ctl_rep2::serialization(size_t &len, unsigned long token) {
 	pserial->token = token;
 	pserial->length = buf_len;
 	pserial->type = QAO_CLB_CTL_REP2;
-	pserial->version = 0;
+	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
 	pserial->packet_len = json_len;
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;

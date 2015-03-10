@@ -31,15 +31,20 @@ typedef struct serial_data {
 
 class qao_base {
 public:
-	qao_base() {};
+	qao_base() : qao_token(0), qao_type(0), qao_version(0), qao_qos(0) {};
 	virtual ~qao_base() {};
 	
 	virtual void *serialization(size_t &len, unsigned long token) = 0;
 	virtual void *serialization(size_t &len) = 0;
+	
+	int set_qos(int qos) {int ret = qao_qos; qao_qos = qos & 0x3; return ret;};
+	int get_qos(void) {return qao_qos;};
 
 protected:
 	unsigned long qao_token;			/* Token */
 	unsigned int qao_type;				/* 对象类型 */
+	unsigned int qao_version;			/* 对象版本 */
+	unsigned int qao_qos;				/* QoS */
 private:
 };
 
