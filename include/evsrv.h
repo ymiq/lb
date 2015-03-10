@@ -91,6 +91,8 @@ bool evsrv<T>::loop(void) {
 		return false;
 	}
 	
+//	evutil_make_socket_nonblocking(sockfd);
+	
 	/* 等待客户端接入 */
 	struct event listen_ev;
 	base = event_base_new();

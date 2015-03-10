@@ -13,7 +13,7 @@
 #include <fcgi_stdio.h>  
 #include <openssl/md5.h>
 #include <evsrv.h>
-#include "cmdsrv.h"
+#include "cmd_srv.h"
 #include "cfg_db.h"
 
 using namespace std;
@@ -178,7 +178,7 @@ static void *thread_worker(void *args) {
 	        continue;
 		}
 		hash = company_hash(company);
-		LOGD("C: %s,	U: %s,	Q: %s,	H: %lx", company, user, question, hash);
+		// LOGD("C: %s,	U: %s,	Q: %s,	H: %lx", company, user, question, hash);
 				  
 		/* Worker线程主处理开始 */
 	    prcu->job_start(tid);
@@ -245,25 +245,25 @@ int main(int argc, char *argv[]) {
 	}
 	
 	/* 创建动态配置命令服务 */
-	evsrv<cmdsrv> *srv;
 	try {
-		srv = new evsrv<cmdsrv>(CFG_CMDSRV_IP, CFG_CMDSRV_PORT);
+		evsrv<cmd_srv> srv(CFG_CMDSRV_IP, CFG_CMDSRV_PORT);
+	
+	    /* 设置服务Socket选项 */
+	    int yes = 1;
+	    if (srv.setskopt(SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0) {
+	    	LOGE("setsockopt error");
+	    	return -1;
+	    }
+	
+	    /* 服务监听 */
+	    if (!srv.loop()) {
+	    	LOGE("starting server failed");
+	    }
+	    
 	}catch(const char *msg) {
 		LOGE("Create server failed");
 		return -1;
 	}
-	
-    /* 设置服务Socket选项 */
-    int yes = 1;
-    if (srv->setskopt(SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0) {
-    	LOGE("setsockopt error");
-    	return -1;
-    }
-
-    /* 服务监听 */
-    if (!srv->loop()) {
-    	LOGE("starting server failed");
-    }
 
 	/* never reach here */	
 	return 0;

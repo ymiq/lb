@@ -6,20 +6,20 @@
 
 #include <unistd.h>
 #include <log.h>
-#include "clbsrv.h"
+#include "hub_clb_srv.h"
 
 using namespace std;
 
-clbsrv::~clbsrv() {
+hub_clb_srv::~hub_clb_srv() {
 }
 
-void clbsrv::read(int sock, short event, void* arg) {
-	clbsrv *srv = (clbsrv *)arg;
+void hub_clb_srv::read(int sock, short event, void* arg) {
+	hub_clb_srv *srv = (hub_clb_srv *)arg;
 	void *buffer;
 	size_t size = 0;
 	
 	/* 接收数据 */
-	buffer = srv->ev_recv(&size);
+	buffer = srv->ev_recv(size);
 	if ((int)size <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
@@ -37,7 +37,9 @@ void clbsrv::read(int sock, short event, void* arg) {
 	srv->recv_done(buffer);
 }
 
-void clbsrv::send_done(unsigned long token, void *buf, size_t len) {
+
+void hub_clb_srv::send_done(void *buf, size_t len, bool send_ok) {
 	/* 释放发送缓冲区 */
 //	free(send->buf);
 }
+

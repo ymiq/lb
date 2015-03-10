@@ -1,3 +1,4 @@
+#include <cstring>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/socket.h>
@@ -30,58 +31,47 @@ evsock::~evsock() {
 	}
 }
 
-
-void *evsock::ev_recv(size_t *len) {
-	int buf_size = CFG_RCVBUF_SIZE;
+/* 暂未考虑数据包分片问题! */
+void *evsock::ev_recv(size_t &len) {
 	size_t ret_len;
 	
-	/* 参数检查 */
-	if (!len) {
-		LOGW("Invalid parameter");
-		return NULL;
-	}
+	/* 接收头信息 */
+	serial_data header;
+    int rd_size = recv(sockfd, &header, sizeof(serial_data), MSG_DONTWAIT);
+    if (rd_size != sizeof(serial_data)) {
+    	if (rd_size <= 0) {
+    		len = rd_size;
+    	} else {
+   			len = -1;
+   		}
+    	return NULL;
+    }
+    if (header.length <= sizeof(serial_data)) {
+    	LOGE("recv header failed, lenght: %d", header.length);
+    	len = -1;
+    	return NULL;
+    }
+    ret_len = header.length - sizeof(serial_data);
 	
     /* 准备接收缓冲区 */
-    void *buffer = malloc(buf_size);
-    if (buffer == NULL) {
-    	LOGE("no memory");
-    	*len = -1;
+    char *buffer = new char[header.length & 0x3fffffffu];
+    memcpy(buffer, &header, sizeof(serial_data));
+    char *pwrite = buffer + sizeof(serial_data);
+    rd_size = recv(sockfd, pwrite, ret_len, MSG_DONTWAIT);
+    if (rd_size != (int)ret_len) {
+    	LOGE("recv length umatch, want %d but %d", ret_len, rd_size);
+    	delete buffer;
+    	len = -1;
     	return NULL;
     }
     
-    /* 接收Socket数据 */
-    ret_len = 0;
-    while (1) {
-    	/* 读取数据 */
-	    int rd_size = recv(sockfd, buffer, CFG_RCVBUF_SIZE, MSG_DONTWAIT);
-	   	ret_len += rd_size;
-	   	if (rd_size <= 0) {
-	   		if (errno == EAGAIN) {
-	   			break;
-	   		}
-	   		*len = rd_size;
-	   		free(buffer);
-	   		return NULL;
-	   	} else if (rd_size <= buf_size) {
-	   		break;
-	   	}
-	   	
-	   	/* 缓冲区不足，重新申请 */
-	   	buf_size *= 2;
-	   	buffer = realloc(buffer, buf_size);
-	    if (buffer == NULL) {
-	    	LOGE("no memory");
-	    	*len = -1;
-	    	return NULL;
-	    }
-	}
-	*len = ret_len;
+	len = header.length & 0x3fffffffu;
    	return buffer;
 }
 
 
 void evsock::recv_done(void *buf) {
-	free(buf);
+	delete (char *)buf;
 }
 
 
@@ -94,10 +84,34 @@ void evsock::do_write(int sock, short event, void* arg) {
     q->pop();
     
     /* 发送数据 */
-	ps->len = send(sock, ps->buf, ps->len, 0);
-	
-	/* 通知发送完成 */
-	evsk->send_done(ps->token, (void*)ps->buf, ps->len);
+    if (ps->qao) {
+		bool send_ok = false;
+		size_t wlen;
+		
+		/* 序列化对象并发送 */
+		char *buf = (char*)ps->qao->serialization(wlen);
+		if (buf) {
+			int len = send(sock, buf, wlen, 0);
+			if (len == (int)wlen) {
+				send_ok = true;
+			}
+			delete buf;
+		}
+		
+		/* 通知发送完成 */
+		evsk->send_done(ps->qao, send_ok);
+    } else {
+		bool send_ok = true;
+		
+		/* 发送缓冲区中内容 */
+		int len = send(sock, ps->buf, ps->len, 0);
+		if (len == (int)ps->len) {
+			send_ok = true;
+		}
+		
+		/* 通知发送完成 */
+		evsk->send_done((void*)ps->buf, ps->len, send_ok);
+	}
 	
 	/* 释放EV_SEND */
 	delete ps;
@@ -116,7 +130,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 }
 
 
-bool evsock::ev_send(unsigned long token, const void *buf, size_t size) {
+bool evsock::ev_send(const void *buf, size_t size) {
 	bool empty;
 	
 	if (!buf || !size) {
@@ -124,7 +138,36 @@ bool evsock::ev_send(unsigned long token, const void *buf, size_t size) {
 	}
 		
 	/* 把当前缓冲区挂入写FIFO */
-	EV_SEND *send = new EV_SEND(token, buf, size);
+	EV_SEND *send = new EV_SEND(buf, size, NULL);
+	empty = wq.empty();
+	wq.push(send);
+	
+	/* 触发写事件 */
+	if (empty) {
+	    event_set(&write_ev, sockfd, EV_WRITE, do_write, this);
+	    if (event_base_set(evbase, &write_ev) < 0) {
+	    	LOGE("event_base_set error\n");
+	    	return false;
+	    }
+	    if (event_add(&write_ev, NULL) < 0) {
+	    	LOGE("event_add error\n");
+	    	return false;
+	    }
+	}
+    return true;
+}
+
+
+
+bool evsock::ev_send(qao_base *qao) {
+	bool empty;
+	
+	if (!qao) {
+		return false;
+	}
+		
+	/* 把当前缓冲区挂入写FIFO */
+	EV_SEND *send = new EV_SEND(NULL, 0, qao);
 	empty = wq.empty();
 	wq.push(send);
 	

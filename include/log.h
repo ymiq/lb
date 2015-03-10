@@ -8,6 +8,7 @@
 
 extern "C" {
 
+void log_open_console(const char *name);
 void log_open(const char *name);
 void log_printf(int prio, const char* fmt, ...);
 void log_printf_pos(int prio, const char *file, 
@@ -17,6 +18,7 @@ void log_close(void);
 void log_console(const char* fmt, ...);
 void log_trace(const char *file, const char *func, int line, const char* fmt, ...);
 
+#define LOG_CONSOLE(name)	log_open_console(name);
 #define LOG_OPEN(name)		log_open(name);
 #define LOGE(...)			log_printf_pos(LOG_ERR, __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 #define LOGW(...)			log_printf(LOG_WARNING, __VA_ARGS__)

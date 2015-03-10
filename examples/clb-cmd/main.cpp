@@ -9,13 +9,18 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <clb_cmd.h>
+#include <qao/clb_ctl_req.h>
+#include <qao/clb_ctl_rep.h>
 #include <openssl/md5.h>
-#include "lb_db.h"
+#include <evclnt.h>
+#include <log.h>
+#include <lb_db.h>
 #include "cmd_clnt.h"
 
 /* 定义是否从数据库检查输入参数正确性 */
 #define CFG_CHECK_PARAM		0
+#define CFG_CMDSRV_IP		"127.0.0.1"
+#define CFG_CMDSRV_PORT		8000
 
 static bool monitor = false;
 
@@ -67,7 +72,7 @@ unsigned long compute_hash(const char *company) {
 #endif
 
 
-static int get_hash_list(char *str, clb_cmd &cmd) {
+static int get_hash_list(char *str, clb_ctl_req &req) {
 	unsigned long hash_val;
 	
 	/* 连接均衡配置数据库 */
@@ -121,7 +126,7 @@ static int get_hash_list(char *str, clb_cmd &cmd) {
 #if CFG_CHECK_PARAM	
 		hash_val = db->check_company(pstart);
 		if (hash_val && (hash_val != -1UL)) {
-			cmd.hash_list.push_back(hash_val);
+			req.hash_list.push_back(hash_val);
 		} else {
 			printf("无效公司名: %s\n", pstart);
 			delete db;
@@ -130,7 +135,7 @@ static int get_hash_list(char *str, clb_cmd &cmd) {
 #else
 		hash_val = compute_hash(pstart);
 		if (hash_val && (hash_val != -1UL)) {
-			cmd.hash_list.push_back(hash_val);
+			req.hash_list.push_back(hash_val);
 		} else {
 			printf("无效公司名: %s\n", pstart);
 			return -1;
@@ -151,7 +156,7 @@ static int get_hash_list(char *str, clb_cmd &cmd) {
 }
 
 
-static int get_group_list(char *str, clb_cmd &cmd) {
+static int get_group_list(char *str, clb_ctl_req &req) {
 	unsigned int groupid = 0;
 	
 	/* 检查groupid是否有效 */
@@ -221,14 +226,14 @@ static int get_group_list(char *str, clb_cmd &cmd) {
 #if CFG_CHECK_PARAM	
 		bool ret = db->check_groupid(groupid);
 		if (ret) {
-			cmd.group_list.push_back(groupid);
+			req.group_list.push_back(groupid);
 		} else {
 			printf("无效组名: %s\n", pstart);
 			delete db;
 			return -1;
 		}
 #else
-		cmd.group_list.push_back(groupid);
+		req.group_list.push_back(groupid);
 #endif
 		valids++;
 		if (!pend) {
@@ -243,7 +248,7 @@ static int get_group_list(char *str, clb_cmd &cmd) {
 }
 
 
-static int get_group_id(char *str, clb_cmd &cmd, bool src_group) {
+static int get_group_id(char *str, clb_ctl_req &req, bool src_group) {
 	unsigned int groupid = 0;
 	
 	/* 连接均衡配置数据库 */
@@ -276,9 +281,9 @@ static int get_group_id(char *str, clb_cmd &cmd, bool src_group) {
 	bool ret = db->check_groupid(groupid);
 	if (ret) {
 		if (src_group) {
-			cmd.src_groupid = groupid;
+			req.src_groupid = groupid;
 		} else {
-			cmd.dst_groupid = groupid;
+			req.dst_groupid = groupid;
 		}
 	} else {
 		printf("无效组名: %s\n", str);
@@ -288,16 +293,16 @@ static int get_group_id(char *str, clb_cmd &cmd, bool src_group) {
 	delete db;
 #else
 	if (src_group) {
-		cmd.src_groupid = groupid;
+		req.src_groupid = groupid;
 	} else {
-		cmd.dst_groupid = groupid;
+		req.dst_groupid = groupid;
 	}
 #endif
 	return 0;
 }
 
 
-static int host_info(char *str, clb_cmd &cmd) {
+static int host_info(char *str, clb_ctl_req &req) {
 	char *pport;
 	unsigned int port;
 	unsigned int ip;
@@ -334,8 +339,8 @@ static int host_info(char *str, clb_cmd &cmd) {
 		return -1;
 	}
 	
-	cmd.ip = ip;
-	cmd.port = port;	
+	req.ip = ip;
+	req.port = port;	
 	return 0;
 }
 
@@ -371,22 +376,22 @@ static void help(void) {
 }
 
 
-static int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cmd) {
+static int param_parser(int argc, char *argv[], const char *pattern, clb_ctl_req &req) {
 	/* 组命令解析 */
 	if ((argc >= 2) && (!strcmp(argv[0], "group"))) {
-		cmd.command |= 0x10000000;
+		req.command |= 0x10000000;
 		
 		/* 获取group后第一个参数 */
 		if (!strcmp(pattern, "lb_create")) {
-			if (get_group_id(argv[1], cmd, 0) < 0) {
+			if (get_group_id(argv[1], req, 0) < 0) {
 				return 0;
 			}
 		} else if (!strcmp(pattern, "lb_switch")) {
-			if (get_group_id(argv[1], cmd, 1) < 0) {
+			if (get_group_id(argv[1], req, 1) < 0) {
 				return 0;
 			}
 		} else {
-			if (get_group_list(argv[1], cmd) < 0) {
+			if (get_group_list(argv[1], req) < 0) {
 				return 0;
 			}
 		}
@@ -397,7 +402,7 @@ static int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cm
 			if (argc < 3) {
 				return 0;
 			}
-			if (host_info(argv[2], cmd) < 0) {
+			if (host_info(argv[2], req) < 0) {
 				return 0;
 			}
 		}
@@ -408,7 +413,7 @@ static int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cm
 				return 0;
 			}
 			/* 获取目的Group ID */
-			if (get_group_id(argv[2], cmd, 0) < 0) {
+			if (get_group_id(argv[2], req, 0) < 0) {
 				return 0;
 			}
 		}
@@ -420,19 +425,19 @@ static int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cm
 				return 0;
 			}
 			
-			if (get_group_id(argv[0], cmd, 0) < 0) {
+			if (get_group_id(argv[0], req, 0) < 0) {
 				return 0;
 			}
 			
 			/* 获取第一个参数：公司名称列表 */
-			if (get_hash_list(argv[1], cmd) < 0) {
+			if (get_hash_list(argv[1], req) < 0) {
 				return 0;
 			}
 			return 1;
 		} 
 		
 		/* 获取第一个参数：公司名称列表 */
-		if (get_hash_list(argv[0], cmd) < 0) {
+		if (get_hash_list(argv[0], req) < 0) {
 			return 0;
 		}
 		
@@ -442,7 +447,7 @@ static int param_parser(int argc, char *argv[], const char *pattern, clb_cmd &cm
 			if ((argc < 3) || (strcmp(argv[1], "to") != 0)) {
 				return 0;
 			}
-			if (get_group_id(argv[2], cmd, 0) < 0) {
+			if (get_group_id(argv[2], req, 0) < 0) {
 				return 0;
 			}
 		}
@@ -467,37 +472,37 @@ static int db_parser(int argc, char *argv[]) {
 }
 
 
-static int lb_parser(int argc, char *argv[], clb_cmd &cmd) {
+static int lb_parser(int argc, char *argv[], clb_ctl_req &req) {
 	if (argc < 2) {
 		help();
 		return 0;
 	}
 	
 	argc--;
-	cmd.command = 0;
+	req.command = 0;
 	int ret = 0;
 	if (!strcmp(argv[0], "start")) {
-		cmd.command |= 0x01;
-		ret = param_parser(argc, &argv[1], "lb_start", cmd);
+		req.command |= 0x01;
+		ret = param_parser(argc, &argv[1], "lb_start", req);
 	} else if (!strcmp(argv[0], "stop")) {
-		cmd.command |= 0x02;
-		ret = param_parser(argc, &argv[1], "lb_stop", cmd);
+		req.command |= 0x02;
+		ret = param_parser(argc, &argv[1], "lb_stop", req);
 	} else if (!strcmp(argv[0], "info")) {
-		cmd.command |= 0x04;
-		ret = param_parser(argc, &argv[1], "lb_info", cmd);
+		req.command |= 0x04;
+		ret = param_parser(argc, &argv[1], "lb_info", req);
 	} else if (!strcmp(argv[0], "create")) {
-		cmd.command |= 0x08;
-		ret = param_parser(argc, &argv[1], "lb_create", cmd);
+		req.command |= 0x08;
+		ret = param_parser(argc, &argv[1], "lb_create", req);
 	} else if (!strcmp(argv[0], "delete")) {
-		cmd.command |= 0x10;
-		ret = param_parser(argc, &argv[1], "lb_delete", cmd);
+		req.command |= 0x10;
+		ret = param_parser(argc, &argv[1], "lb_delete", req);
 	} else if (!strcmp(argv[0], "switch")) {
-		cmd.command |= 0x20;
-		ret = param_parser(argc, &argv[1], "lb_switch", cmd);
+		req.command |= 0x20;
+		ret = param_parser(argc, &argv[1], "lb_switch", req);
 	} else if (!strcmp(argv[0], "monitor")) {
-		cmd.command |= 0x04;
+		req.command |= 0x04;
 		monitor = true;
-		ret = param_parser(argc, &argv[1], "lb_monitor", cmd);
+		ret = param_parser(argc, &argv[1], "lb_monitor", req);
 	}
 	
 	if (!ret) {
@@ -508,7 +513,7 @@ static int lb_parser(int argc, char *argv[], clb_cmd &cmd) {
 }
 
 
-static int stat_parser(int argc, char *argv[], clb_cmd &cmd) {
+static int stat_parser(int argc, char *argv[], clb_ctl_req &req) {
 	if (argc < 2) {
 		help();
 		return 0;
@@ -516,24 +521,24 @@ static int stat_parser(int argc, char *argv[], clb_cmd &cmd) {
 
 	/* 统计相关命令处理 */
 	argc--;
-	cmd.command = 0x20000000;
+	req.command = 0x20000000;
 	int ret = 0;
 	if (!strcmp(argv[0], "start")) {
-		cmd.command |= 0x01;
-		ret = param_parser(argc, &argv[1], "stat_start", cmd);
+		req.command |= 0x01;
+		ret = param_parser(argc, &argv[1], "stat_start", req);
 	} else if (!strcmp(argv[0], "stop")) {
-		cmd.command |= 0x02;
-		ret = param_parser(argc, &argv[1], "stat_stop", cmd);
+		req.command |= 0x02;
+		ret = param_parser(argc, &argv[1], "stat_stop", req);
 	} else if (!strcmp(argv[0], "info")) {
-		cmd.command |= 0x04;
-		ret = param_parser(argc, &argv[1], "stat_info", cmd);
+		req.command |= 0x04;
+		ret = param_parser(argc, &argv[1], "stat_info", req);
 	} else if (!strcmp(argv[0], "clear")) {
-		cmd.command |= 0x08;
-		ret = param_parser(argc, &argv[1], "stat_create", cmd);
+		req.command |= 0x08;
+		ret = param_parser(argc, &argv[1], "stat_create", req);
 	} else if (!strcmp(argv[0], "monitor")) {
-		cmd.command |= 0x04;
+		req.command |= 0x04;
 		monitor = true;
-		ret = param_parser(argc, &argv[1], "stat_monitor", cmd);
+		ret = param_parser(argc, &argv[1], "stat_monitor", req);
 	}
 	
 	if (!ret) {
@@ -546,52 +551,48 @@ static int stat_parser(int argc, char *argv[], clb_cmd &cmd) {
 
 int main(int argc, char *argv[]) {
 	
+	LOG_CONSOLE("clb-cmd");
+	
 	/* 设置随机数种子 */
 	srand((int)time(NULL));
 	
-	/* 均衡数据库命令 */
-	if (db_parser(argc-1, &argv[1])) {
-		return 0;
-	}
-	
-	/* 创建命令对象 */
-	cmd_clnt *pclnt;
 	try {
-		pclnt = new cmd_clnt;
+		/* 均衡数据库命令 */
+		if (db_parser(argc-1, &argv[1])) {
+			return 0;
+		}
+	
+		/* 统计相关命令 */
+		clb_ctl_req req;
+		if ((argc > 3) && (!strcmp(argv[1], "stat"))) {
+			if (!stat_parser(argc-2, &argv[2], req)) {
+				return 0;
+			}
+		} else if ((argc > 3) && (!strcmp(argv[1], "lb"))) {
+			if (!lb_parser(argc-2, &argv[2], req)) {
+				return 0;
+			}
+		} else {
+			help();
+			return 0;
+		}
+		
+		/* 创建基于Event的客户端，用于发送命令和接受响应 */
+		evclnt<cmd_clnt> clnt(CFG_CMDSRV_IP, CFG_CMDSRV_PORT);
+		cmd_clnt *sk = clnt.get_evsock();
+		if (sk) {
+			if (monitor) {
+				sk->reg_qao(&req);
+				sk->open_timer();
+			}
+			sk->ev_send(static_cast<qao_base *>(&req));
+	    	clnt.loop();
+	    }
+		
 	} catch(const char* msg) {
 		printf("Error quit: %s\n", msg);
-		return 0;
+		return -1;
 	}
-	
-	/* 统计相关命令 */
-	clb_cmd cmd;
-	if ((argc > 3) && (!strcmp(argv[1], "stat"))) {
-		if (!stat_parser(argc-2, &argv[2], cmd)) {
-			return 0;
-		}
-	} else if ((argc > 3) && (!strcmp(argv[1], "lb"))) {
-		if (!lb_parser(argc-2, &argv[2], cmd)) {
-			return 0;
-		}
-	} else {
-		help();
-		return 0;
-	}
-	
-	/* 命令处理 */
-	if (monitor) {
-		while(1) {
-			if (pclnt->request(cmd) >= 0) {
-				printf("\33[2J");			/* 清除屏幕内容 */
-				printf("\33[1;1H");			/* 光标移到第一行第一列 */
-				pclnt->reponse();
-			}
-			sleep(1);
-		} 
-	}
-	if (pclnt->request(cmd) >= 0) {
-		return pclnt->reponse();
-	}
-	return -1;
+	return 0;
 }
 

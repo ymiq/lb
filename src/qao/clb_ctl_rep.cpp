@@ -1,4 +1,5 @@
 ﻿#include <cstdio>
+#include <cstring>
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -9,126 +10,69 @@
 #include <arpa/inet.h>
 #include <json/json.h>
 #include <json/value.h>
-#include "clb_cmd.h"
+#include <qao/qao_base.h>
+#include <qao/clb_ctl_rep.h>
 
 using namespace std;
 
 
-clb_cmd::clb_cmd(const char *str): command(0), src_groupid(-1), 
-			dst_groupid(-1), ip(0), port(0) {
-	Json::Reader reader;
-	Json::Value serial;
-	
-	if (!reader.parse(str, serial, false)) {
-		throw "Json string error";
-	}
-	
-	command = serial["command"].asUInt();
-	ip = serial["ip"].asUInt();
-	port = (unsigned short)serial["port"].asUInt();
-	src_groupid = serial["src_groupid"].asUInt();
-	dst_groupid = serial["dst_groupid"].asUInt();
-	
-	int size = serial["hash_list"].size();
-	for (int i=0; i<size; i++) {
-		hash_list.push_back(serial["hash_list"][i].asUInt64());
-	}
-	
-	size = serial["group_list"].size();
-	for (int i=0; i<size; i++) {
-		group_list.push_back(serial["group_list"][i].asUInt());
-	}
-}
-
-clb_cmd::clb_cmd(const clb_cmd& c) {
-	hash_list = c.hash_list;
-	group_list = c.group_list;
-	command = c.command;
-	ip = c.ip;
-	port = c.port;
-	src_groupid = c.src_groupid;
-	dst_groupid = c.dst_groupid;
-}
-
-
-string clb_cmd::serialization(void) {
-	Json::Value serial;
-	Json::FastWriter writer;
-	
-	serial["command"] = command;
-	serial["ip"] = ip;
-	serial["port"] = port;
-	serial["src_groupid"] = src_groupid;
-	serial["dst_groupid"] = dst_groupid;
-	
-	list<unsigned long>::iterator hit;
-	int idx = 0;
-	for (hit=hash_list.begin(); hit!=hash_list.end(); hit++) {
-		serial["hash_list"][idx++] = (Json::UInt64)(*hit);
-	}
-	
-	list<unsigned int>::iterator git;
-	idx = 0;
-	for (git=group_list.begin(); git!=group_list.end(); git++) {
-		serial["group_list"][idx++] = (Json::UInt)(*git);
-	}
-	
-	return writer.write(serial);
-}
-
-
-
-
 /* ==========================================================================================
- *			CLASS: clb_cmd_resp_factory
+ *			CLASS: clb_ctl_rep_factory
  * ==========================================================================================
  */
-clb_cmd_resp_factory::clb_cmd_resp_factory(const char *str): clb_cmd_resp(0, false) {
+clb_ctl_rep_factory::clb_ctl_rep_factory(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
-		
-	if (!reader.parse(str, serial, false)) {
-		throw "Json string error";
+	serial_data header;
+	
+	if (len < sizeof(serial_data)) {
+		throw "Invalid serial data";
 	}
-	
-	type = serial["type"].asUInt();
-	success = serial["success"].asBool();
-	resp = NULL;
-	
-	try {
-		switch(type) {
-		case 0:
-			resp = new clb_cmd_resp0(str);
-			break;		
-		case 1:
-			resp = new clb_cmd_resp1(str);
-			break;		
-		case 100:
-			resp = new clb_cmd_resp100(str);
-			break;		
-		}
-	}catch(const char *msg) {
-		throw msg;
+	memcpy(&header, str, sizeof(serial_data));
+	qao_token = header.token;
+	qao_type = header.type;
+
+	switch(qao_type) {
+	case QAO_CLB_CTL_REP0:
+		resp = new clb_ctl_rep0(str, len);
+		break;		
+	case QAO_CLB_CTL_REP1:
+		resp = new clb_ctl_rep1(str, len);
+		break;		
+	case QAO_CLB_CTL_REP2:
+		resp = new clb_ctl_rep2(str, len);
+		break;
+	default:
+		LOGE("get qao object type: %d\n", qao_type);
+		throw "unknow serial data";	
 	}
 }
 
 
-clb_cmd_resp_factory::~clb_cmd_resp_factory() {
+clb_ctl_rep_factory::~clb_ctl_rep_factory() {
 	if (resp) {
 		delete resp;
 	}
 }
 
 
-string clb_cmd_resp_factory::serialization(void) {
+void *clb_ctl_rep_factory::serialization(size_t &len, unsigned long token) {
 	if (resp) {
-		return resp->serialization();
+		return resp->serialization(len, token);
 	}
-	return string("");
+	return NULL;
 }
 
 
-void clb_cmd_resp_factory::dump(void) {
+void *clb_ctl_rep_factory::serialization(size_t &len) {
+	if (resp) {
+		return resp->serialization(len);
+	}
+	return NULL;
+}
+
+
+void clb_ctl_rep_factory::dump(void) {
 	if (resp) {
 		resp->dump();
 	}
@@ -137,23 +81,30 @@ void clb_cmd_resp_factory::dump(void) {
 
 
 /* ==========================================================================================
- *			CLASS: clb_cmd_resp0
+ *			CLASS: clb_ctl_rep0
  * ==========================================================================================
  */
-clb_cmd_resp0::clb_cmd_resp0(const char *str):clb_cmd_resp(0, false){
+clb_ctl_rep0::clb_ctl_rep0(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
-		
+	serial_data header;
+	
+	if (len < sizeof(serial_data)) {
+		throw "Invalid serial data";
+	}
+	memcpy(&header, str, sizeof(serial_data));
+	qao_token = header.token;
+	qao_type = header.type;
+	str += sizeof(serial_data);
+
 	if (!reader.parse(str, serial, false)) {
 		throw "Json string error";
 	}
 	
-	type = serial["type"].asUInt();
-	success = serial["success"].asBool();
-	
+	success = serial["success"].asBool();	
 	int size = serial["resp_list"].size();
 	for (int i=0; i<size; i++) {
-		CLB_CMD_RESP0 resp = {0};
+		CLB_CTL_REP0 resp = {0};
 		
 		resp.hash = serial["resp_list"][i]["hash"].asUInt64();
 		resp.success = serial["resp_list"][i]["success"].asBool();
@@ -170,17 +121,15 @@ clb_cmd_resp0::clb_cmd_resp0(const char *str):clb_cmd_resp(0, false){
 }
 
 
-string clb_cmd_resp0::serialization(void) {
+void *clb_ctl_rep0::serialization(size_t &len, unsigned long token) {
 	Json::Value serial;
 	Json::FastWriter writer;
 		
-	serial["type"] = type;
-	serial["success"] = success;
-	
-	list<CLB_CMD_RESP0>::iterator it;
+	serial["success"] = success;	
+	list<CLB_CTL_REP0>::iterator it;
 	int idx = 0;
 	for (it=resp_list.begin(); it!=resp_list.end(); it++, idx++) {
-		CLB_CMD_RESP0 resp = *it;
+		CLB_CTL_REP0 resp = *it;
 				
 		serial["resp_list"][idx]["hash"] = (Json::UInt64)(resp.hash);
 		serial["resp_list"][idx]["success"] = resp.success;
@@ -193,18 +142,36 @@ string clb_cmd_resp0::serialization(void) {
 		serial["resp_list"][idx]["info"] = info;
 	}
 
-	return writer.write(serial);
+	string json_str = writer.write(serial);
+	size_t json_len = json_str.length() + 1;
+	size_t buf_len = json_len + sizeof(serial_data);
+	
+	void *ret = new unsigned char[buf_len];
+	serial_data *pserial = (serial_data*)ret;
+	pserial->token = token;
+	pserial->length = buf_len;
+	pserial->type = QAO_CLB_CTL_REP0;
+	pserial->version = 0;
+	pserial->packet_len = json_len;
+	memcpy(pserial->data, json_str.c_str(), json_len);
+	len = buf_len;
+	return ret;
 }
 
 
-void clb_cmd_resp0::dump(void) {
-	printf("类型: %d, %s\n", type, success?"操作成功":"操作失败");
+void *clb_ctl_rep0::serialization(size_t &len) {
+	return serialization(len, 0);
+}
+
+
+void clb_ctl_rep0::dump(void) {
+	printf("类型: %d, %s\n", QAO_CLB_CTL_REP0, success?"操作成功":"操作失败");
 		
 	if (resp_list.size()) {
-		list<CLB_CMD_RESP0>::iterator it;
+		list<CLB_CTL_REP0>::iterator it;
 		printf("HASH			GROUP	STATUS	LB	STAT\n");
 		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
-			CLB_CMD_RESP0 resp = *it;
+			CLB_CTL_REP0 resp = *it;
 	
 			printf("%016lx	%d	%s	0x%X	0x%X\n", resp.hash, resp.info.group, 
 				resp.success?"OK":"FAIL", resp.info.lb_status, resp.info.stat_status);
@@ -215,25 +182,31 @@ void clb_cmd_resp0::dump(void) {
 
 
 
-
 /* ==========================================================================================
- *			CLASS: clb_cmd_resp1
+ *			CLASS: clb_ctl_rep1
  * ==========================================================================================
  */
-clb_cmd_resp1::clb_cmd_resp1(const char *str):clb_cmd_resp(1, false) {
+clb_ctl_rep1::clb_ctl_rep1(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
+	serial_data header;
+	
+	if (len < sizeof(serial_data)) {
+		throw "Invalid serial data";
+	}
+	memcpy(&header, str, sizeof(serial_data));
+	qao_token = header.token;
+	qao_type = header.type;
+	str += sizeof(serial_data);
 		
 	if (!reader.parse(str, serial, false)) {
 		throw "Json string error";
 	}
 	
-	type = serial["type"].asUInt();
-	success = serial["success"].asBool();
-	
+	success = serial["success"].asBool();	
 	int size = serial["resp_list"].size();
 	for (int i=0; i<size; i++) {
-		CLB_CMD_RESP1 resp = {0};
+		CLB_CTL_REP1 resp = {0};
 		
 		resp.group = serial["resp_list"][i]["group"].asUInt();
 		resp.success = serial["resp_list"][i]["success"].asBool();
@@ -248,17 +221,15 @@ clb_cmd_resp1::clb_cmd_resp1(const char *str):clb_cmd_resp(1, false) {
 }
 
 
-string clb_cmd_resp1::serialization(void) {
+void *clb_ctl_rep1::serialization(size_t &len, unsigned long token) {
 	Json::Value serial;
 	Json::FastWriter writer;
 		
-	serial["type"] = type;
-	serial["success"] = success;
-	
-	list<CLB_CMD_RESP1>::iterator it;
+	serial["success"] = success;	
+	list<CLB_CTL_REP1>::iterator it;
 	int idx = 0;
 	for (it=resp_list.begin(); it!=resp_list.end(); it++, idx++) {
-		CLB_CMD_RESP1 resp = *it;
+		CLB_CTL_REP1 resp = *it;
 				
 		serial["resp_list"][idx]["group"] = resp.group;
 		serial["resp_list"][idx]["success"] = resp.success;
@@ -269,18 +240,36 @@ string clb_cmd_resp1::serialization(void) {
 		serial["resp_list"][idx]["handle"] = resp.handle;
 	}
 
-	return writer.write(serial);
+	string json_str = writer.write(serial);
+	size_t json_len = json_str.length() + 1;
+	size_t buf_len = json_len + sizeof(serial_data);
+	
+	void *ret = new unsigned char[buf_len];
+	serial_data *pserial = (serial_data*)ret;
+	pserial->token = token;
+	pserial->length = buf_len;
+	pserial->type = QAO_CLB_CTL_REP1;
+	pserial->version = 0;
+	pserial->packet_len = json_len;
+	memcpy(pserial->data, json_str.c_str(), json_len);
+	len = buf_len;
+	return ret;
 }
 
 
-void clb_cmd_resp1::dump(void) {
-	printf("类型: %d, %s\n", type, success?"操作成功":"操作失败");
+void *clb_ctl_rep1::serialization(size_t &len) {
+	return serialization(len, 0);
+}
+
+
+void clb_ctl_rep1::dump(void) {
+	printf("类型: %d, %s\n", QAO_CLB_CTL_REP1, success?"操作成功":"操作失败");
 		
 	if (resp_list.size()) {
-		list<CLB_CMD_RESP1>::iterator it;
+		list<CLB_CTL_REP1>::iterator it;
 		printf("GROUP		STATUS	LB	STAT	HANDLE	HOST\n");
 		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
-			CLB_CMD_RESP1 resp = *it;
+			CLB_CTL_REP1 resp = *it;
 			struct in_addr in;
 			in.s_addr = ntohl(resp.ip);
 			char *ip_str = inet_ntoa(in);
@@ -295,24 +284,31 @@ void clb_cmd_resp1::dump(void) {
 
 
 /* ==========================================================================================
- *			CLASS: clb_cmd_resp100
+ *			CLASS: clb_ctl_rep2
  * ==========================================================================================
  */
 
-clb_cmd_resp100::clb_cmd_resp100(const char *str):clb_cmd_resp(100, false) {
+clb_ctl_rep2::clb_ctl_rep2(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
+	serial_data header;
+	
+	if (len < sizeof(serial_data)) {
+		throw "Invalid serial data";
+	}
+	memcpy(&header, str, sizeof(serial_data));
+	qao_token = header.token;
+	qao_type = header.type;
+	str += sizeof(serial_data);
 		
 	if (!reader.parse(str, serial, false)) {
 		throw "Json string error";
 	}
 	
-	type = serial["type"].asUInt();
-	success = serial["success"].asBool();
-	
+	success = serial["success"].asBool();	
 	int size = serial["resp_list"].size();
 	for (int i=0; i<size; i++) {
-		CLB_CMD_RESP100 resp = {0};
+		CLB_CTL_REP2 resp = {0};
 		
 		resp.hash = serial["resp_list"][i]["hash"].asUInt64();
 		resp.success = serial["resp_list"][i]["success"].asBool();
@@ -332,17 +328,15 @@ clb_cmd_resp100::clb_cmd_resp100(const char *str):clb_cmd_resp(100, false) {
 }
 
 
-string clb_cmd_resp100::serialization(void) {
+void *clb_ctl_rep2::serialization(size_t &len, unsigned long token) {
 	Json::Value serial;
 	Json::FastWriter writer;
 	
-	serial["type"] = type;
-	serial["success"] = success;
-	
-	list<CLB_CMD_RESP100>::iterator it;
+	serial["success"] = success;	
+	list<CLB_CTL_REP2>::iterator it;
 	int idx = 0;
 	for (it=resp_list.begin(); it!=resp_list.end(); it++, idx++) {
-		CLB_CMD_RESP100 resp = *it;
+		CLB_CTL_REP2 resp = *it;
 				
 		serial["resp_list"][idx]["hash"] = (Json::UInt64)(resp.hash);
 		serial["resp_list"][idx]["success"] = resp.success;
@@ -360,18 +354,36 @@ string clb_cmd_resp100::serialization(void) {
 		serial["resp_list"][idx]["tm"] = tm;
 	}
 	
-	return writer.write(serial);
+	string json_str = writer.write(serial);
+	size_t json_len = json_str.length() + 1;
+	size_t buf_len = json_len + sizeof(serial_data);
+	
+	void *ret = new unsigned char[buf_len];
+	serial_data *pserial = (serial_data*)ret;
+	pserial->token = token;
+	pserial->length = buf_len;
+	pserial->type = QAO_CLB_CTL_REP2;
+	pserial->version = 0;
+	pserial->packet_len = json_len;
+	memcpy(pserial->data, json_str.c_str(), json_len);
+	len = buf_len;
+	return ret;
 }
 
 
-void clb_cmd_resp100::dump(void) {
-	printf("类型: %d, %s\n", type, success?"操作成功":"操作失败");
+void *clb_ctl_rep2::serialization(size_t &len) {
+	return serialization(len, 0);
+}
+
+
+void clb_ctl_rep2::dump(void) {
+	printf("类型: %d, %s\n", QAO_CLB_CTL_REP2, success?"操作成功":"操作失败");
 	
 	if (resp_list.size()) {
-		list<CLB_CMD_RESP100>::iterator it;
+		list<CLB_CTL_REP2>::iterator it;
 		printf("HASH			STATUS	TOTAL	DROPS	TEXTS	ERRORS	TIME\n");
 		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
-			CLB_CMD_RESP100 resp = *it;
+			CLB_CTL_REP2 resp = *it;
 	
 			printf("%lx	%s	%ld	%ld	%ld	%ld	%ld\n", resp.hash, resp.success?"OK":"FAIL", 
 				resp.info.total, resp.info.drops, resp.info.texts, resp.info.errors, resp.tm.tv_sec);

@@ -10,7 +10,7 @@
 #include <event.h>
 #include <log.h>
 #include <evsrv.h>
-#include "clbsrv.h"
+#include "hub_clb_srv.h"
 
 #define CFG_LISTEN_IP		"127.0.0.1"
 #define CFG_LISTEN_PORT		10000
@@ -99,9 +99,9 @@ int main(int argc, char* argv[]) {
      }
 
     /* 创建服务 */
-    evsrv<clbsrv> *srv;
+    evsrv<hub_clb_srv> *srv;
     try {
-    	srv = new evsrv<clbsrv>(ip_str, (unsigned short)port);
+    	srv = new evsrv<hub_clb_srv>(ip_str, (unsigned short)port);
     } catch(const char *msg) {
     	printf("Error out: %s\n", msg);
     	return -1;

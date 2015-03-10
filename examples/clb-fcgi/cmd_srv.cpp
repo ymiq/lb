@@ -8,36 +8,36 @@
 #include <log.h>
 #include <stat_man.h>
 #include <clb_tbl.h>
-#include <json_obj.h>
-#include <clb_cmd.h>
+#include <qao/clb_ctl_req.h>
+#include <qao/clb_ctl_rep.h>
 #include <clb_grp.h>
-#include "cmdsrv.h"
+#include "cmd_srv.h"
 
 using namespace std;
 
-cmdsrv::cmdsrv(int fd, struct event_base* base):evsock(fd, base) {
+cmd_srv::cmd_srv(int fd, struct event_base* base) : evsock(fd, base) {
 	pstat = stat_man::get_inst();
 	plb = clb_tbl::get_inst();
 	pgrp = clb_grp::get_inst();
 }
 
 
-cmdsrv::~cmdsrv() {
+cmd_srv::~cmd_srv() {
 }
 
 
-clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
+clb_ctl_rep *cmd_srv::company_stat(clb_ctl_req &req) {
 	list<unsigned long>::iterator it;
-	CLB_CMD_RESP100 resp;
-	clb_cmd_resp100 *ret = new clb_cmd_resp100;
+	CLB_CTL_REP2 resp;
+	clb_ctl_rep2 *ret = new clb_ctl_rep2;
 	
-	memset(&resp, 0, sizeof(CLB_CMD_RESP100));
-	unsigned int command = cmd.command & 0x0fffffff;
+	memset(&resp, 0, sizeof(CLB_CTL_REP2));
+	unsigned int command = req.command & 0x0fffffff;
 	switch(command) {
 		
 	/* 开启统计 */		
 	case 0x01:
-		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+		for (it=req.hash_list.begin(); it!=req.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
 
@@ -59,7 +59,7 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 		
 	/* 关闭统计 */
 	case 0x02:
-		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+		for (it=req.hash_list.begin(); it!=req.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
 
@@ -81,7 +81,7 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 		
 	/* 获取统计信息 */	
 	case 0x04:
-		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+		for (it=req.hash_list.begin(); it!=req.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
 			
@@ -98,7 +98,7 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 		
 	/* 清除统计信息 */	
 	case 0x08:
-		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+		for (it=req.hash_list.begin(); it!=req.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
 			
@@ -120,23 +120,23 @@ clb_cmd_resp *cmdsrv::company_stat(clb_cmd &cmd) {
 }
 
 
-clb_cmd_resp *cmdsrv::group_stat(clb_cmd &cmd) {
+clb_ctl_rep *cmd_srv::group_stat(clb_ctl_req &req) {
 	return NULL;
 }
 
 
-clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
+clb_ctl_rep *cmd_srv::company_lb(clb_ctl_req &req) {
 	list<unsigned long>::iterator it;
-	CLB_CMD_RESP0 resp = {0};
-	clb_cmd_resp0 *ret = new clb_cmd_resp0;
+	CLB_CTL_REP0 resp = {0};
+	clb_ctl_rep0 *ret = new clb_ctl_rep0;
 	
-	memset(&resp, 0, sizeof(CLB_CMD_RESP0));
-	unsigned int command = cmd.command & 0x0fffffff;
+	memset(&resp, 0, sizeof(CLB_CTL_REP0));
+	unsigned int command = req.command & 0x0fffffff;
 	switch(command) {
 		
 	/* 开启服务 */		
 	case 0x01:
-		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+		for (it=req.hash_list.begin(); it!=req.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
 			
@@ -152,7 +152,7 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 		
 	/* 关闭服务 */
 	case 0x02:
-		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+		for (it=req.hash_list.begin(); it!=req.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
 
@@ -168,7 +168,7 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 		
 	/* 获取服务信息 */	
 	case 0x04:
-		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+		for (it=req.hash_list.begin(); it!=req.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			lbsrv_info info;
 			resp.hash = hash;
@@ -187,13 +187,13 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 		
 	/* 新增公司 */	
 	case 0x08:
-		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+		for (it=req.hash_list.begin(); it!=req.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			clb_grp_info grp_info;
-			grp_info.group = cmd.dst_groupid;
+			grp_info.group = req.dst_groupid;
 			grp_info.handle = -1;
-			grp_info.ip = cmd.ip;
-			grp_info.port = cmd.port;
+			grp_info.ip = req.ip;
+			grp_info.port = req.port;
 			grp_info.lb_status = 1;
 			grp_info.stat_status = 0;
 			
@@ -205,13 +205,13 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 
 				/* 填充clb hash表 */
 				info.hash = hash;
-				info.group = cmd.dst_groupid;
+				info.group = req.dst_groupid;
 				info.lb_status = 1;
 				info.stat_status= 0;
 				info.handle = grp_info.handle;
 				if (plb->create(info) < 0) {
 					resp.success = false;
-					pgrp->remove(cmd.dst_groupid, hash);
+					pgrp->remove(req.dst_groupid, hash);
 				} else {
 					resp.success = true;
 					resp.info = info;
@@ -225,7 +225,7 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 
 	/* 删除指定公司 */	
 	case 0x10:
-		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+		for (it=req.hash_list.begin(); it!=req.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			unsigned int group = plb->group_id(hash);
 			resp.hash = hash;
@@ -246,7 +246,7 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 	/* 切换均衡服务器 */	
 	case 0x20:
 	{
-		unsigned int group = cmd.dst_groupid;
+		unsigned int group = req.dst_groupid;
 		if (group == -1u) {
 			ret->success = false;
 			break;
@@ -256,7 +256,7 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 			ret->success = false;
 			break;
 		}
-		for (it=cmd.hash_list.begin(); it!=cmd.hash_list.end(); it++) {
+		for (it=req.hash_list.begin(); it!=req.hash_list.end(); it++) {
 			unsigned long hash = *it;
 			resp.hash = hash;
 
@@ -278,18 +278,18 @@ clb_cmd_resp *cmdsrv::company_lb(clb_cmd &cmd) {
 }
 
 
-clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
+clb_ctl_rep *cmd_srv::group_lb(clb_ctl_req &req) {
 	list<unsigned int>::iterator it;
-	CLB_CMD_RESP1 resp = {0};
-	clb_cmd_resp1 *ret = new clb_cmd_resp1;
+	CLB_CTL_REP1 resp = {0};
+	clb_ctl_rep1 *ret = new clb_ctl_rep1;
 	
-	memset(&resp, 0, sizeof(CLB_CMD_RESP1));
-	unsigned int command = cmd.command & 0x0fffffff;
+	memset(&resp, 0, sizeof(CLB_CTL_REP1));
+	unsigned int command = req.command & 0x0fffffff;
 	switch(command) {
 		
 	/* 开启服务 */		
 	case 0x01:
-		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
+		for (it=req.group_list.begin(); it!=req.group_list.end(); it++) {
 			unsigned int group = *it;
 			resp.group = group;
 			
@@ -305,7 +305,7 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 		
 	/* 关闭服务 */
 	case 0x02:
-		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
+		for (it=req.group_list.begin(); it!=req.group_list.end(); it++) {
 			unsigned int group = *it;
 			resp.group = group;
 
@@ -321,7 +321,7 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 		
 	/* 获取服务信息 */	
 	case 0x04:
-		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
+		for (it=req.group_list.begin(); it!=req.group_list.end(); it++) {
 			unsigned int group = *it;
 			resp.group = group;
 			
@@ -351,9 +351,9 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 	case 0x08:
 	{
 		clb_grp_info grp_info;
-		grp_info.group = resp.group = cmd.dst_groupid;
-		grp_info.ip = resp.ip = cmd.ip;
-		grp_info.port = resp.port = cmd.port;
+		grp_info.group = resp.group = req.dst_groupid;
+		grp_info.ip = resp.ip = req.ip;
+		grp_info.port = resp.port = req.port;
 		grp_info.lb_status = 1;
 		grp_info.stat_status = 0;
 		grp_info.handle = -1;
@@ -372,7 +372,7 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 		
 	/* 删除组 */
 	case 0x10:
-		for (it=cmd.group_list.begin(); it!=cmd.group_list.end(); it++) {
+		for (it=req.group_list.begin(); it!=req.group_list.end(); it++) {
 			unsigned int group = *it;
 			resp.group = group;
 			
@@ -386,8 +386,8 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 	/* 切换组 */
 	case 0x20:
 	{
-		unsigned int dst_group = cmd.dst_groupid;
-		unsigned int src_group = cmd.src_groupid;
+		unsigned int dst_group = req.dst_groupid;
+		unsigned int src_group = req.src_groupid;
 		
 		clb_grp_info *grp_info = pgrp->move(src_group, dst_group);
 		if (grp_info == NULL) {
@@ -416,63 +416,55 @@ clb_cmd_resp *cmdsrv::group_lb(clb_cmd &cmd) {
 }
 
 
-void cmdsrv::read(int sock, short event, void* arg) {
-	cmdsrv *srv = (cmdsrv *)arg;
+void cmd_srv::read(int sock, short event, void* arg) {
+	cmd_srv *srv = (cmd_srv *)arg;
 	void *buffer;
-	size_t size;
+	size_t size = 0;
 	
 	/* 接收数据 */
-	buffer = srv->ev_recv(&size);
+	buffer = srv->ev_recv(size);
 	if ((int)size <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
 		delete srv;
 		return;
+	} else if (size <= sizeof(serial_data)) {
+		/* 释放缓冲区 */
+		srv->recv_done(buffer);
+		return;
 	}
-	LOGI("RECV: %s\n", (const char*)buffer);
+//	LOGI("RECV(%d): %s", size, (const char*)buffer + sizeof(serial_data));
 	
 	/* 处理命令 */
 	try {
-		clb_cmd cmd((const char*)buffer);
+		clb_ctl_req req((const char*)buffer, size);
 		
-		unsigned int command = cmd.command;
+		unsigned int command = req.command;
 		
-	    clb_cmd_resp *pjson = NULL;
+	    clb_ctl_rep *rep = NULL;
 	    if (command & 0x20000000) {
 	
 		    /* 统计命令处理器 */
 		    if (command & 0x10000000) {
-		    	pjson = srv->group_stat(cmd);
+		    	rep = srv->group_stat(req);
 		    } else {
-		    	pjson = srv->company_stat(cmd);
+		    	rep = srv->company_stat(req);
 		    }
 	    } else {
 			
 			/* 负载均衡命令处理 */
 		    if (command & 0x10000000) {
-		    	pjson = srv->group_lb(cmd);
+		    	rep = srv->group_lb(req);
 		    } else {
-		    	pjson = srv->company_lb(cmd);
+		    	rep = srv->company_lb(req);
 		    }		
 	    }
 	    
-	    if (pjson) {
-		    /* 发送应答消息 */
-		    string resp_str = pjson->serialization();
-		    int len = resp_str.length();
-		    if (len > 0) {
-			    char *obuf = (char*)malloc(len + 1);
-			    if (obuf) {
-				    strcpy(obuf, resp_str.c_str());
-				    LOGI("SEND: %s\n", obuf);
-				    if (srv->ev_send(0, obuf, len + 1) == false) {
-				    	LOGE("reponse error");
-				    }
-			    }
+	    /* 发送QAO对象 */
+	    if (rep) {
+		    if (srv->ev_send(rep) == false) {
+		    	LOGE("reponse error");
 			}
-			
-			/* 销毁对象 */
-			delete pjson;
 		}
 	} catch (const char *msg) {
     	LOGE("Command json error");
@@ -485,7 +477,14 @@ void cmdsrv::read(int sock, short event, void* arg) {
 	srv->recv_done(buffer);
 }
 
-void cmdsrv::send_done(unsigned long token, void *buf, size_t len) {
-	/* 释放发送缓冲区 */
-	free(buf);
+
+void cmd_srv::send_done(void *buf, size_t len, bool send_ok) {
+
 }
+
+
+void cmd_srv::send_done(qao_base *rep, bool send_ok) {
+	/* 销毁对象 */
+	delete rep;
+}
+

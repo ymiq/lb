@@ -9,8 +9,6 @@
 #include <cstdlib>
 #include <cstddef>
 #include <config.h>
-#include <vector>
-#include <rcu_obj.h>
 
 using namespace std;
 

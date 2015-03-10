@@ -1,39 +1,38 @@
-﻿#ifndef __COMMAND_H__
-#define __COMMAND_H__
+﻿#ifndef __CMD_CLNT_H__
+#define __CMD_CLNT_H__
 
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <unistd.h>
-#include <clb_cmd.h>
+#include <evsock.h>
+#include <evclnt.h>
+#include <qao/clb_ctl_req.h>
+#include <qao/clb_ctl_rep.h>
 
 using namespace std;
 
-class cmd_clnt {
+class cmd_clnt : public evsock {
 public:
-	cmd_clnt();
-	~cmd_clnt();
+	~cmd_clnt() {};
+	cmd_clnt(int fd, struct event_base* evbase) : evsock(fd, evbase), qao(NULL) {base = evbase;};
+		
+	void send_done(void *buf, size_t len, bool send_ok);
+	void send_done(qao_base *qao, bool send_ok);
 	
-	int request(clb_cmd &cmd);
-	int reponse(void);
+	static void read(int sock, short event, void* arg);
+	static void timer_cb(int sock, short event, void* arg);
+	
+	bool open_timer(void);
+	void reg_qao(qao_base *q) {qao = q;};
 		
 protected:
 	
 private:
-typedef struct LB_CMD {
-	unsigned int command;
-	unsigned int group;
-	unsigned long hash; 
-	unsigned int ip;
-	unsigned int port;
-	unsigned char data[0];
-} LB_CMD;
-
-	int sockfd;
-	
-	void *do_recv(size_t *len);
-	void *get_repsone(size_t *len);
-	int do_request(const void *buf, size_t len);
+	struct event_base* base;
+	qao_base *qao;
+	struct event ev;
+	struct timeval tv;
 };
 
-#endif /* __COMMAND_H__ */
+#endif /* __CMD_CLNT_H__ */
