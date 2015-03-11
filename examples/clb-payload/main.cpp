@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <http.h>
+#include <sys/time.h>
 
 using namespace std;
 
@@ -51,22 +52,31 @@ static void rand_user(char *name, int low, int high) {
 	sprintf(name, "%d", user);
 }
 
-static const char format[] = 
-	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-	"<company>%s</company>"
-	"<user>%s</user>"
-	"<question>%s</question>\n";
 
-static void rand_post(http *pclient) {
+static const char format[] = {
+	"<xml>"
+	"<ToUserName><![CDATA[%s]]></ToUserName>"
+	"<FromUserName><![CDATA[%s]]></FromUserName>"
+	"<CreateTime>%u</CreateTime>"
+	"<MsgType><![CDATA[text]]></MsgType>"
+	"<Content><![CDATA[%s]]></Content>"
+	"<MsgId>%lu</MsgId>"
+	"</xml>"
+};
+
+
+static void rand_post(http *pclient, unsigned long msgid) {
 	char company[128];
 	char user[128];
 	char question[128];
 	char content[1024];
+	struct timeval tv;
 	
+	gettimeofday(&tv, NULL);
 	rand_company(company, 0, 16);
 	rand_user(user, 0, 16);
 	rand_question(question, 0, 16);
-	snprintf(content, sizeof(content)-1, format, company, user, question);
+	snprintf(content, sizeof(content)-1, format, company, user, (unsigned int)tv.tv_sec, question, msgid);
 	
 	string url = "wxif.lan.net/webif";
 	string response;
@@ -77,6 +87,7 @@ static void rand_post(http *pclient) {
 
 static void *pthread_ask_sim(void *args) {
 	http http_client;
+	unsigned long msgid = ((unsigned long)pthread_self()) << 32;
 	
 	while (1) {
 		
@@ -87,7 +98,7 @@ static void *pthread_ask_sim(void *args) {
 			string url = "wxif.lan.net/webif";
 			string post = "<xml></xml>";
 			string response;
-			rand_post(&http_client);
+			rand_post(&http_client, msgid++);
 		}
 		
 		/* 随机Sleep一段时间(50~200ms) */

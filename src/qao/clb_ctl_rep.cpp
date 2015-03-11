@@ -6,6 +6,7 @@
 #include <string>
 #include <log.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <json/json.h>
@@ -14,6 +15,12 @@
 #include <qao/clb_ctl_rep.h>
 
 using namespace std;
+
+unsigned int clb_ctl_rep::seqno = 0;
+
+clb_ctl_rep::clb_ctl_rep() : success(false) {
+}
+
 
 
 /* ==========================================================================================
@@ -162,8 +169,12 @@ void *clb_ctl_rep0::serialization(size_t &len, unsigned long token) {
 
 
 void *clb_ctl_rep0::serialization(size_t &len) {
-	unsigned long token = (((unsigned long)pthread_self()) << 32) | seqno;
-	seqno++;
+	struct timeval tv;
+	
+	gettimeofday(&tv, NULL);
+	unsigned long token = (tv.tv_sec << 8) | QAO_CLB_CTL_REP0;
+	token <<= 32;
+	token |= __sync_fetch_and_add(&clb_ctl_rep0::seqno, 1);
 	return serialization(len, token);
 }
 
@@ -264,8 +275,12 @@ void *clb_ctl_rep1::serialization(size_t &len, unsigned long token) {
 
 
 void *clb_ctl_rep1::serialization(size_t &len) {
-	unsigned long token = (((unsigned long)pthread_self()) << 32) | seqno;
-	seqno++;
+	struct timeval tv;
+	
+	gettimeofday(&tv, NULL);
+	unsigned long token = (tv.tv_sec << 8) | QAO_CLB_CTL_REP1;
+	token <<= 32;
+	token |= __sync_fetch_and_add(&clb_ctl_rep1::seqno, 1);
 	return serialization(len, token);
 }
 
@@ -295,7 +310,6 @@ void clb_ctl_rep1::dump(void) {
  *			CLASS: clb_ctl_rep2
  * ==========================================================================================
  */
-
 clb_ctl_rep2::clb_ctl_rep2(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
@@ -382,8 +396,12 @@ void *clb_ctl_rep2::serialization(size_t &len, unsigned long token) {
 
 
 void *clb_ctl_rep2::serialization(size_t &len) {
-	unsigned long token = (((unsigned long)pthread_self()) << 32) | seqno;
-	seqno++;
+	struct timeval tv;
+	
+	gettimeofday(&tv, NULL);
+	unsigned long token = (tv.tv_sec << 8) | QAO_CLB_CTL_REP2;
+	token <<= 32;
+	token |= __sync_fetch_and_add(&clb_ctl_rep2::seqno, 1);
 	return serialization(len, token);
 }
 

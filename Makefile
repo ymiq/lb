@@ -5,6 +5,8 @@ CLBFCGI_SRCS += examples/clb-fcgi/cfg_db.cpp
 CLBFCGI_SRCS += examples/clb-fcgi/cmd_srv.cpp
 CLBFCGI_SRCS += src/qao/clb_ctl_req.cpp
 CLBFCGI_SRCS += src/qao/clb_ctl_rep.cpp
+CLBFCGI_SRCS += src/qao/wx_xml.cpp
+CLBFCGI_SRCS += src/hash_alg.cpp
 CLBFCGI_SRCS += src/logger.cpp
 CLBFCGI_SRCS += src/evsock.cpp
 CLBFCGI_SRCS += src/rcu_man.cpp
@@ -15,7 +17,9 @@ CLBFCGI_SRCS += src/stat_tbl.cpp
 CLBFCGI_SRCS += src/stat_man.cpp
 CLBFCGI_SRCS += src/clb_grp.cpp
 CLBFCGI_CPPFLAGS = -O2 -Wall -Werror -I./include
-CLBFCGI_LDFLAGS = -lstdc++ -lpthread -lfcgi -L/usr/lib64/mysql/ -lmysqlclient -lcrypto -levent -ljsoncpp
+CLBFCGI_LDFLAGS = -lstdc++ -lpthread -lfcgi 
+CLBFCGI_LDFLAGS += -L/usr/lib64/mysql/ -lmysqlclient
+CLBFCGI_LDFLAGS += -lcrypto -levent -ljsoncpp -lexpat
 
 CLBCMD_TARGET := bin/clb-cmd
 CLBCMD_SRCS = examples/clb-cmd/main.cpp
@@ -43,6 +47,12 @@ HUB_SRCS += src/logger.cpp
 HUB_SRCS += src/rcu_man.cpp
 HUB_CPPFLAGS = -O2 -Wall -Werror -I./include
 HUB_LDFLAGS = -lstdc++ -lpthread -levent
+
+TEST_TARGET := bin/test
+TEST_SRCS = examples/test/main.cpp
+TEST_CPPFLAGS = -O2 -Wall -Werror -I./include
+TEST_LDFLAGS = -lstdc++ -lpthread -lexpat
+
 
 .DEFAULT: all
 all: clb_fcgi clb_cmd clb_pl hub
@@ -87,3 +97,11 @@ prepare:
 
 clean:
 	@rm -fr ./bin
+
+.PHONY: test test_clean
+test: prepare test_clean
+	@echo Building $@
+	@gcc $(TEST_CPPFLAGS) $(TEST_LDFLAGS) $(TEST_SRCS) -o $(TEST_TARGET)
+
+test_clean:
+	@rm -f $(TEST_TARGET)

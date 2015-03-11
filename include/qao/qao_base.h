@@ -32,6 +32,7 @@ typedef struct serial_data {
 #define	QAO_CLB_CTL_REP1	0x12
 #define	QAO_CLB_CTL_REP2	0x13
 #define	QAO_CLB_CTL_REP3	0x14
+#define	QAO_WX_XML			0x18
 
 class qao_base {
 public:

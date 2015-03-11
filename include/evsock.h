@@ -12,7 +12,7 @@
 using namespace std;
 
 /* 定义数据包分片大小 */
-#define CFG_FRAGMENT_SIZE		(64)
+#define CFG_FRAGMENT_SIZE		(16*1024)
 
 typedef struct frag_pack {
 	unsigned long token;	

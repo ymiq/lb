@@ -11,8 +11,8 @@
 #include <clb_tbl.h>
 #include <log.h>
 #include <fcgi_stdio.h>  
-#include <openssl/md5.h>
 #include <evsrv.h>
+#include <hash_alg.h>
 #include "cmd_srv.h"
 #include "cfg_db.h"
 
@@ -89,22 +89,6 @@ static bool content_parser(char *content, char *company, char *user, char *quest
 	}
 	return true;	
 }
-
-
-static unsigned long company_hash(const char *company) {
-	MD5_CTX ctx;
-	unsigned char md5[16];
-	unsigned long hash = 0;
-	
-	MD5_Init(&ctx);
-	MD5_Update(&ctx, company, strlen(company));
-	MD5_Final(md5, &ctx);
-	
-	memcpy(&hash, md5, sizeof(hash));
-	
-	return hash;
-}
-
 
 static void *thread_worker(void *args) {
     FCGX_Request request;

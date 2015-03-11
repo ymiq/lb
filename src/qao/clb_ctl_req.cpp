@@ -5,6 +5,7 @@
 #include <string>
 #include <log.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <json/json.h>
@@ -14,6 +15,10 @@
 
 using namespace std;
 
+unsigned int clb_ctl_req::seqno = 0;
+
+clb_ctl_req::clb_ctl_req() : command(0), src_groupid(-1), dst_groupid(-1), ip(0), port(0) {
+}
 
 clb_ctl_req::clb_ctl_req(const char *str, size_t len): command(0), src_groupid(-1), 
 			dst_groupid(-1), ip(0), port(0) {
@@ -93,8 +98,12 @@ void *clb_ctl_req::serialization(size_t &len, unsigned long token) {
 
 
 void *clb_ctl_req::serialization(size_t &len) {
-	unsigned long token = (((unsigned long)pthread_self()) << 32) | seqno;
-	seqno++;
+	struct timeval tv;
+	
+	gettimeofday(&tv, NULL);
+	unsigned long token = (tv.tv_sec << 8) | QAO_CLB_CTL_REQ;
+	token <<= 32;
+	token |= __sync_fetch_and_add(&clb_ctl_req::seqno, 1);
 	return serialization(len, token);
 }
 
