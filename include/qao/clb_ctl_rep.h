@@ -17,7 +17,7 @@ using namespace std;
 
 class clb_ctl_rep: virtual public qao_base {
 public:
-	clb_ctl_rep() : success(false){};
+	clb_ctl_rep() : success(false), seqno(0){};
 	virtual ~clb_ctl_rep() {};
 	
 	virtual void *serialization(size_t &len, unsigned long token) = 0;
@@ -25,6 +25,7 @@ public:
 	virtual void dump(void) = 0;
 
 	bool success;
+	unsigned int seqno;
 };
 
 

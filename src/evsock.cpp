@@ -9,7 +9,10 @@
 #include <log.h>
 #include <evsock.h>
 
-#define CFG_RCVBUF_SIZE		1024
+
+evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
+}
+
 
 evsock::~evsock() {
 	/* 删除读事件 */
@@ -21,52 +24,159 @@ evsock::~evsock() {
 	}
 	
 	/* 释放对象 */
-	queue<EV_SEND*> *q = this->ev_queue();
+	queue<ev_job*> *q = this->ev_queue();
 	while (!wq.empty()) {
-	    EV_SEND *ps = q->front();
+	    ev_job *job = q->front();
 	    q->pop();
 	    
 		/* 释放EV_SEND */
-		delete ps;
+		delete job;
 	}
 }
 
-/* 暂未考虑数据包分片问题! */
-void *evsock::ev_recv(size_t &len) {
-	size_t ret_len;
+
+/* 接收分片报文时，认为其不可能乱序，乱序则表示错误
+ * 该Socket为内部主机间通信Socket，乱序是不可能发生的
+ */
+void *evsock::ev_recv(size_t &len, bool &fragment) {
+	unsigned int len_off;
+	unsigned int frag;
+	frag_pack *pfrag = NULL;
+	char *buffer = NULL;
+	char *precv = NULL;
+	size_t recv_len;
+	
+	fragment = false;
 	
 	/* 接收头信息 */
 	serial_data header;
     int rd_size = recv(sockfd, &header, sizeof(serial_data), MSG_DONTWAIT);
     if (rd_size != sizeof(serial_data)) {
-    	if (rd_size <= 0) {
-    		len = rd_size;
-    	} else {
-   			len = -1;
+    	if (rd_size > 0) {
+   			rd_size = -1;
    		}
-    	return NULL;
+		len = rd_size;
+		return NULL;
     }
-    if (header.length <= sizeof(serial_data)) {
-    	LOGE("recv header failed, lenght: %d", header.length);
-    	len = -1;
-    	return NULL;
-    }
-    ret_len = header.length - sizeof(serial_data);
-	
+    rd_size = -1;
+    len_off = header.length & 0x3fffffffu;
+    frag = header.length >> 30;
+	recv_len = header.datalen;
+    
+    /* 检查token是否合法 */
+	unsigned long token = header.token;
+	if (frag && (!token || (token == -1ul))) {
+		LOGE("recv packet with bad token");
+		goto error_quit;
+	}
+ 	
+	/* 长度合法性检查 */
+	switch(frag) {
+		/* 无分片情况 */
+	    case 0: 
+	    	/* 超过64K数据包为不合法 */
+		    if ((len_off != recv_len + sizeof(serial_data))
+		    	|| (len_off >= 0x10000)) {
+				LOGE("recv packet with bad length");
+				goto error_quit;
+			}
+		    buffer = new char[len_off];
+			precv = buffer + sizeof(serial_data);
+			
+			/* 复制头信息 */
+			memcpy(buffer, &header, sizeof(serial_data));
+			len = len_off;
+			break;
+		
+		/* 第一个分片包 */
+		case 1:
+			fragment = true;
+			
+	    	/* 分片数据包总长度超过8M认为不合法 */
+			if ((len_off <= recv_len + sizeof(serial_data)) 
+				|| (len_off >= 0x800000)) {
+				LOGE("recv packet with bad length");
+				goto error_quit;
+			}
+			
+			/* 申请分片数据保存结构体 */
+			pfrag = frags.get(token);
+			if (pfrag == NULL) {
+				LOGE("error_quit fragment");
+				goto error_quit;
+			}
+			pfrag->token = token;
+			pfrag->length = len_off;
+			pfrag->rcvlen = recv_len + sizeof(serial_data); 
+			pfrag->time = 0;
+		    buffer = new char[len_off];
+		    pfrag->buffer = buffer;
+			precv = buffer + sizeof(serial_data);
+		    
+			/* 复制头信息，转换为非分片包 */
+		    header.length = len_off;
+		    header.datalen = len_off - sizeof(serial_data);
+			memcpy(buffer, &header, sizeof(serial_data));
+			len = recv_len;
+			break;
+    	
+		/* 中间分片包 */
+    	case 2:
+    	case 3:
+			fragment = true;
+			
+			/* 获取分片数据保存结构体 */
+			pfrag = frags.find(token);
+			if (pfrag == NULL) {
+				LOGE("recv fragment with bad token");
+				goto error_quit;
+			}
+			pfrag->rcvlen += recv_len;
+			if (frag == 3) {
+ 				if (pfrag->rcvlen != pfrag->length) {
+					LOGE("recv fragment with bad length");
+					delete pfrag->buffer;
+					frags.remove(token);
+					goto error_quit;
+				} else {
+					fragment = false;
+					frags.remove(token);
+		 			buffer = pfrag->buffer;
+		 			precv = buffer + len_off;
+		 			len = pfrag->length;
+				}
+ 			} else {
+	 			buffer = pfrag->buffer;
+	 			precv = buffer + len_off;
+	 			len = recv_len;
+	 		}
+	   		break;
+	}    	
+    
     /* 准备接收缓冲区 */
-    char *buffer = new char[header.length & 0x3fffffffu];
-    memcpy(buffer, &header, sizeof(serial_data));
-    char *pwrite = buffer + sizeof(serial_data);
-    rd_size = recv(sockfd, pwrite, ret_len, MSG_DONTWAIT);
-    if (rd_size != (int)ret_len) {
-    	LOGE("recv length umatch, want %d but %d", ret_len, rd_size);
-    	delete buffer;
-    	len = -1;
-    	return NULL;
+    rd_size = recv(sockfd, precv, recv_len, MSG_DONTWAIT);
+    if (rd_size != (int)recv_len) {
+    	LOGE("recv length umatch, want %d but %d", recv_len, rd_size);
+   		delete buffer;
+    	if (fragment) {
+			frags.remove(token);
+   		}
+    	if (rd_size > 0) {
+   			rd_size = -1;
+   		}
+    	goto error_quit;
     }
     
-	len = header.length & 0x3fffffffu;
+    /* 分片处理 */
+    if (fragment) {
+ 		return NULL;
+    }
    	return buffer;
+    
+error_quit:
+	len = rd_size;
+	fragment = false;
+	return NULL;
 }
 
 
@@ -76,46 +186,129 @@ void evsock::recv_done(void *buf) {
 
 
 void evsock::do_write(int sock, short event, void* arg) {
+	bool pop_job = false;
 	evsock *evsk = (evsock *)arg;
-	queue<EV_SEND*> *q = evsk->ev_queue();
+	queue<ev_job*> *q = evsk->ev_queue();
 	
-    /* 从写缓冲队列取出一个Buffer */
-    EV_SEND *ps = q->front();
-    q->pop();
+    /* 从写缓冲队列读取一个job */
+    ev_job *job = q->front();
     
     /* 发送数据 */
-    if (ps->qao) {
-		bool send_ok = false;
-		size_t wlen;
+    if (job->fragment) {
+    	bool send_status = false;
+    	
+    	/* 发送分片数据 */
+    	char *buf = job->buf + job->offset - sizeof(serial_data);
+    	serial_data *pheader = (serial_data*) buf;
+    	size_t datalen = job->len - job->offset;
+    	size_t max_len = CFG_FRAGMENT_SIZE - sizeof(serial_data);
+   		*pheader = job->header;
+   		if (datalen > max_len) {
+    		pheader->length = job->offset | (2u << 30);
+    		pheader->datalen = max_len;
+    		datalen = max_len;
+    	} else {
+    		pheader->length = job->offset | (3u << 30);;
+    		pheader->datalen = datalen;
+    	}
+    	job->offset += datalen;
+    	datalen += sizeof(serial_data);
+    	
+    	/* 发送数据头 */
+		int len = send(sock, buf, datalen, 0);
+		if (len == (int)datalen) {
+			send_status = true;
+		}
+				    		
+		/* 通知发送完成 */
+   		if ((job->offset == job->len) || !send_status) {
+ 			if (job->qao) {
+				evsk->send_done(job->qao, send_status);
+	 			delete job->buf;
+	 			pop_job = true;
+ 			} else {
+				evsk->send_done((void*)job->buf, job->len, send_status);
+	 			q->pop();
+ 			}
+  		}
+
+    } else if (job->qao) {
+		size_t datalen;
 		
 		/* 序列化对象并发送 */
-		char *buf = (char*)ps->qao->serialization(wlen);
+		char *buf = (char*)job->qao->serialization(datalen);
 		if (buf) {
-			int len = send(sock, buf, wlen, 0);
-			if (len == (int)wlen) {
-				send_ok = true;
+			bool send_done = true;
+			bool send_status = false;
+			
+			if (datalen > CFG_FRAGMENT_SIZE) {
+				/* 发送第一个分片数据 */
+				serial_data *pheader = (serial_data*)buf;
+				job->fragment = true;
+				job->buf = buf;
+				job->len = datalen;
+				job->offset = CFG_FRAGMENT_SIZE;
+				job->header = *pheader;
+				pheader->length |= (1u << 30);
+				pheader->datalen = CFG_FRAGMENT_SIZE - sizeof(serial_data);
+				datalen = CFG_FRAGMENT_SIZE;
+				send_done = false;
 			}
-			delete buf;
+			
+			/* 发送数据 */
+			int len = send(sock, buf, datalen, 0);
+			if (len == (int)datalen) {
+				send_status = true;
+			}
+			
+			/* 发送完成或者发送失败时，通知发送完成 */
+			if (send_done || !send_status) {
+				evsk->send_done(job->qao, send_status);
+				delete buf;
+				pop_job = true;
+			}
+		} else {
+			evsk->send_done(job->qao, false);
+			pop_job = true;
 		}
 		
-		/* 通知发送完成 */
-		evsk->send_done(ps->qao, send_ok);
     } else {
-		bool send_ok = true;
+    	bool send_done = true;
+		bool send_status = false;
+		size_t datalen = job->len;
+		
+		if (job->len > CFG_FRAGMENT_SIZE) {
+			/* 发送第一个分片数据 */
+			serial_data *pheader = (serial_data*)job->buf;
+			job->fragment = true;
+			job->offset = CFG_FRAGMENT_SIZE;
+			job->header = *pheader;
+			pheader->length |= (1u << 30);
+			pheader->datalen = CFG_FRAGMENT_SIZE - sizeof(serial_data);
+			datalen = CFG_FRAGMENT_SIZE;
+			send_done = false;
+		}
 		
 		/* 发送缓冲区中内容 */
-		int len = send(sock, ps->buf, ps->len, 0);
-		if (len == (int)ps->len) {
-			send_ok = true;
+		int len = send(sock, job->buf, datalen, 0);
+		if (len == (int)job->len) {
+			send_status = true;
 		}
+		datalen = len;
 		
-		/* 通知发送完成 */
-		evsk->send_done((void*)ps->buf, ps->len, send_ok);
+		/* 发送完成或者发送失败时，通知发送完成 */
+		if (send_done || !send_status) {
+			evsk->send_done((void*)job->buf, datalen, send_status);
+			pop_job = true;
+		}
 	}
 	
-	/* 释放EV_SEND */
-	delete ps;
-    
+	/* 删除队列中的job */
+	if (pop_job) {
+		q->pop();
+		delete job;
+	}	
+		
     /* 检查FIFO是否还存在待发送内容 */
     if (!q->empty()) {
 	    event_set(&evsk->write_ev, sock, EV_WRITE, do_write, evsk);
@@ -138,9 +331,9 @@ bool evsock::ev_send(const void *buf, size_t size) {
 	}
 		
 	/* 把当前缓冲区挂入写FIFO */
-	EV_SEND *send = new EV_SEND(buf, size, NULL);
+	ev_job *job = new ev_job((char*)buf, size, NULL);
 	empty = wq.empty();
-	wq.push(send);
+	wq.push(job);
 	
 	/* 触发写事件 */
 	if (empty) {
@@ -167,9 +360,9 @@ bool evsock::ev_send(qao_base *qao) {
 	}
 		
 	/* 把当前缓冲区挂入写FIFO */
-	EV_SEND *send = new EV_SEND(NULL, 0, qao);
+	ev_job *job = new ev_job(NULL, 0, qao);
 	empty = wq.empty();
-	wq.push(send);
+	wq.push(job);
 	
 	/* 触发写事件 */
 	if (empty) {

@@ -22,6 +22,7 @@ CLBCMD_SRCS = examples/clb-cmd/main.cpp
 CLBCMD_SRCS += examples/clb-cmd/cmd_clnt.cpp
 CLBCMD_SRCS += src/qao/clb_ctl_req.cpp
 CLBCMD_SRCS += src/qao/clb_ctl_rep.cpp
+CLBCMD_SRCS += src/rcu_man.cpp
 CLBCMD_SRCS += src/evsock.cpp
 CLBCMD_SRCS += src/logger.cpp
 CLBCMD_SRCS += src/lb_db.cpp
@@ -39,6 +40,7 @@ HUB_SRCS = examples/hub/main.cpp
 HUB_SRCS += examples/hub/hub_clb_srv.cpp
 HUB_SRCS += src/evsock.cpp
 HUB_SRCS += src/logger.cpp
+HUB_SRCS += src/rcu_man.cpp
 HUB_CPPFLAGS = -O2 -Wall -Werror -I./include
 HUB_LDFLAGS = -lstdc++ -lpthread -levent
 

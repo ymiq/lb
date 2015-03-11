@@ -47,20 +47,6 @@ static int stat_init(stat_tbl *pstat) {
 }
 
 
-static void *thread_rcu_man(void *args) {
-	
-	rcu_man *prcu = rcu_man::get_inst();
-	while (1) {
-		/* 循环调用RCU，释放所有进入Grace Period的对象或者缓冲区 */
-		prcu->job_free();
-		
-		/* 延时 */
-		usleep(100*1000);
-	}
-	return NULL;
-}
-
-
 static bool content_parser(char *content, char *company, char *user, char *question) {
 	char *pstart;
 	char *pend;
@@ -216,10 +202,8 @@ int main(int argc, char *argv[]) {
 	LOG_OPEN("clb-cfgi");
 	
 	/* 创建RCU管理线程 */
-	pthread_t th_rcu;
-	if (pthread_create(&th_rcu, NULL, thread_rcu_man, NULL) < 0) {
-		LOGE("Create rcu manage thread failed");
-		return -1;
+	if (!rcu_man::init()) {
+		LOGE("Create rcu worker thread failed");
 	}
 	
 	/* 获取负载均衡HASH表 */

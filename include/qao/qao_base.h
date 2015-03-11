@@ -15,10 +15,14 @@ using namespace std;
 /* 数据结构中数据为网络字节序 */
 typedef struct serial_data {
 	unsigned long token;
-	unsigned int length;
+	unsigned int length;		/* 高2位表示分片信息; 低30位表示长度或者偏移 */
+								/* 00-无分片; 低30位表示总长度（含serial_data) */
+								/* 01-第一个分片包; 低30位表示总长度（含serial_data) */
+								/* 10-中间分片包; 低30位表示数据起始偏移 */
+								/* 11-最后一个分片包; 低30位表示数据起始偏移  */
 	unsigned char type;
-	unsigned char version;
-	unsigned short packet_len;
+	unsigned char version;		/* 高2位表示处理优先级Qos */
+	unsigned short datalen;		/* 数据长度，不包含serial_data长度 */
 	unsigned char data[0];
 }__attribute__((packed)) serial_data;
 

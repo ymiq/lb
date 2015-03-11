@@ -7,30 +7,45 @@
 #include <config.h>
 #include <queue>
 #include <qao/qao_base.h>
+#include <hash_tbl.h>
 
 using namespace std;
 
+/* 定义数据包分片大小 */
+#define CFG_FRAGMENT_SIZE		(64)
+
+typedef struct frag_pack {
+	unsigned long token;	
+	unsigned long time;		/* 时间戳 */
+	unsigned int length;	/* 数据包总长度 */
+	unsigned int rcvlen;	/* 接收总长度 */
+	char *buffer;			/* 数据缓冲区 */
+}frag_pack;
+
 class evsock {
 private:
-	class EV_SEND {
+	class ev_job {
 	public:
-		~EV_SEND() {};
-		EV_SEND(const void *buf, size_t len, qao_base *qao) 
-									: buf(buf), len(len), qao(qao) {};
+		~ev_job() {};
+		ev_job(char *buf, size_t len, qao_base *qao) 
+						: buf(buf), len(len), qao(qao), fragment(false) {};
 			
 	public:
-		const void *buf;
+		char *buf;
 		size_t len;		
 		qao_base *qao;
+		bool fragment;
+		unsigned int offset;
+		serial_data header;
 	};
 		
 public:
 	virtual ~evsock();
-	evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {};
+	evsock(int fd, struct event_base* base);
     struct event read_ev;
     struct event write_ev;
 	
-	void *ev_recv(size_t &len);
+	void *ev_recv(size_t &len, bool &fragment);
 	void recv_done(void *buf);
 	
 	bool ev_send(const void *buf, size_t len);
@@ -38,7 +53,7 @@ public:
 	virtual void send_done(void *buf, size_t len, bool send_ok) = 0;
 	virtual void send_done(qao_base *qao, bool send_ok) = 0;
 
-	queue<EV_SEND*> *ev_queue(void) {return &wq;}
+	queue<ev_job*> *ev_queue(void) {return &wq;}
 	
 	static void do_write(int sock, short event, void* arg);
 
@@ -47,7 +62,8 @@ protected:
 private:
 	int sockfd;
 	struct event_base* evbase;
-	queue<EV_SEND*> wq;
+	queue<ev_job*> wq;
+	hash_tbl<frag_pack, 256> frags;
 };
 	
 #endif /* __EVSOCK_H__ */ 

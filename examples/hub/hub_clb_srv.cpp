@@ -17,13 +17,16 @@ void hub_clb_srv::read(int sock, short event, void* arg) {
 	hub_clb_srv *srv = (hub_clb_srv *)arg;
 	void *buffer;
 	size_t size = 0;
+	bool fragment = false;
 	
 	/* 接收数据 */
-	buffer = srv->ev_recv(size);
+	buffer = srv->ev_recv(size, fragment);
 	if ((int)size <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
 		delete srv;
+		return;
+	} else if (fragment) {
 		return;
 	}
 	

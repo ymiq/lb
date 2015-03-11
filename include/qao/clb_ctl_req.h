@@ -17,7 +17,7 @@ using namespace std;
 
 class clb_ctl_req: virtual public qao_base {
 public:
-	clb_ctl_req() : command(0), src_groupid(-1), dst_groupid(-1), ip(0), port(0) {};
+	clb_ctl_req() : command(0), src_groupid(-1), dst_groupid(-1), ip(0), port(0), seqno(0) {};
 	clb_ctl_req(const char *str, size_t len);
 	~clb_ctl_req() {};
 	
@@ -32,6 +32,7 @@ public:
 	unsigned int dst_groupid;
 	unsigned int ip;
 	unsigned short port;
+	unsigned int seqno;
 protected:
 	
 private:

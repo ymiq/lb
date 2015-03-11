@@ -29,7 +29,8 @@ public:
 	void job_free(void);
 
 	int tid_get(void);
-protected:
+	static bool init(void);
+	protected:
 	
 private:
 	#define CFG_OBJ_TABLE_SIZE		64
@@ -59,6 +60,8 @@ private:
 	void tid_lock();
 	void tid_unlock();
 	int tid_reg(pthread_t tid);
+	
+	static void *worker_thread(void *arg);
 };
 
 #endif /* _RCU_MAN_H__ */

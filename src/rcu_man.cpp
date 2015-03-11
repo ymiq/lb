@@ -2,6 +2,7 @@
 #include <cstring>
 #include <log.h>
 #include <rcu_man.h>
+#include <unistd.h>
 
 rcu_man::rcu_man() {
 	obj_tbl = new obj_table();
@@ -221,3 +222,26 @@ void rcu_man::job_free(void) {
 	}while (ptbl);
 }
 
+
+void *rcu_man::worker_thread(void *arg) {
+	rcu_man *prcu = rcu_man::get_inst();
+	while (1) {
+		/* 循环调用RCU，释放所有进入Grace Period的对象或者缓冲区 */
+		prcu->job_free();
+		
+		/* 延时 */
+		usleep(100*1000);
+	}
+	return NULL;
+}
+
+
+bool rcu_man::init(void) {
+	/* 创建RCU管理线程 */
+	pthread_t th_rcu;
+	if (pthread_create(&th_rcu, NULL, rcu_man::worker_thread, NULL) < 0) {
+		LOGE("Create rcu manage thread failed");
+		return false;
+	}
+	return true;
+}

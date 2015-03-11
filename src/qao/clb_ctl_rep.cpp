@@ -154,7 +154,7 @@ void *clb_ctl_rep0::serialization(size_t &len, unsigned long token) {
 	pserial->length = buf_len;
 	pserial->type = QAO_CLB_CTL_REP0;
 	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
-	pserial->packet_len = json_len;
+	pserial->datalen = json_len;
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;
 	return ret;
@@ -162,7 +162,9 @@ void *clb_ctl_rep0::serialization(size_t &len, unsigned long token) {
 
 
 void *clb_ctl_rep0::serialization(size_t &len) {
-	return serialization(len, 0);
+	unsigned long token = (((unsigned long)pthread_self()) << 32) | seqno;
+	seqno++;
+	return serialization(len, token);
 }
 
 
@@ -254,7 +256,7 @@ void *clb_ctl_rep1::serialization(size_t &len, unsigned long token) {
 	pserial->length = buf_len;
 	pserial->type = QAO_CLB_CTL_REP1;
 	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
-	pserial->packet_len = json_len;
+	pserial->datalen = json_len;
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;
 	return ret;
@@ -262,7 +264,9 @@ void *clb_ctl_rep1::serialization(size_t &len, unsigned long token) {
 
 
 void *clb_ctl_rep1::serialization(size_t &len) {
-	return serialization(len, 0);
+	unsigned long token = (((unsigned long)pthread_self()) << 32) | seqno;
+	seqno++;
+	return serialization(len, token);
 }
 
 
@@ -370,7 +374,7 @@ void *clb_ctl_rep2::serialization(size_t &len, unsigned long token) {
 	pserial->length = buf_len;
 	pserial->type = QAO_CLB_CTL_REP2;
 	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
-	pserial->packet_len = json_len;
+	pserial->datalen = json_len;
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;
 	return ret;
@@ -378,7 +382,9 @@ void *clb_ctl_rep2::serialization(size_t &len, unsigned long token) {
 
 
 void *clb_ctl_rep2::serialization(size_t &len) {
-	return serialization(len, 0);
+	unsigned long token = (((unsigned long)pthread_self()) << 32) | seqno;
+	seqno++;
+	return serialization(len, token);
 }
 
 
