@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/eventfd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <event.h>
@@ -11,6 +12,23 @@
 
 
 evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
+	int qsize[] = {1024, 2048, 4096, 8192};
+	if (!wq.init(4, qsize)) {
+		throw "can't create priority queue for evsock";
+	}
+	
+	/* 创建Eventfd，用于线程间数据包传递 */
+	efd = eventfd(0, 0);
+	if (efd < 0) {
+		throw "can't creat evnentfd for evsock";
+	}
+	event_set(&thw_ev, efd, EV_READ|EV_PERSIST, do_eventfd, this);
+	if (event_base_set(base, &thw_ev) < 0) {
+		throw "event_base_set error";
+	}
+	if (event_add(&thw_ev, NULL) < 0) {
+		throw "event_add error";
+	}
 }
 
 
@@ -24,13 +42,18 @@ evsock::~evsock() {
 	}
 	
 	/* 释放对象 */
-	queue<ev_job*> *q = this->ev_queue();
-	while (!wq.empty()) {
-	    ev_job *job = q->front();
-	    q->pop();
-	    
-		/* 释放EV_SEND */
+	pri_queue<ev_job*> *q = this->ev_queue();
+    ev_job *job = q->pop();
+	while (job) {
+		/* 无法发送通知，直接删除？！ */
+		if (job->qao) {
+			delete job->qao;
+			delete job->buf;
+		} else {
+			delete job->buf;
+  		}
 		delete job;
+	    job = q->pop();
 	}
 }
 
@@ -188,10 +211,14 @@ void evsock::recv_done(void *buf) {
 void evsock::do_write(int sock, short event, void* arg) {
 	bool pop_job = false;
 	evsock *evsk = (evsock *)arg;
-	queue<ev_job*> *q = evsk->ev_queue();
+	pri_queue<ev_job*> *q = evsk->ev_queue();
 	
     /* 从写缓冲队列读取一个job */
     ev_job *job = q->front();
+    if (job == NULL) {
+    	/* 过多事件触发会导致Job为空 */
+    	return;
+    }
     
     /* 发送数据 */
     if (job->fragment) {
@@ -225,11 +252,10 @@ void evsock::do_write(int sock, short event, void* arg) {
  			if (job->qao) {
 				evsk->send_done(job->qao, send_status);
 	 			delete job->buf;
-	 			pop_job = true;
  			} else {
 				evsk->send_done((void*)job->buf, job->len, send_status);
-	 			q->pop();
  			}
+ 			pop_job = true;
   		}
 
     } else if (job->qao) {
@@ -305,9 +331,9 @@ void evsock::do_write(int sock, short event, void* arg) {
 	
 	/* 删除队列中的job */
 	if (pop_job) {
-		q->pop();
+		q->pop(job);
 		delete job;
-	}	
+	}
 		
     /* 检查FIFO是否还存在待发送内容 */
     if (!q->empty()) {
@@ -323,7 +349,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 }
 
 
-bool evsock::ev_send(const void *buf, size_t size) {
+bool evsock::ev_send(const void *buf, size_t size, int qos) {
 	bool empty;
 	
 	if (!buf || !size) {
@@ -333,7 +359,7 @@ bool evsock::ev_send(const void *buf, size_t size) {
 	/* 把当前缓冲区挂入写FIFO */
 	ev_job *job = new ev_job((char*)buf, size, NULL);
 	empty = wq.empty();
-	wq.push(job);
+	wq.push(job, qos);
 	
 	/* 触发写事件 */
 	if (empty) {
@@ -350,6 +376,11 @@ bool evsock::ev_send(const void *buf, size_t size) {
     return true;
 }
 
+
+
+bool evsock::ev_send(const void *buf, size_t size) {
+    return ev_send(buf, size, 3);
+}
 
 
 bool evsock::ev_send(qao_base *qao) {
@@ -362,7 +393,7 @@ bool evsock::ev_send(qao_base *qao) {
 	/* 把当前缓冲区挂入写FIFO */
 	ev_job *job = new ev_job(NULL, 0, qao);
 	empty = wq.empty();
-	wq.push(job);
+	wq.push(job, qao->get_qos());
 	
 	/* 触发写事件 */
 	if (empty) {
@@ -378,4 +409,61 @@ bool evsock::ev_send(qao_base *qao) {
 	}
     return true;
 }
+
+
+bool evsock::ev_send_inter_thread(const void *buf, size_t size, int qos) {
+	if (!buf || !size) {
+		return false;
+	}
+		
+	/* 把当前缓冲区挂入写FIFO */
+	ev_job *job = new ev_job((char*)buf, size, NULL);
+	wq.push(job, qos);
+	
+	/* 触发写事件 */
+	unsigned long cnt = 1;
+	write(efd, &cnt, sizeof(cnt));
+    return true;
+}
+
+
+
+bool evsock::ev_send_inter_thread(const void *buf, size_t size) {
+    return ev_send_inter_thread(buf, size, 3);
+}
+
+
+bool evsock::ev_send_inter_thread(qao_base *qao) {
+	if (!qao) {
+		return false;
+	}
+		
+	/* 把当前缓冲区挂入写FIFO */
+	ev_job *job = new ev_job(NULL, 0, qao);
+	wq.push(job, qao->get_qos());
+	
+	/* 触发写事件 */
+	unsigned long cnt = 1;
+	write(efd, &cnt, sizeof(cnt));
+    return true;
+}
+
+
+void evsock::do_eventfd(int efd, short event, void* arg) {
+	evsock *evsk = (evsock *)arg;
+	pri_queue<ev_job*> *q = evsk->ev_queue();
+	
+    /* 检查FIFO是否还存在待发送内容 */
+    if (!q->empty()) {
+	    event_set(&evsk->write_ev, evsk->sockfd, EV_WRITE, do_write, evsk);
+	    if (event_base_set(evsk->evbase, &evsk->write_ev) < 0) {
+	    	LOGE("event_base_set error\n");
+	    	return;
+	    }
+	    if (event_add(&evsk->write_ev, NULL) < 0) {
+	    	LOGE("event_add error\n");
+	    }
+    }
+}
+
 

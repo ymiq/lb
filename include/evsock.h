@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <event.h>
 #include <config.h>
-#include <queue>
+#include <pri_queue.h>
 #include <qao/qao_base.h>
 #include <hash_tbl.h>
 
@@ -44,25 +44,34 @@ public:
 	evsock(int fd, struct event_base* base);
     struct event read_ev;
     struct event write_ev;
+    struct event thw_ev;
 	
 	void *ev_recv(size_t &len, bool &fragment);
 	void recv_done(void *buf);
 	
 	bool ev_send(const void *buf, size_t len);
+	bool ev_send(const void *buf, size_t len, int qos);
 	bool ev_send(qao_base *qao);
+	
+	bool ev_send_inter_thread(const void *buf, size_t len);
+	bool ev_send_inter_thread(const void *buf, size_t len, int qos);
+	bool ev_send_inter_thread(qao_base *qao);
+
 	virtual void send_done(void *buf, size_t len, bool send_ok) = 0;
 	virtual void send_done(qao_base *qao, bool send_ok) = 0;
 
-	queue<ev_job*> *ev_queue(void) {return &wq;}
+	pri_queue<ev_job*> *ev_queue(void) {return &wq;}
 	
 	static void do_write(int sock, short event, void* arg);
+	static void do_eventfd(int efd, short event, void* arg);
 
 protected:
 	
 private:
+	int efd;
 	int sockfd;
 	struct event_base* evbase;
-	queue<ev_job*> wq;
+	pri_queue<ev_job*> wq;
 	hash_tbl<frag_pack, 256> frags;
 };
 	
