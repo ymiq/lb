@@ -18,6 +18,7 @@ evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
 	}
 	
 	/* 创建Eventfd，用于线程间数据包传递 */
+#if 0	
 	efd = eventfd(0, 0);
 	if (efd < 0) {
 		throw "can't creat evnentfd for evsock";
@@ -29,6 +30,7 @@ evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
 	if (event_add(&thw_ev, NULL) < 0) {
 		throw "event_add error";
 	}
+#endif
 }
 
 
@@ -262,7 +264,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 		size_t datalen;
 		
 		/* 序列化对象并发送 */
-		char *buf = (char*)job->qao->serialization(datalen);
+		char *buf = job->qao->serialization(datalen);
 		if (buf) {
 			bool send_done = true;
 			bool send_status = false;

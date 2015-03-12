@@ -73,10 +73,10 @@ pri_queue<T>::pri_queue() {
 template<typename T>
 pri_queue<T>::~pri_queue() {
 	if (llq) {
-		delete llq;
+		delete[] llq;
 	}
 	if (llq_size) {
-		delete llq_size;
+		delete[] llq_size;
 	}
 }
 
@@ -87,23 +87,14 @@ bool pri_queue<T>::init(int pris, int *qsize) {
 	if ((pris <= 0) || !qsize) {
 		return false;
 	}
+	
+	/* 变量初始化 */
 	llq_size = new int[pris];
-	for (int i=0; i<pris; i++) {
-		llq_size[i] = qsize[i];
-		if (llq_size[i] <= 0) {
-			delete llq_size;
-			llq_size = NULL;
-			return false;
-		}
-	}
+	llq = new lockless_queue[pris];
 	max_pri = pris;
-		
-	/* 申请优先级队列 */
-	llq = new lockless_queue[max_pri];
 	for (int i=0; i<pris; i++) {
-		
-		int size = llq_size[i];
-		if (!llq[i].init(size)) {
+		int size = llq_size[i] = qsize[i];
+		if ((llq_size[i] <= 0) || !llq[i].init(size)) {
 			delete llq;
 			delete llq_size;
 			llq = NULL;
@@ -111,13 +102,14 @@ bool pri_queue<T>::init(int pris, int *qsize) {
 			return false;
 		}
 	}
+		
 	return true;
 }
 
 
 template<typename T>
 bool pri_queue<T>::push(T data, int qos) {
-	if (qos < max_pri) {
+	if ((qos >= 0) && (qos < max_pri)) {
 		return llq[qos].push(data);
 	}
 	return false;
@@ -126,9 +118,8 @@ bool pri_queue<T>::push(T data, int qos) {
 
 template<typename T>
 T pri_queue<T>::front(void) {
-	T ret;
 	for (int i=0; i<max_pri; i++) {
-		ret = llq[i].front();
+		T ret = llq[i].front();
 		if (ret) {
 			return ret;
 		}
@@ -140,8 +131,7 @@ T pri_queue<T>::front(void) {
 template<typename T>
 void pri_queue<T>::pop(T ref) {
 	for (int i=0; i<max_pri; i++) {
-		T ret = llq[i].front();
-		if (ret == ref) {
+		if (llq[i].front() == ref) {
 			llq[i].pop();
 			return;
 		}
@@ -151,9 +141,8 @@ void pri_queue<T>::pop(T ref) {
 
 template<typename T>
 T pri_queue<T>::pop(void) {
-	T ret;
 	for (int i=0; i<max_pri; i++) {
-		ret = llq[i].pop();
+		T ret = llq[i].pop();
 		if (ret) {
 			return ret;
 		}
@@ -200,7 +189,7 @@ pri_queue<T>::lockless_queue::lockless_queue() {
 template<typename T>
 pri_queue<T>::lockless_queue::~lockless_queue() {
 	if (queue) {
-		delete queue;
+		delete[] queue;
 	}
 }
 
@@ -237,7 +226,7 @@ bool pri_queue<T>::lockless_queue::push(T data) {
 	register unsigned long tmp = head_tail;
 	unsigned int head = (unsigned int)(tmp >> 32);
 	unsigned int tail = (unsigned int)(tmp & 0xffffffffu);
-	unsigned int size = head - tail;
+	unsigned int size = tail - head;
 	
 	/* 检查Queue是否已满 */
 	if (size == mod_size) {
@@ -260,7 +249,15 @@ bool pri_queue<T>::lockless_queue::push(T data) {
 
 template<typename T>
 T pri_queue<T>::lockless_queue::front(void) {
-	unsigned int head = (unsigned int)(head_tail >> 32);
+	register unsigned long tmp = head_tail;
+	unsigned int head = (unsigned int)(tmp >> 32);
+	unsigned int tail = (unsigned int)(tmp & 0xffffffffu);
+	unsigned int size = tail - head;
+	
+	/* 检查Queue是否已空 */
+	if (!size) {
+		return NULL;
+	}
 	head &= mod_mask;
 	return queue[head];
 }
@@ -271,7 +268,7 @@ T pri_queue<T>::lockless_queue::pop(void) {
 	register unsigned long tmp = head_tail;
 	unsigned int head = (unsigned int)(tmp >> 32);
 	unsigned int tail = (unsigned int)(tmp & 0xffffffffu);
-	unsigned int size = head - tail;
+	unsigned int size = tail - head;
 	
 	/* 检查Queue是否已空 */
 	if (!size) {
@@ -294,7 +291,7 @@ int pri_queue<T>::lockless_queue::size(void) {
 	register unsigned long tmp = head_tail;
 	unsigned int head = (unsigned int)(tmp >> 32);
 	unsigned int tail = (unsigned int)(tmp & 0xffffffffu);
-	return (int)(head - tail);
+	return (int)(tail - head);
 }
 
 
@@ -303,7 +300,7 @@ bool pri_queue<T>::lockless_queue::empty(void) {
 	register unsigned long tmp = head_tail;
 	unsigned int head = (unsigned int)(tmp >> 32);
 	unsigned int tail = (unsigned int)(tmp & 0xffffffffu);
-	unsigned int size = head - tail;
+	unsigned int size = tail - head;
 	return (size == 0) ? true : false;
 }
 
