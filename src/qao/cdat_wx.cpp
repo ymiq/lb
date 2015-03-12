@@ -8,20 +8,18 @@
 #include <json/json.h>
 #include <json/value.h>
 #include <qao/qao_base.h>
-#include <qao/wx_xml.h>
+#include <qao/cdat_wx.h>
 #include <hash_alg.h>
 #include <expat.h>
 
 using namespace std;
 
-unsigned int wx_xml::seqno = 0;
 
-
-wx_xml::wx_xml(const char *str, size_t len) {
+cdat_wx::cdat_wx(const char *str, size_t len) {
 	/* 创建一个XML分析器。*/
 	XML_Parser parser = XML_ParserCreate(NULL);
 	if (!parser) {
-		throw "Couldn't allocate memory for parser";
+		throw "no memory for xml parser";
 	}
 
 	/* 下面设置每个XML元素出现和结束的处理函数。这里设置start为元素开始处理函数，end元素结束处理函数。*/
@@ -31,17 +29,21 @@ wx_xml::wx_xml(const char *str, size_t len) {
 
 	/* 调用库函数XML_Parse来分析缓冲区Buff里的XML数据。*/
 	if (!XML_Parse(parser, str, len, 1)) {
-		throw "parser xml failed";
+		char errmsg[1024];
+		snprintf(errmsg, 1023, "Parse error at line %ld: %s",
+				XML_GetCurrentLineNumber(parser),
+				XML_ErrorString(XML_GetErrorCode(parser)));
+		throw((const char*)errmsg);
 	}
 	
+	/* 释放XML解析器 */
 	XML_ParserFree(parser);
-	type = CFG_WX_TYPE_UNKNOW;
-	data = NULL;
+	init(QAO_CDAT_WX, 0, 0);
 }
 
 
-void wx_xml::tag_start(void *data, const char *tag, const char **attr) {
-	wx_xml *pwx = (wx_xml*)data;
+void cdat_wx::tag_start(void *data, const char *tag, const char **attr) {
+	cdat_wx *pwx = (cdat_wx*)data;
 	if (!strcmp(tag, "ToUserName")) {
 		pwx->tag_type = CFG_TAG_TOUSERNAME;
 	} else if (!strcmp(tag, "FromUserName")) {
@@ -61,12 +63,12 @@ void wx_xml::tag_start(void *data, const char *tag, const char **attr) {
 
 
 /* 下面定义一个XML元素结束调用的函数。*/
-void wx_xml::tag_end(void *data, const char *tag) {
+void cdat_wx::tag_end(void *data, const char *tag) {
 }
 
 
-void wx_xml::tag_data(void *data, const char *s, int len) {
-	wx_xml *pwx = (wx_xml*)data;
+void cdat_wx::tag_data(void *data, const char *s, int len) {
+	cdat_wx *pwx = (cdat_wx*)data;
 	
 	/* 复制数据 */
 	char *buf = new char[len+1];
@@ -76,16 +78,13 @@ void wx_xml::tag_data(void *data, const char *s, int len) {
 	switch (pwx->tag_type) {
 		case CFG_TAG_TOUSERNAME:
 			pwx->hash = company_hash(buf);
-			delete buf;
 			break;
 			
 		case CFG_TAG_FROMUSERNAME:
 			pwx->user_hash = company_hash(buf);
-			delete buf;
 			break;
 			
 		case CFG_TAG_CREATETIME:
-			delete buf;
 			break;
 			
 		case CFG_TAG_MSGTYPE:
@@ -107,21 +106,25 @@ void wx_xml::tag_data(void *data, const char *s, int len) {
 		case CFG_TAG_CONTENT:
 			pwx->data = buf;
 			pwx->datalen = len;
+			buf = NULL;
 			break;
 			
 		case CFG_TAG_MSGID:
 			pwx->msgid = strtoul(buf, NULL, 10);
-			delete buf;
 			break;
 			
 		default:
-			delete buf;
 			break;
+	}
+	
+	/* 释放缓冲区 */
+	if (buf) {
+		delete buf;
 	}
 }
 
 
-void *wx_xml::serialization(size_t &len, unsigned long token) {
+char *cdat_wx::serialization(size_t &len) {
 	Json::Value serial;
 	Json::FastWriter writer;
 	
@@ -130,36 +133,20 @@ void *wx_xml::serialization(size_t &len, unsigned long token) {
 	serial["msgid"] = (Json::UInt64)msgid;
 	serial["type"] = type;
 	serial["datalen"] = (Json::UInt)datalen;
-//	serial["data"] = datalen;
+	serial["data"] = data;
 		
 	string json_str = writer.write(serial);
 	size_t json_len = json_str.length() + 1;
 	size_t buf_len = json_len + sizeof(serial_data);
 	
-	void *ret = new unsigned char[buf_len];
+	char *ret = new char[buf_len];
 	serial_data *pserial = (serial_data*)ret;
-	pserial->token = token;
-	pserial->length = buf_len;
-	pserial->type = QAO_CLB_CTL_REQ;
-	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
-	pserial->datalen = json_len;
+	serial_header(pserial, buf_len, json_len);
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;
 	return ret;
 }
 
 
-void *wx_xml::serialization(size_t &len) {
-	struct timeval tv;
-	
-	gettimeofday(&tv, NULL);
-	unsigned long token = (tv.tv_sec << 8) | QAO_WX_XML;
-	token <<= 32;
-	token |= __sync_fetch_and_add(&wx_xml::seqno, 1);
-	return serialization(len, token);
-}
-
-
-void *wx_xml::serial_xml(size_t &len) {
-	return NULL;
+void cdat_wx::dump(void) {
 }

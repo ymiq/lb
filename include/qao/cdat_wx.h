@@ -31,14 +31,13 @@ using namespace std;
 #define CFG_WX_TYPE_LINK			4
 #define CFG_WX_TYPE_EVENT			5
 
-class wx_xml: virtual public qao_base {
+class cdat_wx: virtual public qao_base {
 public:
-	wx_xml(const char *str, size_t len);
-	~wx_xml() {};
+	cdat_wx(const char *str, size_t len);
+	~cdat_wx() {};
 	
-	void *serialization(size_t &len);
-	void *serialization(size_t &len, unsigned long token);
-	void *serial_xml(size_t &len);
+	char *serialization(size_t &len);
+	void dump(void);
 
 public:
 	unsigned long hash;
@@ -52,7 +51,6 @@ protected:
 	
 private:
 	int tag_type;
-	static unsigned int seqno;
 	
 	static void tag_start(void *data, const char *tag, const char **attr);
 	static void tag_end(void *data, const char *tag);

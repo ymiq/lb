@@ -9,8 +9,8 @@
 #include <stat_man.h>
 #include <clb_tbl.h>
 #include <clb_grp.h>
-#include <qao/clb_ctl_req.h>
-#include <qao/clb_ctl_rep.h>
+#include <qao/cctl_req.h>
+#include <qao/qao_base.h>
 
 using namespace std;
 
@@ -30,10 +30,10 @@ private:
 	clb_tbl *plb;
 	clb_grp *pgrp;
 
-	clb_ctl_rep *company_stat(clb_ctl_req &req);
-	clb_ctl_rep *group_stat(clb_ctl_req &req);
-	clb_ctl_rep *company_lb(clb_ctl_req &req);
-	clb_ctl_rep *group_lb(clb_ctl_req &req);
+	qao_base *company_stat(cctl_req &req);
+	qao_base *group_stat(cctl_req &req);
+	qao_base *company_lb(cctl_req &req);
+	qao_base *group_lb(cctl_req &req);
 };
 
 

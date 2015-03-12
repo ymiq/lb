@@ -6,22 +6,23 @@
 
 #include <unistd.h>
 #include <log.h>
-#include "hub_clb_srv.h"
+#include <qao/question.h>
+#include "hub_csrv.h"
 
 using namespace std;
 
-hub_clb_srv::~hub_clb_srv() {
+hub_csrv::~hub_csrv() {
 }
 
-void hub_clb_srv::read(int sock, short event, void* arg) {
-	hub_clb_srv *srv = (hub_clb_srv *)arg;
+void hub_csrv::read(int sock, short event, void* arg) {
+	hub_csrv *srv = (hub_csrv *)arg;
 	void *buffer;
-	size_t size = 0;
+	size_t len = 0;
 	bool fragment = false;
 	
 	/* 接收数据 */
-	buffer = srv->ev_recv(size, fragment);
-	if ((int)size <= 0) {
+	buffer = srv->ev_recv(len, fragment);
+	if ((int)len <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
 		delete srv;
@@ -30,18 +31,22 @@ void hub_clb_srv::read(int sock, short event, void* arg) {
 		return;
 	}
 	
-    /* 处理数据 */
-    char *request = (char*)buffer;
-    request[256] = '\0';
-//    syslog(LOG_INFO, "GET QUESTION: %s\n", buffer);
-	printf("GET QUESTION: %s\n", request);
-    
+	/* 由序列化数据还原对象 */
+	try {
+		question q((const char*)buffer, len);
+		
+		/* 显示对象内容 */
+		q.dump();
+	} catch (const char *msg) {
+		printf("Get error question");
+	}
+	   
 	/* 释放缓冲区 */
 	srv->recv_done(buffer);
 }
 
 
-void hub_clb_srv::send_done(void *buf, size_t len, bool send_ok) {
+void hub_csrv::send_done(void *buf, size_t len, bool send_ok) {
 	/* 释放发送缓冲区 */
 //	free(send->buf);
 }

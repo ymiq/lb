@@ -9,8 +9,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <qao/clb_ctl_req.h>
-#include <qao/clb_ctl_rep.h>
+#include <qao/cctl_req.h>
+#include <qao/cctl_rep.h>
 #include <openssl/md5.h>
 #include <evclnt.h>
 #include <log.h>
@@ -72,7 +72,7 @@ unsigned long compute_hash(const char *company) {
 #endif
 
 
-static int get_hash_list(char *str, clb_ctl_req &req) {
+static int get_hash_list(char *str, cctl_req &req) {
 	unsigned long hash_val;
 	
 	/* 连接均衡配置数据库 */
@@ -156,7 +156,7 @@ static int get_hash_list(char *str, clb_ctl_req &req) {
 }
 
 
-static int get_group_list(char *str, clb_ctl_req &req) {
+static int get_group_list(char *str, cctl_req &req) {
 	unsigned int groupid = 0;
 	
 	/* 检查groupid是否有效 */
@@ -248,7 +248,7 @@ static int get_group_list(char *str, clb_ctl_req &req) {
 }
 
 
-static int get_group_id(char *str, clb_ctl_req &req, bool src_group) {
+static int get_group_id(char *str, cctl_req &req, bool src_group) {
 	unsigned int groupid = 0;
 	
 	/* 连接均衡配置数据库 */
@@ -302,7 +302,7 @@ static int get_group_id(char *str, clb_ctl_req &req, bool src_group) {
 }
 
 
-static int host_info(char *str, clb_ctl_req &req) {
+static int host_info(char *str, cctl_req &req) {
 	char *pport;
 	unsigned int port;
 	unsigned int ip;
@@ -376,7 +376,7 @@ static void help(void) {
 }
 
 
-static int param_parser(int argc, char *argv[], const char *pattern, clb_ctl_req &req) {
+static int param_parser(int argc, char *argv[], const char *pattern, cctl_req &req) {
 	/* 组命令解析 */
 	if ((argc >= 2) && (!strcmp(argv[0], "group"))) {
 		req.command |= 0x10000000;
@@ -472,7 +472,7 @@ static int db_parser(int argc, char *argv[]) {
 }
 
 
-static int lb_parser(int argc, char *argv[], clb_ctl_req &req) {
+static int lb_parser(int argc, char *argv[], cctl_req &req) {
 	if (argc < 2) {
 		help();
 		return 0;
@@ -513,7 +513,7 @@ static int lb_parser(int argc, char *argv[], clb_ctl_req &req) {
 }
 
 
-static int stat_parser(int argc, char *argv[], clb_ctl_req &req) {
+static int stat_parser(int argc, char *argv[], cctl_req &req) {
 	if (argc < 2) {
 		help();
 		return 0;
@@ -563,7 +563,7 @@ int main(int argc, char *argv[]) {
 		}
 	
 		/* 统计相关命令 */
-		clb_ctl_req req;
+		cctl_req req;
 		if ((argc > 3) && (!strcmp(argv[1], "stat"))) {
 			if (!stat_parser(argc-2, &argv[2], req)) {
 				return 0;

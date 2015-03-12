@@ -1,7 +1,7 @@
 ﻿
 
-#ifndef __CLB_CTL_REQ_H__
-#define __CLB_CTL_REQ_H__
+#ifndef __CCTL_REQ_H__
+#define __CCTL_REQ_H__
 
 #include <cstdlib>
 #include <cstddef>
@@ -15,14 +15,14 @@
 using namespace std; 
 
 
-class clb_ctl_req: virtual public qao_base {
+class cctl_req: virtual public qao_base {
 public:
-	clb_ctl_req();
-	clb_ctl_req(const char *str, size_t len);
-	~clb_ctl_req() {};
+	cctl_req(int qos = 0);
+	cctl_req(const char *str, size_t len);
+	~cctl_req() {};
 	
-	void *serialization(size_t &len);
-	void *serialization(size_t &len, unsigned long token);
+	char *serialization(size_t &len);
+	void dump(void);
 
 public:
 	list<unsigned long> hash_list;
@@ -39,4 +39,4 @@ private:
 	static unsigned int seqno;
 };
 
-#endif /* __CLB_CTL_REQ_H__ */
+#endif /* __CCTL_REQ_H__ */

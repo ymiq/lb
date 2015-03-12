@@ -13,6 +13,7 @@
 #include <fcgi_stdio.h>  
 #include <evsrv.h>
 #include <hash_alg.h>
+#include <qao/cdat_wx.h>
 #include "cmd_srv.h"
 #include "cfg_db.h"
 
@@ -47,55 +48,8 @@ static int stat_init(stat_tbl *pstat) {
 }
 
 
-static bool content_parser(char *content, char *company, char *user, char *question) {
-	char *pstart;
-	char *pend;
-	
-	struct match {
-		const char *stoken;
-		const char *etoken;
-		char *data;
-	} xml_match [] = 
-	{
-		{"<company>", "</company>", company},
-		{"<user>", "</user>", user},
-		{"<question>", "</question>", question}
-	};
-	
-	pstart = strstr(content, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-	if (pstart == NULL) {
-		return false;
-	}
-	
-	for (int i=0; i<3; i++) {
-		char *dst = xml_match[i].data;
-		int max = 127;
-		pstart = strstr(content, xml_match[i].stoken);
-		if (pstart == NULL) {
-			return false;
-		}
-		pstart += strlen(xml_match[i].stoken);
-		pend = strstr(content, xml_match[i].etoken);
-		if (pend == NULL) {
-			return false;
-		}
-		if (pend == pstart) {
-			return false;
-		}
-		while ((pstart != pend) && max--) {
-			*dst++ = *pstart++;
-		}
-		*dst = '\0';
-	}
-	return true;	
-}
-
 static void *thread_worker(void *args) {
     FCGX_Request request;
-	char buffer[4096];
-	char company[128];
-	char user[128];
-	char question[128];
  
  	/* RCU相关初始化 */
 	rcu_man *prcu = rcu_man::get_inst();
@@ -138,37 +92,50 @@ static void *thread_worker(void *args) {
 	        FCGX_Finish_r(&request);
 	        continue;
 		}
-		len = (len > 4000) ? 4000 : len;
-		FCGX_GetStr(buffer, 4000, request.in);
+		
+		/* 复制数据到缓冲区 */
+		char *buffer = new char[len+1];
+		FCGX_GetStr(buffer, len, request.in);
 		buffer[len] = '\0';
-				
-		/* 解析请求内容 */
-		if (content_parser(buffer, company, user, question) == false) {
-	        FCGX_Finish_r(&request);
-	        continue;
-		}
-		hash = company_hash(company);
-		// LOGD("C: %s,	U: %s,	Q: %s,	H: %lx", company, user, question, hash);
-				  
-		/* Worker线程主处理开始 */
-	    prcu->job_start(tid);
-	    
-	    /* 分发数据包 */
-	    unsigned int lb_status = 0;
-	    unsigned int stat_status = 0;
-	    int handle = plb->lb_handle(hash, lb_status, stat_status);
-    	/* 把数据包写入当前Socket */
-	    if ((handle > 0) && lb_status) {
-	    	write(handle, buffer, len);
-	    }
-	    /* 统计处理 */
-	    if (stat_status) {	
-		    pstat->stat(hash, 1);	    
-	    }
-	    	    
-		/* Worker线程主处理结束 */
-	    prcu->job_end(tid);
+		// LOGI("WX: %s", buffer);
+		
+		try {
+			/* Worker线程主处理开始 */
+		    prcu->job_start(tid);
+		    
+			/* 把XML数据转换为对象 */
+			cdat_wx wx(buffer, len);
+			hash = wx.hash;
+			
+		    /* 分发数据包 */
+		    unsigned int lb_status = 0;
+		    unsigned int stat_status = 0;
+		    int handle = plb->lb_handle(hash, lb_status, stat_status);
+		    
+	    	/* 把数据包写入当前Socket */
+		    if ((handle > 0) && lb_status) {
+		    	size_t wlen;
+		    	char *serial = (char*)wx.serialization(wlen);
+		    	if (serial) {
+		    		write(handle, serial, wlen);
+		    		delete serial;
+		    	}
+		    }
+		    
+		    /* 统计处理 */
+		    if (stat_status) {	
+			    pstat->stat(hash, 1);	    
+		    }
+		    	    
+			/* Worker线程主处理结束 */
+		    prcu->job_end(tid);
 
+		} catch(const char *msg) {
+			LOGE("error: %s", msg);
+		}
+		
+		delete buffer;
+				  
 	    /* 应答 */
 	    FCGX_FPrintF(request.out,  
 	        "Content-type: text/html\r\n"  
@@ -199,6 +166,9 @@ int main(int argc, char *argv[]) {
 		LOGE("Can't create hash table");
 		return -1;
 	}
+	
+	/* 创建和HUB通信客户端 */
+	
 
 	/* FastCGI相关初始化 */
 	FCGX_Init();

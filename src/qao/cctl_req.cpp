@@ -11,17 +11,21 @@
 #include <json/json.h>
 #include <json/value.h>
 #include <qao/qao_base.h>
-#include <qao/clb_ctl_req.h>
+#include <qao/cctl_req.h>
 
 using namespace std;
 
-unsigned int clb_ctl_req::seqno = 0;
-
-clb_ctl_req::clb_ctl_req() : command(0), src_groupid(-1), dst_groupid(-1), ip(0), port(0) {
+cctl_req::cctl_req(int qos)  {
+	init(QAO_CCTL_REQ, 0, qos);
+	command = 0;
+	src_groupid = -1u;
+	dst_groupid = -1u;
+	ip = 0;
+	port = 0;
 }
 
-clb_ctl_req::clb_ctl_req(const char *str, size_t len): command(0), src_groupid(-1), 
-			dst_groupid(-1), ip(0), port(0) {
+
+cctl_req::cctl_req(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
 	serial_data header;
@@ -30,12 +34,9 @@ clb_ctl_req::clb_ctl_req(const char *str, size_t len): command(0), src_groupid(-
 		throw "Invalid serial data";
 	}
 	memcpy(&header, str, sizeof(serial_data));
-	qao_token = header.token;
-	qao_type = header.type;
-	qao_version = header.version & 0x3f;
-	qao_qos = (header.version & 0xc0) >> 6;
-	str += sizeof(serial_data);
+	init(&header);
 	
+	str += sizeof(serial_data);
 	if (!reader.parse(str, serial, false)) {
 		throw "Json string error";
 	}
@@ -58,7 +59,7 @@ clb_ctl_req::clb_ctl_req(const char *str, size_t len): command(0), src_groupid(-
 }
 
 
-void *clb_ctl_req::serialization(size_t &len, unsigned long token) {
+char *cctl_req::serialization(size_t &len) {
 	Json::Value serial;
 	Json::FastWriter writer;
 	
@@ -84,26 +85,14 @@ void *clb_ctl_req::serialization(size_t &len, unsigned long token) {
 	size_t json_len = json_str.length() + 1;
 	size_t buf_len = json_len + sizeof(serial_data);
 	
-	void *ret = new unsigned char[buf_len];
+	char *ret = new char[buf_len];
 	serial_data *pserial = (serial_data*)ret;
-	pserial->token = token;
-	pserial->length = buf_len;
-	pserial->type = QAO_CLB_CTL_REQ;
-	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
-	pserial->datalen = json_len;
+	serial_header(pserial, buf_len, json_len);
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;
 	return ret;
 }
 
 
-void *clb_ctl_req::serialization(size_t &len) {
-	struct timeval tv;
-	
-	gettimeofday(&tv, NULL);
-	unsigned long token = (tv.tv_sec << 8) | QAO_CLB_CTL_REQ;
-	token <<= 32;
-	token |= __sync_fetch_and_add(&clb_ctl_req::seqno, 1);
-	return serialization(len, token);
+void cctl_req::dump(void) {
 }
-

@@ -7,8 +7,8 @@
 #include <unistd.h>
 #include <evsock.h>
 #include <evclnt.h>
-#include <qao/clb_ctl_req.h>
-#include <qao/clb_ctl_rep.h>
+#include <qao/cctl_req.h>
+#include <qao/cctl_rep.h>
 
 using namespace std;
 

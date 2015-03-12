@@ -50,7 +50,7 @@ void cmd_clnt::read(int sock, short event, void* arg) {
 		return;
 	}
 	
-	clb_ctl_rep_factory rep((const char*)buffer, size);
+	cctl_rep_factory rep((const char*)buffer, size);
 	
 	/* 简单退出!!! */
 	if (!clnt->qao) {

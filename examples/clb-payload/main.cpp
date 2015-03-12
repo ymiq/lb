@@ -39,7 +39,7 @@ static void rand_question(char *quest, int low, int high) {
 		distance = low;
 	}
 	int question = (rand() % distance) + low;
-	sprintf(quest, "question(%d)", question);
+	sprintf(quest, "why %08d?", question);
 }
 
 

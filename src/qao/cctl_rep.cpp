@@ -12,22 +12,16 @@
 #include <json/json.h>
 #include <json/value.h>
 #include <qao/qao_base.h>
-#include <qao/clb_ctl_rep.h>
+#include <qao/cctl_rep.h>
 
 using namespace std;
 
-unsigned int clb_ctl_rep::seqno = 0;
-
-clb_ctl_rep::clb_ctl_rep() : success(false) {
-}
-
-
 
 /* ==========================================================================================
- *			CLASS: clb_ctl_rep_factory
+ *			CLASS: cctl_rep_factory
  * ==========================================================================================
  */
-clb_ctl_rep_factory::clb_ctl_rep_factory(const char *str, size_t len) {
+cctl_rep_factory::cctl_rep_factory(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
 	serial_data header;
@@ -36,18 +30,17 @@ clb_ctl_rep_factory::clb_ctl_rep_factory(const char *str, size_t len) {
 		throw "Invalid serial data";
 	}
 	memcpy(&header, str, sizeof(serial_data));
-	qao_token = header.token;
-	qao_type = header.type;
+	init(&header);
 
 	switch(qao_type) {
-	case QAO_CLB_CTL_REP0:
-		resp = new clb_ctl_rep0(str, len);
+	case QAO_CCTL_REP0:
+		resp = new cctl_rep0(str, len);
 		break;		
-	case QAO_CLB_CTL_REP1:
-		resp = new clb_ctl_rep1(str, len);
+	case QAO_CCTL_REP1:
+		resp = new cctl_rep1(str, len);
 		break;		
-	case QAO_CLB_CTL_REP2:
-		resp = new clb_ctl_rep2(str, len);
+	case QAO_CCTL_REP2:
+		resp = new cctl_rep2(str, len);
 		break;
 	default:
 		LOGE("get qao object type: %d\n", qao_type);
@@ -56,22 +49,14 @@ clb_ctl_rep_factory::clb_ctl_rep_factory(const char *str, size_t len) {
 }
 
 
-clb_ctl_rep_factory::~clb_ctl_rep_factory() {
+cctl_rep_factory::~cctl_rep_factory() {
 	if (resp) {
 		delete resp;
 	}
 }
 
 
-void *clb_ctl_rep_factory::serialization(size_t &len, unsigned long token) {
-	if (resp) {
-		return resp->serialization(len, token);
-	}
-	return NULL;
-}
-
-
-void *clb_ctl_rep_factory::serialization(size_t &len) {
+char *cctl_rep_factory::serialization(size_t &len) {
 	if (resp) {
 		return resp->serialization(len);
 	}
@@ -79,7 +64,7 @@ void *clb_ctl_rep_factory::serialization(size_t &len) {
 }
 
 
-void clb_ctl_rep_factory::dump(void) {
+void cctl_rep_factory::dump(void) {
 	if (resp) {
 		resp->dump();
 	}
@@ -88,10 +73,16 @@ void clb_ctl_rep_factory::dump(void) {
 
 
 /* ==========================================================================================
- *			CLASS: clb_ctl_rep0
+ *			CLASS: cctl_rep0
  * ==========================================================================================
  */
-clb_ctl_rep0::clb_ctl_rep0(const char *str, size_t len) {
+cctl_rep0::cctl_rep0(int qos) {
+	init(QAO_CCTL_REP0, 0, qos);
+	success = false;
+}
+
+
+cctl_rep0::cctl_rep0(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
 	serial_data header;
@@ -100,12 +91,9 @@ clb_ctl_rep0::clb_ctl_rep0(const char *str, size_t len) {
 		throw "Invalid serial data";
 	}
 	memcpy(&header, str, sizeof(serial_data));
-	qao_token = header.token;
-	qao_type = header.type;
-	qao_version = header.version & 0x3f;
-	qao_qos = (header.version & 0xc0) >> 6;
-	str += sizeof(serial_data);
+	init(&header);
 
+	str += sizeof(serial_data);
 	if (!reader.parse(str, serial, false)) {
 		throw "Json string error";
 	}
@@ -113,7 +101,7 @@ clb_ctl_rep0::clb_ctl_rep0(const char *str, size_t len) {
 	success = serial["success"].asBool();	
 	int size = serial["resp_list"].size();
 	for (int i=0; i<size; i++) {
-		CLB_CTL_REP0 resp = {0};
+		CCTL_REP0 resp = {0};
 		
 		resp.hash = serial["resp_list"][i]["hash"].asUInt64();
 		resp.success = serial["resp_list"][i]["success"].asBool();
@@ -130,15 +118,15 @@ clb_ctl_rep0::clb_ctl_rep0(const char *str, size_t len) {
 }
 
 
-void *clb_ctl_rep0::serialization(size_t &len, unsigned long token) {
+char *cctl_rep0::serialization(size_t &len) {
 	Json::Value serial;
 	Json::FastWriter writer;
 		
 	serial["success"] = success;	
-	list<CLB_CTL_REP0>::iterator it;
+	list<CCTL_REP0>::iterator it;
 	int idx = 0;
 	for (it=resp_list.begin(); it!=resp_list.end(); it++, idx++) {
-		CLB_CTL_REP0 resp = *it;
+		CCTL_REP0 resp = *it;
 				
 		serial["resp_list"][idx]["hash"] = (Json::UInt64)(resp.hash);
 		serial["resp_list"][idx]["success"] = resp.success;
@@ -155,38 +143,23 @@ void *clb_ctl_rep0::serialization(size_t &len, unsigned long token) {
 	size_t json_len = json_str.length() + 1;
 	size_t buf_len = json_len + sizeof(serial_data);
 	
-	void *ret = new unsigned char[buf_len];
+	char *ret = new char[buf_len];
 	serial_data *pserial = (serial_data*)ret;
-	pserial->token = token;
-	pserial->length = buf_len;
-	pserial->type = QAO_CLB_CTL_REP0;
-	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
-	pserial->datalen = json_len;
+	serial_header(pserial, buf_len, json_len);
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;
 	return ret;
 }
 
 
-void *clb_ctl_rep0::serialization(size_t &len) {
-	struct timeval tv;
-	
-	gettimeofday(&tv, NULL);
-	unsigned long token = (tv.tv_sec << 8) | QAO_CLB_CTL_REP0;
-	token <<= 32;
-	token |= __sync_fetch_and_add(&clb_ctl_rep0::seqno, 1);
-	return serialization(len, token);
-}
-
-
-void clb_ctl_rep0::dump(void) {
-	printf("类型: %d, %s\n", QAO_CLB_CTL_REP0, success?"操作成功":"操作失败");
+void cctl_rep0::dump(void) {
+	printf("类型: %d, %s\n", QAO_CCTL_REP0, success?"操作成功":"操作失败");
 		
 	if (resp_list.size()) {
-		list<CLB_CTL_REP0>::iterator it;
+		list<CCTL_REP0>::iterator it;
 		printf("HASH			GROUP	STATUS	LB	STAT\n");
 		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
-			CLB_CTL_REP0 resp = *it;
+			CCTL_REP0 resp = *it;
 	
 			printf("%016lx	%d	%s	0x%X	0x%X\n", resp.hash, resp.info.group, 
 				resp.success?"OK":"FAIL", resp.info.lb_status, resp.info.stat_status);
@@ -198,10 +171,16 @@ void clb_ctl_rep0::dump(void) {
 
 
 /* ==========================================================================================
- *			CLASS: clb_ctl_rep1
+ *			CLASS: cctl_rep1
  * ==========================================================================================
  */
-clb_ctl_rep1::clb_ctl_rep1(const char *str, size_t len) {
+cctl_rep1::cctl_rep1(int qos) {
+	init(QAO_CCTL_REP1, 0, qos);
+	success = false;
+}
+
+
+cctl_rep1::cctl_rep1(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
 	serial_data header;
@@ -210,12 +189,9 @@ clb_ctl_rep1::clb_ctl_rep1(const char *str, size_t len) {
 		throw "Invalid serial data";
 	}
 	memcpy(&header, str, sizeof(serial_data));
-	qao_token = header.token;
-	qao_type = header.type;
-	qao_version = header.version & 0x3f;
-	qao_qos = (header.version & 0xc0) >> 6;
+	init(&header);
+
 	str += sizeof(serial_data);
-		
 	if (!reader.parse(str, serial, false)) {
 		throw "Json string error";
 	}
@@ -223,7 +199,7 @@ clb_ctl_rep1::clb_ctl_rep1(const char *str, size_t len) {
 	success = serial["success"].asBool();	
 	int size = serial["resp_list"].size();
 	for (int i=0; i<size; i++) {
-		CLB_CTL_REP1 resp = {0};
+		CCTL_REP1 resp = {0};
 		
 		resp.group = serial["resp_list"][i]["group"].asUInt();
 		resp.success = serial["resp_list"][i]["success"].asBool();
@@ -238,15 +214,15 @@ clb_ctl_rep1::clb_ctl_rep1(const char *str, size_t len) {
 }
 
 
-void *clb_ctl_rep1::serialization(size_t &len, unsigned long token) {
+char *cctl_rep1::serialization(size_t &len) {
 	Json::Value serial;
 	Json::FastWriter writer;
 		
 	serial["success"] = success;	
-	list<CLB_CTL_REP1>::iterator it;
+	list<CCTL_REP1>::iterator it;
 	int idx = 0;
 	for (it=resp_list.begin(); it!=resp_list.end(); it++, idx++) {
-		CLB_CTL_REP1 resp = *it;
+		CCTL_REP1 resp = *it;
 				
 		serial["resp_list"][idx]["group"] = resp.group;
 		serial["resp_list"][idx]["success"] = resp.success;
@@ -261,38 +237,23 @@ void *clb_ctl_rep1::serialization(size_t &len, unsigned long token) {
 	size_t json_len = json_str.length() + 1;
 	size_t buf_len = json_len + sizeof(serial_data);
 	
-	void *ret = new unsigned char[buf_len];
+	char *ret = new char[buf_len];
 	serial_data *pserial = (serial_data*)ret;
-	pserial->token = token;
-	pserial->length = buf_len;
-	pserial->type = QAO_CLB_CTL_REP1;
-	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
-	pserial->datalen = json_len;
+	serial_header(pserial, buf_len, json_len);
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;
 	return ret;
 }
 
 
-void *clb_ctl_rep1::serialization(size_t &len) {
-	struct timeval tv;
-	
-	gettimeofday(&tv, NULL);
-	unsigned long token = (tv.tv_sec << 8) | QAO_CLB_CTL_REP1;
-	token <<= 32;
-	token |= __sync_fetch_and_add(&clb_ctl_rep1::seqno, 1);
-	return serialization(len, token);
-}
-
-
-void clb_ctl_rep1::dump(void) {
-	printf("类型: %d, %s\n", QAO_CLB_CTL_REP1, success?"操作成功":"操作失败");
+void cctl_rep1::dump(void) {
+	printf("类型: %d, %s\n", QAO_CCTL_REP1, success?"操作成功":"操作失败");
 		
 	if (resp_list.size()) {
-		list<CLB_CTL_REP1>::iterator it;
+		list<CCTL_REP1>::iterator it;
 		printf("GROUP		STATUS	LB	STAT	HANDLE	HOST\n");
 		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
-			CLB_CTL_REP1 resp = *it;
+			CCTL_REP1 resp = *it;
 			struct in_addr in;
 			in.s_addr = ntohl(resp.ip);
 			char *ip_str = inet_ntoa(in);
@@ -307,10 +268,16 @@ void clb_ctl_rep1::dump(void) {
 
 
 /* ==========================================================================================
- *			CLASS: clb_ctl_rep2
+ *			CLASS: cctl_rep2
  * ==========================================================================================
  */
-clb_ctl_rep2::clb_ctl_rep2(const char *str, size_t len) {
+cctl_rep2::cctl_rep2(int qos) {
+	init(QAO_CCTL_REP2, 0, qos);
+	success = false;
+}
+
+
+cctl_rep2::cctl_rep2(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
 	serial_data header;
@@ -319,12 +286,9 @@ clb_ctl_rep2::clb_ctl_rep2(const char *str, size_t len) {
 		throw "Invalid serial data";
 	}
 	memcpy(&header, str, sizeof(serial_data));
-	qao_token = header.token;
-	qao_type = header.type;
-	qao_version = header.version & 0x3f;
-	qao_qos = (header.version & 0xc0) >> 6;
+	init(&header);
+
 	str += sizeof(serial_data);
-		
 	if (!reader.parse(str, serial, false)) {
 		throw "Json string error";
 	}
@@ -332,7 +296,7 @@ clb_ctl_rep2::clb_ctl_rep2(const char *str, size_t len) {
 	success = serial["success"].asBool();	
 	int size = serial["resp_list"].size();
 	for (int i=0; i<size; i++) {
-		CLB_CTL_REP2 resp = {0};
+		CCTL_REP2 resp = {0};
 		
 		resp.hash = serial["resp_list"][i]["hash"].asUInt64();
 		resp.success = serial["resp_list"][i]["success"].asBool();
@@ -352,15 +316,15 @@ clb_ctl_rep2::clb_ctl_rep2(const char *str, size_t len) {
 }
 
 
-void *clb_ctl_rep2::serialization(size_t &len, unsigned long token) {
+char *cctl_rep2::serialization(size_t &len) {
 	Json::Value serial;
 	Json::FastWriter writer;
 	
 	serial["success"] = success;	
-	list<CLB_CTL_REP2>::iterator it;
+	list<CCTL_REP2>::iterator it;
 	int idx = 0;
 	for (it=resp_list.begin(); it!=resp_list.end(); it++, idx++) {
-		CLB_CTL_REP2 resp = *it;
+		CCTL_REP2 resp = *it;
 				
 		serial["resp_list"][idx]["hash"] = (Json::UInt64)(resp.hash);
 		serial["resp_list"][idx]["success"] = resp.success;
@@ -382,38 +346,23 @@ void *clb_ctl_rep2::serialization(size_t &len, unsigned long token) {
 	size_t json_len = json_str.length() + 1;
 	size_t buf_len = json_len + sizeof(serial_data);
 	
-	void *ret = new unsigned char[buf_len];
+	char *ret = new char[buf_len];
 	serial_data *pserial = (serial_data*)ret;
-	pserial->token = token;
-	pserial->length = buf_len;
-	pserial->type = QAO_CLB_CTL_REP2;
-	pserial->version = (qao_version & 0x3f) | ((qao_qos & 0x3) << 6);
-	pserial->datalen = json_len;
+	serial_header(pserial, buf_len, json_len);
 	memcpy(pserial->data, json_str.c_str(), json_len);
 	len = buf_len;
 	return ret;
 }
 
 
-void *clb_ctl_rep2::serialization(size_t &len) {
-	struct timeval tv;
-	
-	gettimeofday(&tv, NULL);
-	unsigned long token = (tv.tv_sec << 8) | QAO_CLB_CTL_REP2;
-	token <<= 32;
-	token |= __sync_fetch_and_add(&clb_ctl_rep2::seqno, 1);
-	return serialization(len, token);
-}
-
-
-void clb_ctl_rep2::dump(void) {
-	printf("类型: %d, %s\n", QAO_CLB_CTL_REP2, success?"操作成功":"操作失败");
+void cctl_rep2::dump(void) {
+	printf("类型: %d, %s\n", QAO_CCTL_REP2, success?"操作成功":"操作失败");
 	
 	if (resp_list.size()) {
-		list<CLB_CTL_REP2>::iterator it;
+		list<CCTL_REP2>::iterator it;
 		printf("HASH			STATUS	TOTAL	DROPS	TEXTS	ERRORS	TIME\n");
 		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
-			CLB_CTL_REP2 resp = *it;
+			CCTL_REP2 resp = *it;
 	
 			printf("%lx	%s	%ld	%ld	%ld	%ld	%ld\n", resp.hash, resp.success?"OK":"FAIL", 
 				resp.info.total, resp.info.drops, resp.info.texts, resp.info.errors, resp.tm.tv_sec);

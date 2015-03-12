@@ -8,8 +8,8 @@
 #include <log.h>
 #include <stat_man.h>
 #include <clb_tbl.h>
-#include <qao/clb_ctl_req.h>
-#include <qao/clb_ctl_rep.h>
+#include <qao/cctl_req.h>
+#include <qao/cctl_rep.h>
 #include <clb_grp.h>
 #include "cmd_srv.h"
 
@@ -26,12 +26,12 @@ cmd_srv::~cmd_srv() {
 }
 
 
-clb_ctl_rep *cmd_srv::company_stat(clb_ctl_req &req) {
+qao_base *cmd_srv::company_stat(cctl_req &req) {
 	list<unsigned long>::iterator it;
-	CLB_CTL_REP2 resp;
-	clb_ctl_rep2 *ret = new clb_ctl_rep2;
+	CCTL_REP2 resp;
+	cctl_rep2 *ret = new cctl_rep2;
 	
-	memset(&resp, 0, sizeof(CLB_CTL_REP2));
+	memset(&resp, 0, sizeof(CCTL_REP2));
 	unsigned int command = req.command & 0x0fffffff;
 	switch(command) {
 		
@@ -120,17 +120,17 @@ clb_ctl_rep *cmd_srv::company_stat(clb_ctl_req &req) {
 }
 
 
-clb_ctl_rep *cmd_srv::group_stat(clb_ctl_req &req) {
+qao_base *cmd_srv::group_stat(cctl_req &req) {
 	return NULL;
 }
 
 
-clb_ctl_rep *cmd_srv::company_lb(clb_ctl_req &req) {
+qao_base *cmd_srv::company_lb(cctl_req &req) {
 	list<unsigned long>::iterator it;
-	CLB_CTL_REP0 resp = {0};
-	clb_ctl_rep0 *ret = new clb_ctl_rep0;
+	CCTL_REP0 resp = {0};
+	cctl_rep0 *ret = new cctl_rep0;
 	
-	memset(&resp, 0, sizeof(CLB_CTL_REP0));
+	memset(&resp, 0, sizeof(CCTL_REP0));
 	unsigned int command = req.command & 0x0fffffff;
 	switch(command) {
 		
@@ -278,12 +278,12 @@ clb_ctl_rep *cmd_srv::company_lb(clb_ctl_req &req) {
 }
 
 
-clb_ctl_rep *cmd_srv::group_lb(clb_ctl_req &req) {
+qao_base *cmd_srv::group_lb(cctl_req &req) {
 	list<unsigned int>::iterator it;
-	CLB_CTL_REP1 resp = {0};
-	clb_ctl_rep1 *ret = new clb_ctl_rep1;
+	CCTL_REP1 resp = {0};
+	cctl_rep1 *ret = new cctl_rep1;
 	
-	memset(&resp, 0, sizeof(CLB_CTL_REP1));
+	memset(&resp, 0, sizeof(CCTL_REP1));
 	unsigned int command = req.command & 0x0fffffff;
 	switch(command) {
 		
@@ -366,6 +366,7 @@ clb_ctl_rep *cmd_srv::group_lb(clb_ctl_req &req) {
 			resp.success = true;
 			resp.handle = ret_grp_info->handle;
 		}
+		ret->success = resp.success;
 		ret->resp_list.push_back(resp);
 		break;
 	}
@@ -440,11 +441,11 @@ void cmd_srv::read(int sock, short event, void* arg) {
 	
 	/* 处理命令 */
 	try {
-		clb_ctl_req req((const char*)buffer, size);
+		cctl_req req((const char*)buffer, size);
 		
 		unsigned int command = req.command;
 		
-	    clb_ctl_rep *rep = NULL;
+	    qao_base *rep = NULL;
 	    if (command & 0x20000000) {
 	
 		    /* 统计命令处理器 */
