@@ -5,6 +5,8 @@
 #include <log.h>
 #include <clb_tbl.h>
 #include <rcu_man.h>
+#include <evclnt.h>
+#include <clb_clnt.h>
 
 clb_tbl::clb_tbl() {
 }
@@ -38,23 +40,23 @@ unsigned int clb_tbl::group_id(unsigned long hash) {
 }
 
 
-int clb_tbl::lb_handle(unsigned long hash) {
+evclnt<clb_clnt> *clb_tbl::get_clnt(unsigned long hash) {
 	lbsrv_info *pserver = table.find(hash);
 	if (pserver == NULL) {
-		return -1;
+		return NULL;
 	}
-	return pserver->handle;
+	return pserver->pclnt;
 }
 
 
-int clb_tbl::lb_handle(unsigned long hash, unsigned int &lb_status, unsigned int &stat_status) {
+evclnt<clb_clnt> *clb_tbl::get_clnt(unsigned long hash, unsigned int &lb_status, unsigned int &stat_status) {
 	lbsrv_info *pserver = table.find(hash);
 	if (pserver == NULL) {
-		return -1;
+		return NULL;
 	}
 	lb_status = pserver->lb_status;
 	stat_status = pserver->stat_status;
-	return pserver->handle;
+	return pserver->pclnt;
 }
 
 
@@ -101,14 +103,14 @@ int clb_tbl::lb_stop(unsigned long hash) {
 }
 
 
-int clb_tbl::lb_switch(unsigned long hash, unsigned int group, int handle) {
+int clb_tbl::lb_switch(unsigned long hash, unsigned int group, evclnt<clb_clnt> *pclnt) {
 	lbsrv_info *pserver = table.find(hash);
 	if (pserver == NULL) {
 		return -1;
 	}
 	lbsrv_info new_info = *pserver;
 	new_info.group = group;
-	new_info.handle = handle;
+	new_info.pclnt = pclnt;
 	pserver = table.update(hash, new_info);
 	if (pserver == NULL) {
 		return -1;

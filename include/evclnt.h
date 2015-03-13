@@ -22,23 +22,27 @@ template<typename T>
 class evclnt {
 public:
 	~evclnt();
+	evclnt(struct in_addr ip, unsigned short port);
 	evclnt(const char *ip_str, unsigned short port);
 	int setskopt(int level, int optname,
                       const void *optval, socklen_t optlen);
 	int getskopt(int level, int optname,
                       void *optval, socklen_t *optlen);
+	T *create_evsock(void);
 	T *get_evsock(void);
 	bool loop(void);
 	bool loop_thread(void);
+	void quit(void);
 	
 protected:
 	
 private:
 	int sockfd;
-	string *ip;
+	struct in_addr ip_addr;
 	unsigned short port;
 	struct event_base* base;
 	pthread_t th_clnt;
+	T *evsk_dr;
 	
 	static void *clnt_worker_thread(void *args);
 };
@@ -46,7 +50,29 @@ private:
 
 template<class T>
 evclnt<T>::~evclnt() {
-	close(sockfd);
+	if (evsk_dr) {
+		delete evsk_dr;
+	}
+	if (base) {
+		event_base_free(base);
+	}
+}
+
+
+template<class T>
+evclnt<T>::evclnt(struct in_addr ip, unsigned short prt) {
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+    	throw "socket error";
+    }
+    ip_addr = ip;
+    port = prt;
+    evsk_dr = NULL;
+    base = NULL;
+    th_clnt = 0;
+    
+    int on = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));  
 }
 
 
@@ -56,11 +82,20 @@ evclnt<T>::evclnt(const char *ipstr, unsigned short prt) {
     if (sockfd < 0) {
     	throw "socket error";
     }
-    ip = new std::string(ipstr);
+    ip_addr.s_addr = inet_addr(ipstr);
     port = prt;
+    evsk_dr = NULL;
+    base = NULL;
+    th_clnt = 0;
     
     int on = 1;
     setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));  
+}
+
+
+template<class T>
+void evclnt<T>::quit(void) {
+	event_base_loopbreak(base);
 }
 
 
@@ -80,13 +115,19 @@ int evclnt<T>::getskopt(int level, int optname,
 
 template<class T>
 T *evclnt<T>::get_evsock(void) {
+	return evsk_dr;
+}
+
+
+template<class T>
+T *evclnt<T>::create_evsock(void) {
 	
 	/* 监听地址 */
 	struct sockaddr_in sk_addr;
 	memset(&sk_addr, 0, sizeof(sk_addr));
 	sk_addr.sin_family = AF_INET;
 	sk_addr.sin_port = htons(port);
-	sk_addr.sin_addr.s_addr = inet_addr(ip->c_str());
+	sk_addr.sin_addr = ip_addr;
 	
 	if (connect(sockfd, (struct sockaddr*)&sk_addr, sizeof(struct sockaddr)) < 0) {
 		LOGE ("connect error");
@@ -101,7 +142,7 @@ T *evclnt<T>::get_evsock(void) {
 	}
 	
     /* 创建evsock对象 */
-	T *evsk_dr = new T(sockfd, base);
+	evsk_dr = new T(sockfd, base);
 	evsock *evsk = dynamic_cast<evsock *>(evsk_dr);
 	
 	/* 创建evsock事件 */
@@ -109,11 +150,13 @@ T *evclnt<T>::get_evsock(void) {
 	if (event_base_set(base, &evsk->read_ev) < 0) {
 		LOGE("event_base_set error\n");
 		delete evsk_dr;
+		evsk_dr = NULL;
 		return NULL;
 	}
 	if (event_add(&evsk->read_ev, NULL) < 0) {
 		LOGE("event_add error\n");
 		delete evsk_dr;
+		evsk_dr = NULL;
 		return NULL;
 	}
 	return evsk_dr;

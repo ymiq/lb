@@ -7,6 +7,9 @@
 #include <cstddef>
 #include <string>
 #include <list>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <json/json.h>
 #include <qao/qao_base.h>
 #include <stat_man.h>
@@ -56,10 +59,9 @@ public:
 typedef struct CCTL_REP1{
 	unsigned int group;
 	bool success;
-	int handle;
 	unsigned int lb_status;	
 	unsigned int stat_status;	
-	unsigned int ip;
+	struct in_addr ip;
 	unsigned short port;
 }CCTL_REP1;     
 

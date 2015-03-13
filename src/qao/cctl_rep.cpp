@@ -111,7 +111,6 @@ cctl_rep0::cctl_rep0(const char *str, size_t len) {
 		resp.info.lb_status = info["lb_status"].asUInt();
 		resp.info.stat_status = info["stat_status"].asUInt();
 		resp.info.group = info["group"].asUInt();
-		resp.info.handle = info["handle"].asInt();
 
 		resp_list.push_back(resp);
 	}
@@ -135,7 +134,6 @@ char *cctl_rep0::serialization(size_t &len) {
 		info["lb_status"] = resp.info.lb_status;
 		info["stat_status"] = resp.info.stat_status;
 		info["group"] = resp.info.group;
-		info["handle"] = resp.info.handle;
 		serial["resp_list"][idx]["info"] = info;
 	}
 
@@ -205,9 +203,8 @@ cctl_rep1::cctl_rep1(const char *str, size_t len) {
 		resp.success = serial["resp_list"][i]["success"].asBool();
 		resp.lb_status = serial["resp_list"][i]["lb_status"].asUInt();
 		resp.stat_status = serial["resp_list"][i]["stat_status"].asUInt();
-		resp.ip = serial["resp_list"][i]["ip"].asUInt();
+		resp.ip.s_addr = serial["resp_list"][i]["ip"].asUInt();
 		resp.port = (unsigned short)serial["resp_list"][i]["port"].asUInt();
-		resp.handle = serial["resp_list"][i]["handle"].asInt();
 
 		resp_list.push_back(resp);
 	}
@@ -228,9 +225,8 @@ char *cctl_rep1::serialization(size_t &len) {
 		serial["resp_list"][idx]["success"] = resp.success;
 		serial["resp_list"][idx]["lb_status"] = resp.lb_status;
 		serial["resp_list"][idx]["stat_status"] = resp.stat_status;
-		serial["resp_list"][idx]["ip"] = resp.ip;
+		serial["resp_list"][idx]["ip"] = resp.ip.s_addr;
 		serial["resp_list"][idx]["port"] = resp.port;
-		serial["resp_list"][idx]["handle"] = resp.handle;
 	}
 
 	string json_str = writer.write(serial);
@@ -251,15 +247,13 @@ void cctl_rep1::dump(void) {
 		
 	if (resp_list.size()) {
 		list<CCTL_REP1>::iterator it;
-		printf("GROUP		STATUS	LB	STAT	HANDLE	HOST\n");
+		printf("GROUP		STATUS	LB	STAT	HOST\n");
 		for (it=resp_list.begin(); it!=resp_list.end(); it++) {
 			CCTL_REP1 resp = *it;
-			struct in_addr in;
-			in.s_addr = ntohl(resp.ip);
-			char *ip_str = inet_ntoa(in);
+			char *ip_str = inet_ntoa(resp.ip);
 	
-			printf("%08x	%s	0x%X	0x%X	%d	%s:%d\n", resp.group, resp.success?"OK":"FAIL", 
-				resp.lb_status, resp.stat_status, resp.handle, ip_str, resp.port);
+			printf("%08x	%s	0x%X	0x%X	%s:%d\n", resp.group, resp.success?"OK":"FAIL", 
+				resp.lb_status, resp.stat_status, ip_str, resp.port);
 			
 		}
 	}

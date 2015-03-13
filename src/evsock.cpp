@@ -65,6 +65,17 @@ evsock::~evsock() {
 		delete job;
 	    job = q->pop();
 	}
+	
+	/* ¹Ø±Õ¾ä±ú */
+	close(sockfd);
+	close(efd);
+}
+
+
+void evsock::quit(void) {
+	if (evbase) {
+		event_base_loopbreak(evbase);
+	}
 }
 
 

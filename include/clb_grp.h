@@ -13,13 +13,15 @@
 #include <hash_tbl.h>
 #include <clb_tbl.h>
 #include <stat_tbl.h>
+#include <evclnt.h>
+#include <clb_clnt.h>
 
 #define GROUP_HASH_ARRAY		hash_array<1024>
 
 struct clb_grp_info {
 	unsigned int group;
-	int handle;
-	unsigned int ip;
+	evclnt<clb_clnt> *pclnt;
+	struct in_addr ip;
 	unsigned short port;
 	unsigned lb_status;
 	unsigned stat_status;
@@ -40,7 +42,7 @@ public:
 	clb_grp_info *find(unsigned int group);
 	clb_grp_info *create(clb_grp_info &info);
 	clb_grp_info *create(clb_grp_info &info, unsigned long hash);
-	int get_handle(unsigned int group);
+	evclnt<clb_clnt> *get_clnt(unsigned int group);
 	
 	int lb_start(unsigned int group);
 	int lb_stop(unsigned int group);
@@ -56,7 +58,7 @@ private:
 	clb_grp();
 	~clb_grp();
 	unsigned long group_hash(unsigned int group);
-	int open_sock(unsigned int master, unsigned short port);
+	evclnt<clb_clnt> *open_clnt(struct in_addr ip, unsigned short port);
 };
 
 #endif /* __CLB_GRP_H__ */

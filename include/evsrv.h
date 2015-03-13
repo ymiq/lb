@@ -22,6 +22,7 @@ template<typename T>
 class evsrv {
 public:
 	~evsrv();
+	evsrv(struct in_addr ip, unsigned short port);
 	evsrv(const char *ip_str, unsigned short port);
 	int setskopt(int level, int optname,
                       const void *optval, socklen_t optlen);
@@ -34,7 +35,7 @@ protected:
 	
 private:
 	int sockfd;
-	string *ip;
+	struct in_addr ip_addr;
 	unsigned short port;
 	struct event_base* base;
 	
@@ -48,12 +49,23 @@ evsrv<T>::~evsrv() {
 
 
 template<class T>
+evsrv<T>::evsrv(struct in_addr ip, unsigned short prt) {
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+    	throw "socket error";
+    }
+    ip_addr = ip;
+    port = prt;
+}
+
+
+template<class T>
 evsrv<T>::evsrv(const char *ipstr, unsigned short prt) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
     	throw "socket error";
     }
-    ip = new std::string(ipstr);
+    ip_addr.s_addr = inet_addr(ipstr);
     port = prt;
 }
 
@@ -80,7 +92,7 @@ bool evsrv<T>::loop(void) {
 	memset(&sk_addr, 0, sizeof(sk_addr));
 	sk_addr.sin_family = AF_INET;
 	sk_addr.sin_port = htons(port);
-	sk_addr.sin_addr.s_addr = inet_addr(ip->c_str());
+	sk_addr.sin_addr = ip_addr;
 	
 	if (bind(sockfd, (struct sockaddr*)&sk_addr, sizeof(struct sockaddr)) < 0) {
 		LOGE("bind error");

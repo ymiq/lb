@@ -339,7 +339,7 @@ static int host_info(char *str, cctl_req &req) {
 		return -1;
 	}
 	
-	req.ip = ip;
+	req.ip.s_addr = htonl(ip);
 	req.port = port;	
 	return 0;
 }
@@ -579,13 +579,13 @@ int main(int argc, char *argv[]) {
 		
 		/* 创建基于Event的客户端，用于发送命令和接受响应 */
 		evclnt<cmd_clnt> clnt(CFG_CMDSRV_IP, CFG_CMDSRV_PORT);
-		cmd_clnt *sk = clnt.get_evsock();
+		cmd_clnt *sk = clnt.create_evsock();
 		if (sk) {
 			if (monitor) {
 				sk->reg_qao(&req);
 				sk->open_timer();
 			}
-			sk->ev_send_inter_thread(static_cast<qao_base *>(&req));
+			sk->ev_send(static_cast<qao_base *>(&req));
 	    	clnt.loop();
 	    }
 		

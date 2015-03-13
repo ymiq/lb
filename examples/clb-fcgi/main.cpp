@@ -97,7 +97,7 @@ static void *thread_worker(void *args) {
 		char *buffer = new char[len+1];
 		FCGX_GetStr(buffer, len, request.in);
 		buffer[len] = '\0';
-		// LOGI("WX: %s", buffer);
+//		LOGI("WX: %s", buffer);
 		
 		try {
 			/* Worker线程主处理开始 */
@@ -110,16 +110,18 @@ static void *thread_worker(void *args) {
 		    /* 分发数据包 */
 		    unsigned int lb_status = 0;
 		    unsigned int stat_status = 0;
-		    int handle = plb->lb_handle(hash, lb_status, stat_status);
+		    evclnt<clb_clnt> *pclnt = plb->get_clnt(hash, lb_status, stat_status);
 		    
 	    	/* 把数据包写入当前Socket */
-		    if ((handle > 0) && lb_status) {
-		    	size_t wlen;
-		    	char *serial = (char*)wx.serialization(wlen);
-		    	if (serial) {
-		    		write(handle, serial, wlen);
-		    		delete serial;
-		    	}
+		    if ((pclnt != NULL) && lb_status) {
+		    	clb_clnt *clnt_sk = pclnt->get_evsock();
+		    	if (clnt_sk) {
+			    	size_t wlen;
+			    	char *serial = (char*)wx.serialization(wlen);
+			    	if (serial) {
+			    		clnt_sk->ev_send_inter_thread(serial, wlen);
+			    	}
+			    }
 		    }
 		    
 		    /* 统计处理 */
@@ -167,9 +169,6 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 	
-	/* 创建和HUB通信客户端 */
-	
-
 	/* FastCGI相关初始化 */
 	FCGX_Init();
 	

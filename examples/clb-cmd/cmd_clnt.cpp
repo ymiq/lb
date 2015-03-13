@@ -14,7 +14,7 @@ bool cmd_clnt::open_timer(void) {
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 	evtimer_set(&ev, timer_cb, this); 
-	if (event_base_set(base, &ev) < 0) {
+	if (event_base_set(evbase, &ev) < 0) {
 		LOGE("event_base_set error");
 		return false;
 	}
@@ -55,13 +55,15 @@ void cmd_clnt::read(int sock, short event, void* arg) {
 	/* 简单退出!!! */
 	if (!clnt->qao) {
 		rep.dump();
-		exit(1);
+		clnt->quit();
 	} else {
+		/* 清除屏幕内容, 并且把光标移到第一行第一列 */
 		printf("\033[1H\033[2J");
-//		printf("\33[2J");			/* 清除屏幕内容 */
-//		printf("\33[1;1H");			/* 光标移到第一行第一列 */
 		rep.dump();
 	}
+	
+	/* 接收数据处理完成，释放资源 */
+	clnt->recv_done(buffer);
 }
 
 
@@ -69,7 +71,7 @@ void cmd_clnt::timer_cb(int sock, short event, void* arg) {
 	cmd_clnt *clnt = (cmd_clnt *)arg;
 	
 	if (clnt->qao) {
-		clnt->ev_send_inter_thread(clnt->qao);
+		clnt->ev_send(clnt->qao);
 	}
 	
 	clnt->open_timer();

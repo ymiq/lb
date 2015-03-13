@@ -15,7 +15,7 @@ using namespace std;
 class cmd_clnt : public evsock {
 public:
 	~cmd_clnt() {};
-	cmd_clnt(int fd, struct event_base* evbase) : evsock(fd, evbase), qao(NULL) {base = evbase;};
+	cmd_clnt(int fd, struct event_base* evbase) : evsock(fd, evbase), qao(NULL) {};
 		
 	void send_done(void *buf, size_t len, bool send_ok);
 	void send_done(qao_base *qao, bool send_ok);
@@ -29,7 +29,6 @@ public:
 protected:
 	
 private:
-	struct event_base* base;
 	qao_base *qao;
 	struct event ev;
 	struct timeval tv;

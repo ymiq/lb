@@ -46,6 +46,8 @@ public:
     struct event write_ev;
     struct event thw_ev;
 	
+	void quit(void);
+	
 	void *ev_recv(size_t &len, bool &fragment);
 	void recv_done(void *buf);
 	
@@ -66,11 +68,11 @@ public:
 	static void do_eventfd(int efd, short event, void* arg);
 
 protected:
+	int sockfd;
+	struct event_base* evbase;
 	
 private:
 	int efd;
-	int sockfd;
-	struct event_base* evbase;
 	pri_queue<ev_job*> wq;
 	hash_tbl<frag_pack, 256> frags;
 };

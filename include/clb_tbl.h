@@ -1,13 +1,15 @@
 ﻿
 
-#ifndef _LB_TABLE_H__
-#define _LB_TABLE_H__
+#ifndef __CLB_TABLE_H__
+#define __CLB_TABLE_H__
 
 #include <cstdlib>
 #include <cstddef>
 #include <config.h>
 #include <rcu_obj.h>
 #include <hash_tbl.h>
+#include <evclnt.h>
+#include <clb_clnt.h>
 
 using namespace std; 
 
@@ -19,7 +21,7 @@ using namespace std;
 typedef struct lbsrv_info {
 	unsigned long hash;
 	unsigned int group;
-	int handle;
+	evclnt<clb_clnt> *pclnt;
 	unsigned int lb_status;
 	unsigned int stat_status;
 }lbsrv_info;
@@ -36,12 +38,13 @@ public:
 	
 	unsigned int group_id(unsigned long hash);
 	
-	int lb_handle(unsigned long hash);
-	int lb_handle(unsigned long hash, unsigned int &lb_status, unsigned int &stat_status);
+	evclnt<clb_clnt> *get_clnt(unsigned long hash);
+	evclnt<clb_clnt> *get_clnt(unsigned long hash, unsigned int &lb_status, unsigned int &stat_status);
+	
 	bool is_lb_start(unsigned long hash);
 	int lb_stop(unsigned long hash);
 	int lb_start(unsigned long hash);
-	int lb_switch(unsigned long hash, unsigned int group, int handle);
+	int lb_switch(unsigned long hash, unsigned int group, evclnt<clb_clnt> *pclnt);
 	int lb_info(unsigned long hash, lbsrv_info *info);
 	
 	bool is_stat_start(unsigned long hash);	
@@ -57,4 +60,4 @@ private:
 	~clb_tbl();
 };
 
-#endif /* _LB_TABLE_H__ */
+#endif /* __CLB_TABLE_H__ */

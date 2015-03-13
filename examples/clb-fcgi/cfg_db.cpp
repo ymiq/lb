@@ -43,14 +43,14 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 		unsigned int master = (unsigned int)strtoul(row[3], NULL, 10);
 		int groupid = atoi(row[4]);
 		int qport = atoi(row[5]);
-		/* printf("hash: %x, master: %x, groupid: %d,  port: %x, handle: %d\n",
-			hash, master, groupid, qport, handle); */
+		/* printf("hash: %x, master: %x, groupid: %d,  port: %x\n",
+			hash, master, groupid, qport); */
 
 		clb_grp_info grp_info;
 		
 		grp_info.group = groupid;
-		grp_info.handle = -1;
-		grp_info.ip = master;
+		grp_info.pclnt = NULL;
+		grp_info.ip.s_addr = htonl(master);
 		grp_info.port = qport;
 		grp_info.lb_status = 1;
 		grp_info.stat_status = 0;
@@ -58,7 +58,7 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 			lbsrv_info info;
 	
 			info.hash = hash;
-			info.handle = grp_info.handle;
+			info.pclnt = grp_info.pclnt;
 			info.group = groupid;
 			info.lb_status = 1;
 			info.stat_status = 0;
@@ -92,8 +92,8 @@ int cfg_db::init_stat_table(stat_tbl *pstat) {
 	while (NULL != (row = mysql_fetch_row(result))) {
 		unsigned long hash = strtoull(row[2], NULL, 10);
 		int qstat = atoi(row[3]);
-		/* printf("hash: %x, master: %x, groupid: %d,  port: %x, handle: %d\n",
-			hash, master, groupid, qport, handle); */
+		/* printf("hash: %x, master: %x, groupid: %d,  port: %x\n",
+			hash, master, groupid, qport); */
 		if (qstat) {
 			pstat->start(hash, 1);
 		}

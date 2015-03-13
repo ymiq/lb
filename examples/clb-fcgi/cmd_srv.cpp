@@ -191,7 +191,7 @@ qao_base *cmd_srv::company_lb(cctl_req &req) {
 			unsigned long hash = *it;
 			clb_grp_info grp_info;
 			grp_info.group = req.dst_groupid;
-			grp_info.handle = -1;
+			grp_info.pclnt = NULL;
 			grp_info.ip = req.ip;
 			grp_info.port = req.port;
 			grp_info.lb_status = 1;
@@ -208,7 +208,6 @@ qao_base *cmd_srv::company_lb(cctl_req &req) {
 				info.group = req.dst_groupid;
 				info.lb_status = 1;
 				info.stat_status= 0;
-				info.handle = grp_info.handle;
 				if (plb->create(info) < 0) {
 					resp.success = false;
 					pgrp->remove(req.dst_groupid, hash);
@@ -251,8 +250,8 @@ qao_base *cmd_srv::company_lb(cctl_req &req) {
 			ret->success = false;
 			break;
 		}
-		int handle = pgrp->get_handle(group);
-		if (handle < 0) {
+		evclnt<clb_clnt> *pclnt = pgrp->get_clnt(group);
+		if (pclnt == NULL) {
 			ret->success = false;
 			break;
 		}
@@ -260,7 +259,7 @@ qao_base *cmd_srv::company_lb(cctl_req &req) {
 			unsigned long hash = *it;
 			resp.hash = hash;
 
-			if (plb->lb_switch(hash, group, handle) < 0) {
+			if (plb->lb_switch(hash, group, pclnt) < 0) {
 				resp.success = false;
 			} else {
 				resp.success = true;
@@ -327,18 +326,16 @@ qao_base *cmd_srv::group_lb(cctl_req &req) {
 			
 			clb_grp_info *grp_info = pgrp->find(group);
 			if (grp_info == NULL) {
-				resp.ip = 0;
+				resp.ip.s_addr = 0;
 				resp.port = 0;
 				resp.lb_status = 0;
 				resp.stat_status = 0;
-				resp.handle = -1;
 				resp.success = false;
 			} else {
 				resp.ip = grp_info->ip;
 				resp.port = grp_info->port;
 				resp.lb_status = grp_info->lb_status;
 				resp.stat_status = grp_info->stat_status;
-				resp.handle = grp_info->handle;
 				resp.success = true;
 			}
 			
@@ -356,15 +353,13 @@ qao_base *cmd_srv::group_lb(cctl_req &req) {
 		grp_info.port = resp.port = req.port;
 		grp_info.lb_status = 1;
 		grp_info.stat_status = 0;
-		grp_info.handle = -1;
+		grp_info.pclnt = NULL;
 		
 		clb_grp_info *ret_grp_info = pgrp->create(grp_info);
 		if (ret_grp_info == NULL) {
 			resp.success = false;
-			resp.handle = -1;
 		} else {
 			resp.success = true;
-			resp.handle = ret_grp_info->handle;
 		}
 		ret->success = resp.success;
 		ret->resp_list.push_back(resp);
@@ -392,18 +387,16 @@ qao_base *cmd_srv::group_lb(cctl_req &req) {
 		
 		clb_grp_info *grp_info = pgrp->move(src_group, dst_group);
 		if (grp_info == NULL) {
-			resp.ip = 0;
+			resp.ip.s_addr = 0;
 			resp.port = 0;
 			resp.lb_status = 0;
 			resp.stat_status = 0;
-			resp.handle = -1;
 			resp.success = false;
 		} else {
 			resp.ip = grp_info->ip;
 			resp.port = grp_info->port;
 			resp.lb_status = grp_info->lb_status;
 			resp.stat_status = grp_info->stat_status;
-			resp.handle = grp_info->handle;
 			resp.success = true;
 		}
 		ret->resp_list.push_back(resp);
@@ -428,6 +421,7 @@ void cmd_srv::read(int sock, short event, void* arg) {
 	if ((int)size <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
+		LOGT("client close: %d\n", size);
 		delete srv;
 		return;
 	} else if (fragment) {

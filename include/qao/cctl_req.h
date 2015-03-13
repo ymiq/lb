@@ -7,6 +7,9 @@
 #include <cstddef>
 #include <string>
 #include <list>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <json/json.h>
 #include <qao/qao_base.h>
 #include <stat_man.h>
@@ -30,7 +33,7 @@ public:
 	unsigned int command;
 	unsigned int src_groupid;
 	unsigned int dst_groupid;
-	unsigned int ip;
+	struct in_addr ip;
 	unsigned short port;
 protected:
 	

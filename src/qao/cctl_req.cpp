@@ -20,7 +20,7 @@ cctl_req::cctl_req(int qos)  {
 	command = 0;
 	src_groupid = -1u;
 	dst_groupid = -1u;
-	ip = 0;
+	ip.s_addr = 0;
 	port = 0;
 }
 
@@ -42,7 +42,7 @@ cctl_req::cctl_req(const char *str, size_t len) {
 	}
 	
 	command = serial["command"].asUInt();
-	ip = serial["ip"].asUInt();
+	ip.s_addr = serial["ip"].asUInt();
 	port = (unsigned short)serial["port"].asUInt();
 	src_groupid = serial["src_groupid"].asUInt();
 	dst_groupid = serial["dst_groupid"].asUInt();
@@ -64,7 +64,7 @@ char *cctl_req::serialization(size_t &len) {
 	Json::FastWriter writer;
 	
 	serial["command"] = command;
-	serial["ip"] = ip;
+	serial["ip"] = ip.s_addr;
 	serial["port"] = port;
 	serial["src_groupid"] = src_groupid;
 	serial["dst_groupid"] = dst_groupid;
