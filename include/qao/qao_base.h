@@ -37,7 +37,7 @@ typedef struct serial_data {
 
 class qao_base {
 public:
-	qao_base() : qao_token(0), qao_type(0), qao_version(0), qao_qos(0) {};
+	qao_base() : qao_token(0), qao_type(0), qao_version(0), qao_qos(3) {};
 	virtual ~qao_base() {};
 	
 	virtual char *serialization(size_t &len) = 0;
