@@ -69,7 +69,7 @@ void cmd_clnt::timer_cb(int sock, short event, void* arg) {
 	cmd_clnt *clnt = (cmd_clnt *)arg;
 	
 	if (clnt->qao) {
-		clnt->ev_send(clnt->qao);
+		clnt->ev_send_inter_thread(clnt->qao);
 	}
 	
 	clnt->open_timer();

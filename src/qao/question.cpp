@@ -63,5 +63,5 @@ char *question::serialization(size_t &len) {
 
 
 void question::dump(void) {
-	LOGI("QUEST: '%s' FROM %lx\n", data.c_str(), hash);
+	LOGI("QUESTION: '%s' FROM %lx TO %lx\n", data.c_str(), user_hash, hash);
 }

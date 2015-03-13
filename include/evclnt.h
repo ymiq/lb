@@ -59,7 +59,6 @@ evclnt<T>::evclnt(const char *ipstr, unsigned short prt) {
     ip = new std::string(ipstr);
     port = prt;
     
-//    evutil_make_socket_nonblocking(sockfd);
     int on = 1;
     setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));  
 }

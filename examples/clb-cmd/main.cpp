@@ -585,7 +585,7 @@ int main(int argc, char *argv[]) {
 				sk->reg_qao(&req);
 				sk->open_timer();
 			}
-			sk->ev_send(static_cast<qao_base *>(&req));
+			sk->ev_send_inter_thread(static_cast<qao_base *>(&req));
 	    	clnt.loop();
 	    }
 		
