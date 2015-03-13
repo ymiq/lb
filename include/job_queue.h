@@ -12,36 +12,27 @@
 #include <cstdio>
 #include <log.h>
 
-
-typedef struct job_node {
-	struct job_node *next;
-	char *buf;
-	size_t len;		
-	qao_base *qao;
-	bool fragment;
-	unsigned int offset;
-	serial_data header;
-}job_node;
-
+#define	CFG_MAX_CONCURRENCE				16
 
 /*
  * ==========================================================================================
- *			TEMPLATE: pri_queue
+ *			TEMPLATE: job_queue
  * ==========================================================================================
  */
-class pri_queue {
+template<typename T>
+class job_queue {
 public:
-	pri_queue();
-	~pri_queue();
+	job_queue();
+	~job_queue();
 	
 	bool init(int pris, int *qsize);
 	bool empty(void);
 	bool full(void);
 	int size(void);
-	bool push(job_node *data, int qos);
-	job_node *front(void);
-	job_node *pop(void);
-	void pop(job_node *ref);
+	bool push(T data, int qos);
+	T front(void);
+	T pop(void);
+	void pop(T ref);
 	
 protected:
 	class lockless_queue{
@@ -53,16 +44,15 @@ protected:
 		bool empty(void);
 		bool full(void);
 		int size(void);
-		bool push(job_node *data);
-		job_node *front(void);
-		job_node *pop(void);
+		bool push(T data);
+		T front(void);
+		T pop(void);
 		
 	protected:
 		
 	private:
-		job_node *head;
-		job_node *tail;
-		unsigned int size;
+		T *queue;
+		volatile unsigned long head_tail;
 		unsigned int mod_size;
 		unsigned int mod_mask;
 	};
@@ -74,13 +64,15 @@ private:
 };
 
 
-pri_queue::pri_queue() {
+template<typename T>
+job_queue<T>::job_queue() {
 	llq = NULL;
 	llq_size = NULL;
 }
 
 
-pri_queue::~pri_queue() {
+template<typename T>
+job_queue<T>::~job_queue() {
 	if (llq) {
 		delete[] llq;
 	}
@@ -90,7 +82,8 @@ pri_queue::~pri_queue() {
 }
 
 
-bool pri_queue::init(int pris, int *qsize) {
+template<typename T>
+bool job_queue<T>::init(int pris, int *qsize) {
 	/* 参数检查 */
 	if ((pris <= 0) || !qsize) {
 		return false;
@@ -115,7 +108,8 @@ bool pri_queue::init(int pris, int *qsize) {
 }
 
 
-bool pri_queue::push(job_node *data, int qos) {
+template<typename T>
+bool job_queue<T>::push(T data, int qos) {
 	if ((qos >= 0) && (qos < max_pri)) {
 		return llq[qos].push(data);
 	}
@@ -123,18 +117,8 @@ bool pri_queue::push(job_node *data, int qos) {
 }
 
 
-job_node *pri_queue::front(void) {
-	for (int i=0; i<max_pri; i++) {
-		job_node *ret = llq[i].front();
-		if (ret) {
-			return ret;
-		}
-	}
-	return NULL;
-}
-
-
-void pri_queue::pop(job_node *ref) {
+template<typename T>
+void job_queue<T>::pop(T ref) {
 	for (int i=0; i<max_pri; i++) {
 		if (llq[i].front() == ref) {
 			llq[i].pop();
@@ -144,9 +128,10 @@ void pri_queue::pop(job_node *ref) {
 }
 
 
-job_node *pri_queue::pop(void) {
+template<typename T>
+T job_queue<T>::pop(void) {
 	for (int i=0; i<max_pri; i++) {
-		job_node *ret = llq[i].pop();
+		T ret = llq[i].pop();
 		if (ret) {
 			return ret;
 		}
@@ -155,7 +140,8 @@ job_node *pri_queue::pop(void) {
 }
 
 
-int pri_queue::size(void) {
+template<typename T>
+int job_queue<T>::size(void) {
 	int size = 0;
 	for (int i=0; i<max_pri; i++) {
 		size += llq[i].size();
@@ -164,7 +150,8 @@ int pri_queue::size(void) {
 }
 
 
-bool pri_queue::empty(void) {
+template<typename T>
+bool job_queue<T>::empty(void) {
 	for (int i=0; i<max_pri; i++) {
 		if (!llq[i].empty()) {
 			return false;
@@ -182,25 +169,31 @@ bool pri_queue::empty(void) {
  */
 
 
-pri_queue::lockless_queue::lockless_queue() {
+template<typename T>
+job_queue<T>::lockless_queue::lockless_queue() {
 	queue = NULL;
 }
 
 
-pri_queue::lockless_queue::~lockless_queue() {
+template<typename T>
+job_queue<T>::lockless_queue::~lockless_queue() {
 	if (queue) {
 		delete[] queue;
 	}
 }
 
 
-bool pri_queue::lockless_queue::init(int size) {
+template<typename T>
+bool job_queue<T>::lockless_queue::init(int size) {
 	if (size <= 0) {
 		return false;
 	}
+	
 
 	/* 调整参数size为2^n */
-	if (size >= 0x100000) {
+	if (size < 256) {
+		mod_size = 256;
+	} else if (size >= 0x100000) {
 		mod_size = 0x100000u;
 	} else {
 		int bit = 30;
@@ -214,81 +207,84 @@ bool pri_queue::lockless_queue::init(int size) {
 	mod_mask = mod_size - 1;
 		
 	/* 申请优先级队列 */
-	queue = new T[mod_size];
+	queue = new T[mod_size]();
 	head_tail = 0;
 	return true;
 }
 
 
-bool pri_queue::lockless_queue::push(job_node *data) {
+template<typename T>
+bool job_queue<T>::lockless_queue::push(T data) {
+	register unsigned long old_val = 0;
+	register unsigned long new_val = 0;
+	T *pwrite;
+	
+	/* 写入数据 */
 	do {
-		unsigned long old_val = head_tail;
-		unsigned int head = (unsigned int)(tmp >> 32);
-		unsigned int tail = (unsigned int)(tmp & 0xffffffffu);
+		old_val = head_tail;
+		unsigned int head = (unsigned int)(old_val >> 32);
+		unsigned int tail = (unsigned int)(old_val & 0xffffffffu);
 		unsigned int size = tail - head;
 		
 		/* 检查Queue是否已满 */
-		if (size == mod_size - CFG_MAX_CONCURRENCE) {
+		if (size >= mod_size - CFG_MAX_CONCURRENCE) {
 			return false;
 		}
 		
 		/* 获取写入位置 */
 		tail &= mod_mask;
-		queue[tail] = data;
+		pwrite = &queue[tail];
+	} while (!__sync_bool_compare_and_swap(pwrite, NULL, data));
+	
+	/* 更新计数器 */
+	do {
+		old_val = head_tail;
 		
 		/* 检查避免溢出，增加计数器 */
-		unsigned long new_val = old_val + 1ul;
+		new_val = old_val + 1ul;
 		if ((new_val & 0x8000000080000000ul) == 0x8000000080000000ul) {
 			new_val &= ~0x8000000080000000ul;
 		}
-	} while (__sync_val_compare_and_swap(&head_tail, old_val, new_val));
+	} while (!__sync_bool_compare_and_swap(&head_tail, old_val, new_val));
 	
 	return true;
 }
 
 
-job_node *pri_queue::lockless_queue::front(void) {
-	register unsigned long tmp = head_tail;
-	unsigned int head = (unsigned int)(tmp >> 32);
-	unsigned int tail = (unsigned int)(tmp & 0xffffffffu);
-	unsigned int size = tail - head;
-	
-	/* 检查Queue是否已空 */
-	if (!size) {
-		return NULL;
-	}
-	head &= mod_mask;
-	return queue[head];
-}
-
-
-job_node *pri_queue::lockless_queue::pop(void) {
-	job_node *ret = NULL;
+template<typename T>
+T job_queue<T>::lockless_queue::pop(void) {
+	/* 读取并清除，避免其他线程再获取 */
+	T ret = NULL;
+	T *pread = NULL;
 	do {
-		unsigned long old_val = head_tail;
-		unsigned int head = (unsigned int)(tmp >> 32);
-		unsigned int tail = (unsigned int)(tmp & 0xffffffffu);
-		unsigned int size = tail - head;
+		unsigned int head;
+		do {
+			register unsigned long old_val = head_tail;
+			head = (unsigned int)(old_val >> 32);
+			unsigned int tail = (unsigned int)(old_val & 0xffffffffu);
+			unsigned int size = tail - head;
+			
+			/* 检查Queue是否已空 */
+			if (!size) {
+				return NULL;
+			}
+			
+			/* 获取返回值 */
+			head &= mod_mask;
+			ret = queue[head];
+		} while (ret == NULL);
+		pread = &queue[head];
+	} while (!__sync_bool_compare_and_swap(pread, ret, NULL));
 		
-		/* 检查Queue是否已空 */
-		if (!size) {
-			return NULL;
-		}
-		
-		/* 获取返回值 */
-		head &= mod_mask;
-		ret = queue[head];
-		
-		/* 更新标记 */
-		unsigned long new_val = old_val + 0x100000000ul;
-		
-	} while (__sync_val_compare_and_swap(&head_tail, old_val, new_val));
+	/* 更新计数值 */
+	__sync_fetch_and_add(&head_tail, 0x100000000ul);
 		
 	return ret;
 }
 
 
-int pri_queue::lockless_queue::size(void) {
+template<typename T>
+int job_queue<T>::lockless_queue::size(void) {
 	register unsigned long tmp = head_tail;
 	unsigned int head = (unsigned int)(tmp >> 32);
 	unsigned int tail = (unsigned int)(tmp & 0xffffffffu);
@@ -296,7 +292,8 @@ int pri_queue::lockless_queue::size(void) {
 }
 
 
-bool pri_queue::lockless_queue::empty(void) {
+template<typename T>
+bool job_queue<T>::lockless_queue::empty(void) {
 	register unsigned long tmp = head_tail;
 	unsigned int head = (unsigned int)(tmp >> 32);
 	unsigned int tail = (unsigned int)(tmp & 0xffffffffu);

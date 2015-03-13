@@ -52,7 +52,7 @@ evsock::~evsock() {
 	}
 	
 	/* 释放对象 */
-	pri_queue<ev_job*> *q = this->ev_queue();
+	job_queue<ev_job*> *q = this->ev_queue();
     ev_job *job = q->pop();
 	while (job) {
 		/* 无法发送通知，直接删除？！ */
@@ -230,14 +230,15 @@ void evsock::recv_done(void *buf) {
 
 
 void evsock::do_write(int sock, short event, void* arg) {
-	bool pop_job = false;
+	bool del_job = false;
 	evsock *evsk = (evsock *)arg;
-	pri_queue<ev_job*> *q = evsk->ev_queue();
+	job_queue<ev_job*> *q = evsk->ev_queue();
 	
     /* 从写缓冲队列读取一个job */
-    ev_job *job = q->front();
+    ev_job *job = q->pop();
     if (job == NULL) {
-    	/* 过多事件触发会导致Job为空 */
+    	/* 可能会出错 */
+    	LOGW("something error while pop from queue");
     	return;
     }
     
@@ -276,7 +277,7 @@ void evsock::do_write(int sock, short event, void* arg) {
  			} else {
 				evsk->send_done((void*)job->buf, job->len, send_status);
  			}
- 			pop_job = true;
+ 			del_job = true;
   		}
 
     } else if (job->qao) {
@@ -312,11 +313,11 @@ void evsock::do_write(int sock, short event, void* arg) {
 			if (send_done || !send_status) {
 				evsk->send_done(job->qao, send_status);
 				delete[] buf;
-				pop_job = true;
+				del_job = true;
 			}
 		} else {
 			evsk->send_done(job->qao, false);
-			pop_job = true;
+			del_job = true;
 		}
 		
     } else {
@@ -346,14 +347,16 @@ void evsock::do_write(int sock, short event, void* arg) {
 		/* 发送完成或者发送失败时，通知发送完成 */
 		if (send_done || !send_status) {
 			evsk->send_done((void*)job->buf, datalen, send_status);
-			pop_job = true;
+			del_job = true;
 		}
 	}
 	
-	/* 删除队列中的job */
-	if (pop_job) {
-		q->pop(job);
+	if (del_job) {
+		/* 删除队列中的job */
 		delete job;
+	} else {
+		/* 把job放入最高优先级队列 */
+		q->push(job, 0);
 	}
 		
     /* 检查FIFO是否还存在待发送内容 */
@@ -451,7 +454,7 @@ bool evsock::ev_send_inter_thread(qao_base *qao) {
 
 void evsock::do_eventfd(int efd, short event, void* arg) {
 	evsock *evsk = (evsock *)arg;
-	pri_queue<ev_job*> *q = evsk->ev_queue();
+	job_queue<ev_job*> *q = evsk->ev_queue();
 	
 	/* 清除事件 */
 	unsigned long cnt;

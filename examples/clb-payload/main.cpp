@@ -78,7 +78,8 @@ static void rand_post(http *pclient, unsigned long msgid) {
 	rand_question(question, 0, 16);
 	snprintf(content, sizeof(content)-1, format, company, user, (unsigned int)tv.tv_sec, question, msgid);
 	
-	string url = "wxif.lan.net/webif";
+//	string url = "wxif.lan.net/webif";
+	string url = "localhost/wxif/";
 	string response;
 	
 	pclient->post(url, content, response);

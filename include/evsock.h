@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <event.h>
 #include <config.h>
-#include <pri_queue.h>
+#include <job_queue.h>
 #include <qao/qao_base.h>
 #include <hash_tbl.h>
 
@@ -62,7 +62,7 @@ public:
 	virtual void send_done(void *buf, size_t len, bool send_ok) = 0;
 	virtual void send_done(qao_base *qao, bool send_ok) = 0;
 
-	pri_queue<ev_job*> *ev_queue(void) {return &wq;}
+	job_queue<ev_job*> *ev_queue(void) {return &wq;}
 	
 	static void do_write(int sock, short event, void* arg);
 	static void do_eventfd(int efd, short event, void* arg);
@@ -73,7 +73,7 @@ protected:
 	
 private:
 	int efd;
-	pri_queue<ev_job*> wq;
+	job_queue<ev_job*> wq;
 	hash_tbl<frag_pack, 256> frags;
 };
 	
