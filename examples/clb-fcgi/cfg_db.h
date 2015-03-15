@@ -7,6 +7,7 @@
 #include <ctime>
 #include <unistd.h>
 #include <lb_db.h>
+#include <stat/stat_tbl_base.h>
 
 using namespace std;
 
@@ -17,7 +18,7 @@ public:
 	cfg_db(const char *ip = "localhost", unsigned short port = 3306, const char *db_name = "lb_db");
 			
 	int init_lb_table(clb_tbl *plb, clb_grp *pgrp);
-	int init_stat_table(stat_tbl *pstat);
+	int init_stat_table(stat_tbl_base *pstat);
 		
 protected:
 	

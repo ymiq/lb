@@ -10,7 +10,6 @@
 #include <json/json.h>
 #include <sys/time.h>
 #include <qao/qao_base.h>
-#include <stat_man.h>
 #include <clb_tbl.h>
 #include <hash_alg.h>
 

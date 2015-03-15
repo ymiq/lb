@@ -6,10 +6,10 @@
 
 #include <unistd.h>
 #include <log.h>
-#include <stat_man.h>
 #include <clb_tbl.h>
 #include <qao/cctl_req.h>
 #include <qao/cctl_rep.h>
+#include <stat/stat_man.h>
 #include <clb_grp.h>
 #include "cmd_srv.h"
 
@@ -42,7 +42,7 @@ qao_base *cmd_srv::company_stat(cctl_req &req) {
 			resp.hash = hash;
 
 			/* 创建统计对象 */
-			if (pstat->start(hash, 1) < 0) {
+			if (pstat->start(0, hash, 1) < 0) {
 				resp.success = false;
 			} else {
 				/* 打开统计开关 */
@@ -70,7 +70,7 @@ qao_base *cmd_srv::company_stat(cctl_req &req) {
 			}
 			
 			/* 销毁统计对象 */
-			if (pstat->stop(hash) <0 ) {
+			if (pstat->stop(0, hash) <0 ) {
 				resp.success = false;
 			}
 			
@@ -85,7 +85,7 @@ qao_base *cmd_srv::company_stat(cctl_req &req) {
 			unsigned long hash = *it;
 			resp.hash = hash;
 			
-			if (pstat->read(hash, &resp.info, &resp.tm) < 0) {
+			if (pstat->read(0, hash, &resp.info, &resp.tm) < 0) {
 				resp.success = false;
 			} else {
 				resp.success = true;
@@ -102,7 +102,7 @@ qao_base *cmd_srv::company_stat(cctl_req &req) {
 			unsigned long hash = *it;
 			resp.hash = hash;
 			
-			if (pstat->clear(hash, 0xffffffff) < 0) {
+			if (pstat->clear(0, hash, 0xffffffff) < 0) {
 				resp.success = false;
 			} else {
 				resp.success = true;

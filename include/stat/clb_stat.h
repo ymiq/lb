@@ -1,11 +1,12 @@
 ﻿
 
-#ifndef _STAT_OBJ_H__
-#define _STAT_OBJ_H__
+#ifndef __CLB_STAT_OBJ_H__
+#define __CLB_STAT_OBJ_H__
 
 #include <cstdlib>
 #include <cstddef>
 #include <config.h>
+#include <stat/stat_obj_base.h>
 
 using namespace std; 
 
@@ -16,22 +17,25 @@ using namespace std;
 
 #define CFG_STAT_MASK		(CFG_STAT_TOTAL | CFG_STAT_DROP | CFG_STAT_ERROR | CFG_STAT_TEXT)
 
-typedef struct stat_info {
+class stat_info: public stat_info_base {
+public:
+	stat_info(){};
+	~stat_info(){};
+
 	unsigned long total;
 	unsigned long errors;
 	unsigned long drops;
 	unsigned long texts;
-}__attribute__((packed)) stat_info;
+};
 
 /* 该对象在单线程中调用，不用考虑重入问题!!! */
-class stat_obj {
+class clb_stat : public stat_obj_base {
 public:
-	stat_obj();
-	~stat_obj();
+	clb_stat();
+	~clb_stat();
 	
 	/* 统计触发 */
 	int stat(unsigned int code);
-	int stat(void *packet, int packet_size);
 
 	/* 统计操作基本方法 */
 	int start(unsigned int code);	/* 开启统计 */
@@ -40,8 +44,8 @@ public:
 	int read(stat_info *pinfo);	/* 获取统计信息 */
 	
 	/* 操作符重载 */
-	stat_obj& operator+=(const stat_obj *pobj);
-	stat_obj& operator+=(const stat_obj &obj);
+	clb_stat& operator+=(const clb_stat *pobj);
+	clb_stat& operator+=(const clb_stat &obj);
 	
 protected:
 	
@@ -53,4 +57,4 @@ private:
 	int clear(unsigned int code, int record);
 };
 
-#endif /* _STAT_OBJ_H__ */
+#endif /* __CLB_STAT_OBJ_H__ */

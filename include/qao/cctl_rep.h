@@ -12,7 +12,7 @@
 #include <arpa/inet.h>
 #include <json/json.h>
 #include <qao/qao_base.h>
-#include <stat_man.h>
+#include <stat/clb_stat.h>
 #include <clb_tbl.h>
 
 using namespace std; 

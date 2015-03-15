@@ -76,7 +76,7 @@ int cfg_db::init_lb_table(clb_tbl *plb, clb_grp *pgrp) {
 
 
 
-int cfg_db::init_stat_table(stat_tbl *pstat) {
+int cfg_db::init_stat_table(stat_tbl_base *pstat) {
 		
 	/* 获取负载均衡信息 */
     MYSQL_RES *result=NULL;  

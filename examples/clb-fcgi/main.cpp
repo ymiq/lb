@@ -14,6 +14,9 @@
 #include <evsrv.h>
 #include <hash_alg.h>
 #include <qao/cdat_wx.h>
+#include <stat/stat_man.h>
+#include <stat/stat_tbl.h>
+#include <stat/clb_stat.h>
 #include "cmd_srv.h"
 #include "cfg_db.h"
 
@@ -36,7 +39,7 @@ static int lb_init(clb_tbl *plb, clb_grp *pgrp) {
 }
 
 
-static int stat_init(stat_tbl *pstat) {
+static int stat_init(stat_tbl_base *pstat) {
 	/* 该函数要求在所有stat_table创建后再调用 */
 	cfg_db *db = new cfg_db();
 	int ret = db->init_stat_table(pstat);
@@ -59,7 +62,7 @@ static void *thread_worker(void *args) {
 	clb_tbl *plb = clb_tbl::get_inst();
 		
 	/* 创建每线程统计表，并初始化 */
-	stat_tbl *pstat = new stat_tbl;
+	stat_tbl<clb_stat, 1024> *pstat = new stat_tbl<clb_stat, 1024>;
 	if (stat_init(pstat) < 0) {
 		LOGE("statics table init failed");
 		exit(1);

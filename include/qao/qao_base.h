@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <string>
 #include <config.h>
-#include <stat_obj.h>
 #include <hash_tbl.h>
 
 using namespace std; 

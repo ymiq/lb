@@ -11,7 +11,6 @@
 #include <mysql/mysql.h>
 
 #include <config.h>
-#include <stat_tbl.h>
 
 using namespace std; 
 

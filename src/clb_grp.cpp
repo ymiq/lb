@@ -11,7 +11,6 @@
 #include <log.h>
 #include <clb_grp.h>
 #include <clb_tbl.h>
-#include <stat_tbl.h>
 #include <evclnt.h>
 #include <clb_clnt.h>
 

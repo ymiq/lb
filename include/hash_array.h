@@ -62,7 +62,6 @@ private:
 	typedef struct hash_index {
 		unsigned long items[CFG_ARRAY_ITEM_SIZE];
 		hash_index *next;
-		void *reserve;
 	}hash_index;
 	
 	unsigned int mod_size;

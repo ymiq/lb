@@ -12,7 +12,6 @@
 #include <hash_array.h>
 #include <hash_tbl.h>
 #include <clb_tbl.h>
-#include <stat_tbl.h>
 #include <evclnt.h>
 #include <clb_clnt.h>
 

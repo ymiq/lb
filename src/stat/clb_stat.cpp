@@ -1,41 +1,41 @@
 ﻿#include <cstdlib>
 #include <cstdio>
 #include <cstring>
-#include <stat_obj.h>
+#include <exception>
 #include <rcu_obj.h>
 #include <rcu_man.h>
-#include <stat_man.h>
+#include <stat/stat_man.h>
+#include <stat/clb_stat.h>
 
-#include <exception>
 
 using namespace std; 
 
-stat_obj::stat_obj() {
+clb_stat::clb_stat() {
 	flags = 0;
 	clear_flags = 0;
 	memset(&info, 0, sizeof(info));
 }
 
 
-stat_obj::~stat_obj() {
+clb_stat::~clb_stat() {
 }
 
 
-int stat_obj::start(unsigned int code) {
+int clb_stat::start(unsigned int code) {
 	code &= CFG_STAT_MASK;
 	flags |= code;
 	return 0;
 }
 
 
-int stat_obj::stop(unsigned int code) {
+int clb_stat::stop(unsigned int code) {
 	code &= CFG_STAT_MASK;
 	flags &= ~code;
 	return 0;
 }
 
 
-int stat_obj::clear(unsigned int code, int record) {
+int clb_stat::clear(unsigned int code, int record) {
 	code &= CFG_STAT_MASK;
 	
 	/* 清除统计计数器 */
@@ -62,32 +62,18 @@ int stat_obj::clear(unsigned int code, int record) {
 }
 
 
-int stat_obj::clear(unsigned int code) {
+int clb_stat::clear(unsigned int code) {
 	return clear(code, 1);
 }
 
 
-int stat_obj::read(stat_info *pinfo) {
+int clb_stat::read(stat_info *pinfo) {
 	*pinfo = info;
 	return 0;
 }
 
 
-int stat_obj::stat(void *packet, int packet_size) {
-	/* 重复清除，减小冲突 */
-	unsigned int cflgs = clear_flags;
-	if (cflgs) {
-		clear(cflgs, 0);
-	}
-	
-	if (flags & CFG_STAT_TOTAL) {
-		info.total++;
-	}
-	return 0;
-}
-
-
-int stat_obj::stat(unsigned int code) {
+int clb_stat::stat(unsigned int code) {
 	code = code & flags;
 	
 	/* 重复清除，减小冲突 */
@@ -114,14 +100,14 @@ int stat_obj::stat(unsigned int code) {
 }
 
 
-stat_obj& stat_obj::operator+=(const stat_obj *pobj) {	
+clb_stat& clb_stat::operator+=(const clb_stat *pobj) {	
 	this->info.total += pobj->info.total;
 	this->info.errors += pobj->info.errors;	
 	return *this;
 }
 
 
-stat_obj& stat_obj::operator+=(const stat_obj &obj) {	
+clb_stat& clb_stat::operator+=(const clb_stat &obj) {	
 	this->info.total += obj.info.total;
 	this->info.errors += obj.info.errors;	
 	return *this;
