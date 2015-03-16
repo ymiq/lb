@@ -2,7 +2,7 @@
 #include <cstring>
 #include <sys/types.h>
 #include <unistd.h>
-#include <log.h>
+#include <utils/log.h>
 #include <qao/qao_base.h>
 
 using namespace std;

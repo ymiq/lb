@@ -9,10 +9,10 @@
 #include <semaphore.h>
 #include <rcu_man.h>
 #include <clb_tbl.h>
-#include <log.h>
+#include <utils/log.h>
 #include <fcgi_stdio.h>  
 #include <evsrv.h>
-#include <hash_alg.h>
+#include <utils/hash_alg.h>
 #include <qao/cdat_wx.h>
 #include <stat/stat_man.h>
 #include <stat/stat_tbl.h>

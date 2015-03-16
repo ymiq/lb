@@ -10,7 +10,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
-#include <log.h>
+#include <utils/log.h>
 
 #define	CFG_MAX_CONCURRENCE				16
 

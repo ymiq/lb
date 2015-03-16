@@ -3,13 +3,13 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <log.h>
+#include <utils/log.h>
 #include <sys/time.h>
 #include <json/json.h>
 #include <json/value.h>
 #include <qao/qao_base.h>
 #include <qao/cdat_wx.h>
-#include <hash_alg.h>
+#include <utils/hash_alg.h>
 #include <expat.h>
 
 using namespace std;

@@ -6,8 +6,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "lb_db.h"
 #include <openssl/md5.h>
+#include <utils/lb_db.h>
 
 using namespace std;
 

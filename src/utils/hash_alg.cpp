@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cstring>
 #include <openssl/md5.h>
-#include <hash_alg.h>
+#include <utils/hash_alg.h>
 
 using namespace std; 
 

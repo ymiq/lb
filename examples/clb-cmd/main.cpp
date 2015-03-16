@@ -13,8 +13,8 @@
 #include <qao/cctl_rep.h>
 #include <openssl/md5.h>
 #include <evclnt.h>
-#include <log.h>
-#include <lb_db.h>
+#include <utils/log.h>
+#include <utils/lb_db.h>
 #include "cmd_clnt.h"
 
 /* 定义是否从数据库检查输入参数正确性 */

@@ -5,7 +5,7 @@
 #include <ctime>
 
 #include <unistd.h>
-#include <log.h>
+#include <utils/log.h>
 #include <clb_tbl.h>
 #include <qao/cctl_req.h>
 #include <qao/cctl_rep.h>

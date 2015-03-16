@@ -7,7 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <event.h>
-#include <log.h>
+#include <utils/log.h>
 #include <evsock.h>
 
 

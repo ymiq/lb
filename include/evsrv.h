@@ -12,7 +12,7 @@
 #include <event.h>
 
 #include <config.h>
-#include <log.h>
+#include <utils/log.h>
 #include <evsock.h>
 
 using namespace std;	

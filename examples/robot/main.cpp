@@ -8,7 +8,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <event.h>
-#include <log.h>
+#include <utils/log.h>
 #include <evsrv.h>
 #include "robot_hsrv.h"
 

@@ -6,7 +6,7 @@
 #include <cstring>
 #include <ctime>
 #include <unistd.h>
-#include <lb_db.h>
+#include <utils/lb_db.h>
 #include <stat/stat_tbl_base.h>
 
 using namespace std;

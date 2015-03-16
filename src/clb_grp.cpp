@@ -8,7 +8,7 @@
 #include <sys/socket.h>
 #include <sys/unistd.h>
 #include <arpa/inet.h>
-#include <log.h>
+#include <utils/log.h>
 #include <clb_grp.h>
 #include <clb_tbl.h>
 #include <evclnt.h>

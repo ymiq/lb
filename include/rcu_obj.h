@@ -11,7 +11,7 @@
 
 #include <pthread.h>
 #include <config.h>
-#include <log.h>
+#include <utils/log.h>
 #include <rcu_base.h>
 #include <rcu_man.h>
 
