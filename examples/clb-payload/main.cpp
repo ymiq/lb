@@ -78,7 +78,6 @@ static void rand_post(http *pclient, unsigned long msgid) {
 	rand_question(question, 0, 16);
 	snprintf(content, sizeof(content)-1, format, company, user, (unsigned int)tv.tv_sec, question, msgid);
 	
-//	string url = "wxif.lan.net/webif";
 	string url = "localhost/wxif/";
 	string response;
 	
@@ -96,7 +95,7 @@ static void *pthread_ask_sim(void *args) {
 		int send_packets = (rand() % 1024) + 100;
 		for (int cnt=0; cnt<=send_packets; cnt++) {
 
-			string url = "wxif.lan.net/webif";
+			string url = "localhost/wxif";
 			string post = "<xml></xml>";
 			string response;
 			rand_post(&http_client, msgid++);

@@ -19,10 +19,10 @@ public:
 	/* 统计处理函数 */
 	virtual int stat(unsigned long hash, unsigned int code) = 0;
 	
-	virtual int start(unsigned long hash, unsigned int code) = 0;	/* 开启统计 */
-	virtual int stop(unsigned long hash) = 0;						/* 暂停统计 */
-	virtual int clear(unsigned long hash, unsigned int code) = 0;	/* 清除统计 */
-	virtual stat_obj_base *get(unsigned long hash) = 0;				/* 获取对象 */
+	virtual int start(unsigned long hash, unsigned int code) = 0;		/* 开启统计 */
+	virtual int stop(unsigned long hash) = 0;							/* 暂停统计 */
+	virtual int clear(unsigned long hash, unsigned int code) = 0;		/* 清除统计 */
+	virtual int read(unsigned long hash, stat_info_base *pinfo) = 0;	/* 获取统计信息 */
 
 protected:
 	

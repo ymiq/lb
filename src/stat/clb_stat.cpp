@@ -13,7 +13,6 @@ using namespace std;
 clb_stat::clb_stat() {
 	flags = 0;
 	clear_flags = 0;
-	memset(&info, 0, sizeof(info));
 }
 
 
@@ -67,8 +66,12 @@ int clb_stat::clear(unsigned int code) {
 }
 
 
-int clb_stat::read(stat_info *pinfo) {
-	*pinfo = info;
+int clb_stat::read(stat_info_base *pinfo) {
+	stat_info *pout = dynamic_cast<stat_info*>(pinfo);
+	pout->total += this->info.total;
+	pout->errors += this->info.errors;	
+	pout->drops += this->info.drops;
+	pout->texts += this->info.texts;	
 	return 0;
 }
 
@@ -97,18 +100,4 @@ int clb_stat::stat(unsigned int code) {
 	}
 	
 	return 0;
-}
-
-
-clb_stat& clb_stat::operator+=(const clb_stat *pobj) {	
-	this->info.total += pobj->info.total;
-	this->info.errors += pobj->info.errors;	
-	return *this;
-}
-
-
-clb_stat& clb_stat::operator+=(const clb_stat &obj) {	
-	this->info.total += obj.info.total;
-	this->info.errors += obj.info.errors;	
-	return *this;
 }

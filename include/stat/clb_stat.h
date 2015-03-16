@@ -38,14 +38,10 @@ public:
 	int stat(unsigned int code);
 
 	/* 统计操作基本方法 */
-	int start(unsigned int code);	/* 开启统计 */
-	int stop(unsigned int code);	/* 清除统计 */
-	int clear(unsigned int code);	/* 清除统计 */
-	int read(stat_info *pinfo);	/* 获取统计信息 */
-	
-	/* 操作符重载 */
-	clb_stat& operator+=(const clb_stat *pobj);
-	clb_stat& operator+=(const clb_stat &obj);
+	int start(unsigned int code);		/* 开启统计 */
+	int stop(unsigned int code);		/* 清除统计 */
+	int clear(unsigned int code);		/* 清除统计 */
+	int read(stat_info_base *pinfo);	/* 获取统计信息 */
 	
 protected:
 	

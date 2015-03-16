@@ -23,10 +23,10 @@ public:
 	int stat(unsigned long hash, unsigned int code);
 	int stat(unsigned long hash, void *packet, int packet_size);
 
-	int start(unsigned long hash, unsigned int code);	/* 开启统计 */
-	int stop(unsigned long hash);						/* 暂停统计 */
-	int clear(unsigned long hash, unsigned int code);	/* 清除统计 */
-	T *get(unsigned long hash);							/* 获取对象 */
+	int start(unsigned long hash, unsigned int code);		/* 开启统计 */
+	int stop(unsigned long hash);							/* 暂停统计 */
+	int clear(unsigned long hash, unsigned int code);		/* 清除统计 */
+	int read(unsigned long hash, stat_info_base *pinfo);	/* 获取统计数据 */
 
 protected:
 	
@@ -79,18 +79,12 @@ int stat_tbl<T, INDEX_SIZE>::clear(unsigned long hash, unsigned int code) {
 
 
 template<typename T, unsigned int INDEX_SIZE>
-T *stat_tbl<T, INDEX_SIZE>::get(unsigned long hash) {
-	return table.find(hash);
-}
-
-
-template<typename T, unsigned int INDEX_SIZE>
-int stat_tbl<T, INDEX_SIZE>::stat(unsigned long hash, void *packet, int packet_size) {
+int stat_tbl<T, INDEX_SIZE>::read(unsigned long hash, stat_info_base *pinfo) {
 	T *pobj = table.find(hash);
 	if (!pobj) {
 		return -1;
 	}
-	return pobj->stat(packet, packet_size);
+	return pobj->read(pinfo);
 }
 
 

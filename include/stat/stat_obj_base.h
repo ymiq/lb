@@ -29,15 +29,11 @@ public:
 	virtual int stat(unsigned int code) = 0;
 
 	/* 统计操作基本方法 */
-	virtual int start(unsigned int code) = 0;	/* 开启统计 */
-	virtual int stop(unsigned int code) = 0;	/* 清除统计 */
-	virtual int clear(unsigned int code) = 0;	/* 清除统计 */
-//	virtual int read(stat_info_base *pinfo) = 0;			/* 获取统计信息 */
-	
-	/* 操作符重载 */
-//	virtual stat_obj_base& operator+=(const stat_obj_base *pobj) = 0;
-//	virtual stat_obj_base& operator+=(const stat_obj_base &obj) = 0;
-	
+	virtual int start(unsigned int code) = 0;		/* 开启统计 */
+	virtual int stop(unsigned int code) = 0;		/* 清除统计 */
+	virtual int clear(unsigned int code) = 0;		/* 清除统计 */
+	virtual int read(stat_info_base *pinfo) = 0;	/* 获取统计信息 */
+		
 protected:
 	
 private:

@@ -40,12 +40,9 @@ void stat_man::unlock(void) {
 
 
 int stat_man::reg(thread_table *ptable, stat_tbl_base *pstat) {
-	int ret;
 	thread_table *ptbl = ptable;
-	thread_table *prev_tbl;
 	
 	/* 检查线程是否已经注册 */
-	ret = 0;
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
@@ -53,14 +50,12 @@ int stat_man::reg(thread_table *ptable, stat_tbl_base *pstat) {
 				return 0;
 			}
 		}
-		prev_tbl = ptbl;
 		ptbl = ptbl->pnext;
-		ret += CFG_THREAD_TABLE_SIZE;
-	}while (ptbl);
+	} while (ptbl);
 	
 	/* 注册线程 */
-	ret = 0;
 	ptbl = ptable;
+	thread_table *prev_tbl = ptbl;
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
@@ -71,8 +66,7 @@ int stat_man::reg(thread_table *ptable, stat_tbl_base *pstat) {
 		}
 		prev_tbl = ptbl;
 		ptbl = ptbl->pnext;
-		ret += CFG_THREAD_TABLE_SIZE;
-	}while (ptbl);
+	} while (ptbl);
 	
 	/* 重新申请缓冲区 */
 	thread_table *new_tbl = new thread_table();
@@ -126,11 +120,15 @@ int stat_man::reg(int type, stat_tbl_base *pstat) {
 	new_node->pnext = NULL;
 	new_node->type = type;
 	new_node->ptable = new thread_table();
-	ret = reg(plist->ptable, pstat);
+	ret = reg(new_node->ptable, pstat);
 	
 	/* 避免乱序造成问题 */
 	wmb();
-	prev_list->pnext = new_node;
+	if (prev_list == plist_head) {
+		plist_head = new_node;
+	} else {
+		prev_list->pnext = new_node;
+	}
 	unlock();
 	return ret;
 }
@@ -309,30 +307,23 @@ int stat_man::clear(int type, unsigned long hash, unsigned int code) {
 
 int stat_man::read(thread_table *ptbl, unsigned long hash, 
 					stat_info_base *pinfo, struct timeval *tm) {
-#if 1
-	return -1;
-#else						
-	stat_obj_base obj;
-	
 	/* 遍历所有注册统计对象表 */
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
 			/* 搜索结束 */
 			if (ptbl->ptables[i] == NULL) {
+				
 				/* 获取统计时间 */
 				if (gettimeofday(tm, NULL) < 0) {
 					LOGE("gettimeofday failed");
+					return -1;
 				}
-	
-				return obj.read(pinfo);
+				return 0;
 			}
 			
 			/* 关闭指定线程下相应统计对象 */
-			stat_obj_base *pobj = ptbl->ptables[i]->get(hash);
-			if (pobj) {
-				obj += pobj;
-			}
+			ptbl->ptables[i]->read(hash, pinfo);
 		}
 		ptbl = ptbl->pnext;
 	}while (ptbl);
@@ -340,9 +331,9 @@ int stat_man::read(thread_table *ptbl, unsigned long hash,
 	/* 获取统计时间 */
 	if (gettimeofday(tm, NULL) < 0) {
 		LOGE("gettimeofday failed");
+		return -1;
 	}
-	return obj.read(pinfo);
-#endif
+	return 0;
 }
 
 
