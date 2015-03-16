@@ -1,5 +1,5 @@
-﻿#ifndef __HUB_CLB_SRV_H__
-#define __HUB_CLB_SRV_H__
+﻿#ifndef __HUB_SLB_SRV_H__
+#define __HUB_SLB_SRV_H__
 
 #include <cstdlib>
 #include <cstdio>
@@ -12,10 +12,10 @@
 
 using namespace std;
 
-class hub_csrv : public evsock {
+class hub_ssrv : public evsock {
 public:
-	~hub_csrv();
-	hub_csrv(int fd, struct event_base* base):evsock(fd, base) {}
+	~hub_ssrv();
+	hub_ssrv(int fd, struct event_base* base):evsock(fd, base) {}
 		
 	void send_done(void *buf, size_t len, bool send_ok) {};
 	void send_done(qao_base *qao, bool send_ok);
@@ -27,4 +27,4 @@ private:
 };
 
 
-#endif /* __LBDIS_H__ */
+#endif /* __HUB_SLB_SRV_H__ */

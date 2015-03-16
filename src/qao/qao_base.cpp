@@ -9,6 +9,24 @@ using namespace std;
 
 unsigned int qao_base::seqno = 0;
 
+qao_base::qao_base(void) {
+	qao_token = 0;
+	qao_type = 0;
+	qao_version = 0;
+	qao_qos = 0;
+	ref_cnt = 1;
+}
+
+
+int qao_base::reference(void) {
+	return __sync_add_and_fetch(&ref_cnt, 1);
+}
+
+
+int qao_base::dereference(void) {
+	return __sync_sub_and_fetch(&ref_cnt, -1);
+}
+
 
 int qao_base::set_qos(int qos) {
 	int ret = qao_qos; 
@@ -19,6 +37,18 @@ int qao_base::set_qos(int qos) {
 
 int qao_base::get_qos(void) {
 	return qao_qos;
+}
+
+
+int qao_base::set_type(int type) {
+	int ret = qao_type; 
+	qao_type = type & 0xff; 
+	return ret;
+}
+
+
+int qao_base::get_type(void) {
+	return qao_type;
 }
 
 
@@ -42,6 +72,14 @@ void qao_base::init(serial_data *header) {
 }
 
 
+void qao_base::init(serial_data *header, int type) {
+	qao_token = header->token;
+	qao_type = type & 0xff;
+	qao_version = header->version & 0x3f;
+	qao_qos = (header->version & 0xc0) >> 6;
+}
+
+
 void qao_base::serial_header(serial_data *header) {
 	header->token = qao_token;
 	header->type = qao_type;
@@ -59,5 +97,10 @@ void qao_base::serial_header(serial_data *header, int len_off, int datalen, int 
 
 void qao_base::serial_header(serial_data *header, int len_off, int datalen) {
 	serial_header(header, len_off, datalen, 0);
+}
+
+
+int qao_base::persistence(void) {
+	return -1;
 }
 

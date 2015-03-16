@@ -34,22 +34,44 @@ typedef struct serial_data {
 #define	QAO_CCTL_REP3		0x14
 #define	QAO_CDAT_WX			0x18
 
+#define QAO_QUESTION		0x20
+#define QAO_ANSWER			0x30
+#define QAO_CANDIDATE		0x40
+
 class qao_base {
 public:
-	qao_base() : qao_token(0), qao_type(0), qao_version(0), qao_qos(3) {};
+	qao_base();
 	virtual ~qao_base() {};
 	
+	/* 序列化函数，序列化对象，用于在服务器之间传递 */
 	virtual char *serialization(size_t &len) = 0;
-	virtual void dump(void) = 0;					/* 方便调试、跟踪分析。该方法可以不实现 */
 	
+	/* 持久化函数，用于把对象保存到数据库 */
+	virtual int persistence(void);
+
+	/* 方便调试、跟踪分析。*/
+	virtual void dump(void) {};
+	
+	/* 引用计数处理 */
+	int reference(void);
+	int dereference(void);
+	
+	/* 基本属性操作 */
 	int set_qos(int qos);
 	int get_qos(void);
+	int set_type(int qos);
+	int get_type(void);
+
+	/* 类型初始化 */
 	void init(int type, int version, int qos);
 	void init(serial_data *header);
+	void init(serial_data *header, int type);
+	
+	/* 序列化辅助函数，用于生成序列化头信息 */
 	void serial_header(serial_data *header);
 	void serial_header(serial_data *header, int len_off, int datalen);
 	void serial_header(serial_data *header, int len_off, int datalen, int fragment);
-
+	
 protected:
 	unsigned long qao_token;	/* Token */
 	unsigned int qao_type;		/* 对象类型 */
@@ -57,6 +79,7 @@ protected:
 	unsigned int qao_qos;		/* QoS */
 	
 private:
+	unsigned int ref_cnt;
 	static unsigned int seqno;		
 };
 

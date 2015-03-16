@@ -12,10 +12,10 @@
 
 using namespace std;
 
-class hub_csrv : public evsock {
+class robot_hsrv : public evsock {
 public:
-	~hub_csrv();
-	hub_csrv(int fd, struct event_base* base):evsock(fd, base) {}
+	~robot_hsrv();
+	robot_hsrv(int fd, struct event_base* base):evsock(fd, base) {}
 		
 	void send_done(void *buf, size_t len, bool send_ok) {};
 	void send_done(qao_base *qao, bool send_ok);

@@ -7,20 +7,16 @@
 #include <unistd.h>
 #include <log.h>
 #include <qao/question.h>
-#include "hub_csrv.h"
-#include "robot_clnt.h"
-
-extern "C" {
-extern robot_clnt *robot_sock;
-};
+#include <qao/candidate.h>
+#include "robot_hsrv.h"
 
 using namespace std;
 
-hub_csrv::~hub_csrv() {
+robot_hsrv::~robot_hsrv() {
 }
 
-void hub_csrv::read(int sock, short event, void* arg) {
-	hub_csrv *srv = (hub_csrv *)arg;
+void robot_hsrv::read(int sock, short event, void* arg) {
+	robot_hsrv *srv = (robot_hsrv *)arg;
 	void *buffer;
 	size_t len = 0;
 	bool fragment = false;
@@ -36,15 +32,15 @@ void hub_csrv::read(int sock, short event, void* arg) {
 		return;
 	}
 	
-	/* 由序列化数据转换为Question对象 */
+	/* 把序列化数据转换为Candidate对象 */
 	try {
-		question *q = new question((const char*)buffer, len);
+		candidate *q = new candidate((const char*)buffer, len);
 		
 		/* 显示对象内容 */
 		q->dump();
 		
-		/* 把问题发给Robot */
-		robot_sock->ev_send(q);
+		/* 把Candidate发给Hub */
+		srv->ev_send(q);
 		
 	} catch (const char *msg) {
 		printf("Get error question");
@@ -55,7 +51,7 @@ void hub_csrv::read(int sock, short event, void* arg) {
 }
 
 
-void hub_csrv::send_done(qao_base *qao, bool send_ok) {
+void robot_hsrv::send_done(qao_base *qao, bool send_ok) {
 	/* 释放发送对象 */
 	delete qao;
 }

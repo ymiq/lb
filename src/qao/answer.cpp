@@ -8,12 +8,12 @@
 #include <json/json.h>
 #include <json/value.h>
 #include <qao/qao_base.h>
-#include <qao/question.h>
+#include <qao/answer.h>
 #include <hash_alg.h>
 
 using namespace std;
 
-question::question(const char *str, size_t len) {
+answer::answer(const char *str, size_t len) {
 	Json::Reader reader;
 	Json::Value serial;
 	serial_data header;
@@ -22,7 +22,7 @@ question::question(const char *str, size_t len) {
 		throw "Invalid serial data";
 	}
 	memcpy(&header, str, sizeof(serial_data));
-	init(&header, QAO_QUESTION);		/* 转换对象为Question类型 */
+	init(&header, QAO_ANSWER);
 
 	str += sizeof(serial_data);
 	if (!reader.parse(str, serial, false)) {
@@ -32,13 +32,13 @@ question::question(const char *str, size_t len) {
 	hash = serial["hash"].asUInt64();
 	user_hash = serial["user_hash"].asUInt64();
 	msgid = serial["msgid"].asUInt64();
-	type = QAO_QUESTION;
+	type = QAO_ANSWER;
 	datalen = serial["datalen"].asUInt();
-	data = serial["data"].asString();
+	data = "answer " + serial["data"].asString();
 }
 
 
-char *question::serialization(size_t &len) {
+char *answer::serialization(size_t &len) {
 	Json::Value serial;
 	Json::FastWriter writer;
 	
@@ -62,6 +62,6 @@ char *question::serialization(size_t &len) {
 }
 
 
-void question::dump(void) {
-	LOGI("QUESTION: '%s' FROM %lx TO %lx\n", data.c_str(), user_hash, hash);
+void answer::dump(void) {
+	LOGI("ANSWER: '%s' FROM %lx TO %lx\n", data.c_str(), user_hash, hash);
 }

@@ -7,12 +7,12 @@ CLBFCGI_SRCS += src/qao/qao_base.cpp
 CLBFCGI_SRCS += src/qao/cctl_req.cpp
 CLBFCGI_SRCS += src/qao/cctl_rep.cpp
 CLBFCGI_SRCS += src/qao/cdat_wx.cpp
-CLBFCGI_SRCS += src/hash_alg.cpp
-CLBFCGI_SRCS += src/logger.cpp
+CLBFCGI_SRCS += src/utils/hash_alg.cpp
+CLBFCGI_SRCS += src/utils/logger.cpp
+CLBFCGI_SRCS += src/utils/lb_db.cpp
 CLBFCGI_SRCS += src/evsock.cpp
 CLBFCGI_SRCS += src/rcu_man.cpp
 CLBFCGI_SRCS += src/clb_tbl.cpp
-CLBFCGI_SRCS += src/lb_db.cpp
 CLBFCGI_SRCS += src/stat/clb_stat.cpp
 CLBFCGI_SRCS += src/stat/stat_man.cpp
 CLBFCGI_SRCS += src/clb_grp.cpp
@@ -28,10 +28,10 @@ CLBCMD_SRCS += examples/clb-cmd/cmd_clnt.cpp
 CLBCMD_SRCS += src/qao/qao_base.cpp
 CLBCMD_SRCS += src/qao/cctl_req.cpp
 CLBCMD_SRCS += src/qao/cctl_rep.cpp
+CLBCMD_SRCS += src/utils/logger.cpp
+CLBCMD_SRCS += src/utils/lb_db.cpp
 CLBCMD_SRCS += src/rcu_man.cpp
 CLBCMD_SRCS += src/evsock.cpp
-CLBCMD_SRCS += src/logger.cpp
-CLBCMD_SRCS += src/lb_db.cpp
 CLBCMD_CPPFLAGS = -O2 -Wall -Werror -I./include
 CLBCMD_LDFLAGS = -lstdc++ -lpthread -L/usr/lib64/mysql/ -lmysqlclient -lcrypto -ljsoncpp -levent
 
@@ -44,13 +44,43 @@ CLBPL_LDFLAGS = -lstdc++ -lpthread -lcurl
 HUB_TARGET := bin/hub
 HUB_SRCS = examples/hub/main.cpp
 HUB_SRCS += examples/hub/hub_csrv.cpp
+HUB_SRCS += examples/hub/hub_ssrv.cpp
+HUB_SRCS += examples/hub/robot_clnt.cpp
 HUB_SRCS += src/qao/qao_base.cpp
 HUB_SRCS += src/qao/question.cpp
+HUB_SRCS += src/qao/candidate.cpp
+HUB_SRCS += src/qao/answer.cpp
+HUB_SRCS += src/utils/logger.cpp
 HUB_SRCS += src/evsock.cpp
-HUB_SRCS += src/logger.cpp
 HUB_SRCS += src/rcu_man.cpp
 HUB_CPPFLAGS = -O2 -Wall -Werror -I./include
 HUB_LDFLAGS = -lstdc++ -lpthread -levent -ljsoncpp
+
+ROBOT_TARGET := bin/robot
+ROBOT_SRCS = examples/robot/main.cpp
+ROBOT_SRCS += examples/robot/robot_hsrv.cpp
+ROBOT_SRCS += src/qao/qao_base.cpp
+ROBOT_SRCS += src/qao/question.cpp
+ROBOT_SRCS += src/qao/candidate.cpp
+ROBOT_SRCS += src/qao/answer.cpp
+ROBOT_SRCS += src/utils/logger.cpp
+ROBOT_SRCS += src/evsock.cpp
+ROBOT_SRCS += src/rcu_man.cpp
+ROBOT_CPPFLAGS = -O2 -Wall -Werror -I./include
+ROBOT_LDFLAGS = -lstdc++ -lpthread -levent -ljsoncpp
+
+SLB_TARGET := bin/slb
+SLB_SRCS = examples/slb/main.cpp
+SLB_SRCS += examples/slb/slb_clnt.cpp
+SLB_SRCS += src/qao/qao_base.cpp
+SLB_SRCS += src/qao/question.cpp
+SLB_SRCS += src/qao/candidate.cpp
+SLB_SRCS += src/qao/answer.cpp
+SLB_SRCS += src/utils/logger.cpp
+SLB_SRCS += src/evsock.cpp
+SLB_SRCS += src/rcu_man.cpp
+SLB_CPPFLAGS = -O2 -Wall -Werror -I./include
+SLB_LDFLAGS = -lstdc++ -lpthread -levent -ljsoncpp
 
 TEST_TARGET := bin/test
 TEST_SRCS = examples/test/main.cpp
@@ -59,7 +89,7 @@ TEST_LDFLAGS = -lstdc++ -lpthread -lexpat
 
 
 .DEFAULT: all
-all: clb_fcgi clb_cmd clb_pl hub
+all: clb_fcgi clb_cmd clb_pl hub robot slb
 	@echo "All done."
 
 .PHONY: clb_fcgi clb_cfgi_clean
@@ -94,6 +124,23 @@ hub: prepare hub_clean
 
 hub_clean:
 	@rm -f $(HUB_TARGET)
+
+.PHONY: robot robot_clean
+robot: prepare robot_clean
+	@echo Building $@
+	@gcc $(ROBOT_CPPFLAGS) $(ROBOT_LDFLAGS) $(ROBOT_SRCS) -o $(ROBOT_TARGET)
+
+robot_clean:
+	@rm -f $(ROBOT_TARGET)
+
+.PHONY: slb slb_clean
+slb: prepare slb_clean
+	@echo Building $@
+	@gcc $(SLB_CPPFLAGS) $(SLB_LDFLAGS) $(SLB_SRCS) -o $(SLB_TARGET)
+
+slb_clean:
+	@rm -f $(SLB_TARGET)
+
 
 .PHONY:prepare
 prepare:
