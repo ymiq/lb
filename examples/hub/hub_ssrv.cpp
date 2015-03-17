@@ -9,6 +9,7 @@
 #include <qao/question.h>
 #include <qao/answer.h>
 #include "hub_ssrv.h"
+#include "hub_global.h"
 
 using namespace std;
 
@@ -40,6 +41,10 @@ void hub_ssrv::read(int sock, short event, void* arg) {
 		qao->dump();
 		
 		/* 把接收到Answer数据发送给fcgi */
+		hub_csrv *csrv = csrv_bind->get_val(qao->get_token());
+		if (csrv != NULL) {
+			csrv->ev_send(qao);
+		}
 		
 	} catch (const char *msg) {
 		printf("Get error question");
@@ -52,6 +57,8 @@ void hub_ssrv::read(int sock, short event, void* arg) {
 
 void hub_ssrv::send_done(qao_base *qao, bool send_ok) {
 	/* 释放发送对象 */
-	delete qao;
+	if (!qao->dereference()) {
+		delete qao;
+	}
 }
 

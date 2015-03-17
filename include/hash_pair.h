@@ -1,6 +1,15 @@
 ﻿/*
- *	无锁HASH对，64位HASH值
- * 	支持多个读者，但支持一个写者!	     
+ *
+ *	无锁动态键值对，用于存储键值对。
+ * 	支持多个读者，多个写者。不需要使用RCU_MAN进行辅助更新处理。
+ *  T         : 要求值必须为指针，或者整型数据类型（但要求0值表示不合法数据）。
+ *  INDEX_SIZE：设置为MAX_HASHS/8比较合理。MAX_HASHS表示动态数组预计存储最多Hash值数量。
+ *  INDEX_SIZE：建议为2^n，如果不是，将会被强制调整。
+ *
+ *  内存使用约：INDEX_SIZE × sizeof(unsigned long) × 32
+ *
+ *  注意：该模板未实现拷贝构造函数，创建的对象不能被复制，也不建议对该类实例化对象进行复制。
+ *
  */
 
 #ifndef __HASH_PAIR_H__
@@ -24,9 +33,9 @@ public:
 	~hash_pair();
 
 	void remove(unsigned long hash);
-	T *update(unsigned long hash, T &pair);
-	T *get(unsigned long hash);
-	T *find(unsigned long hash);
+	bool update(unsigned long hash, T &pair);
+	T get(unsigned long hash);
+	T find(unsigned long hash);
 	
 	class it {
 	public:
@@ -34,7 +43,7 @@ public:
 	    			:instance(instance), pos_x(end_x), pos_y(0), pos_n(0) {}
 	    ~it(){};
 
-		T *operator*();
+		T operator*();
 		it operator++(int);
 		it &operator++();
 		it &operator=(const it &rv);
@@ -56,15 +65,15 @@ public:
 	it &end(void);
 		
 protected:
-	T *locate(int &pos_x, int &pos_y, int &pos_n, int inc);
+	T locate(int &pos_x, int &pos_y, int &pos_n, int inc);
 	
 private:
 	/* 定义为2^n - 1 */
-	#define CFG_PAIR_ITEM_SIZE		7
+	#define CFG_PAIR_ITEM_SIZE		15
 
 	typedef struct hash_item{
-		unsigned long hash;
-		T pair;
+		volatile unsigned long hash;
+		volatile T pair;
 	}hash_item;
 	
 	typedef struct hash_index {
@@ -103,7 +112,6 @@ hash_pair<T, INDEX_SIZE>::hash_pair()
 	
 	/* 申请哈希表索引 */
 	hidx = new hash_index[mod_size]();
-	
 	end_it = new it(NULL, mod_size);
 }
 
@@ -116,36 +124,24 @@ hash_pair<T, INDEX_SIZE>::hash_pair(const hash_pair<T, INDEX_SIZE> &tbl) {
 
 template<typename T, unsigned int INDEX_SIZE>
 hash_pair<T, INDEX_SIZE>::~hash_pair() {
-	/* 递归删除所有HASH条目 */
+	/* 删除所有新申请的索引 */
 	for(int x=0; x<mod_size; x++) {
-		hash_index *pindex = &hidx[x];
-		do {
-			for (int n=0; n<CFG_PAIR_ITEM_SIZE; n++) {
-				
-				unsigned long hash = pindex->items[n].hash;
-				
-				if (!hash) {
-					break;
-				} else if (hash != -1UL) {
-					
-					/* 删除条目 */
-					pindex->items[n].hash = -1UL;
-					wmb();
-				}
-			}
-			pindex = pindex->next;
-		} while (pindex);
+		hash_index *pindex = hidx[x].next;
+		while (pindex) {
+			hash_index *pnext = pindex->next;
+			delete pindex;
+			pindex = pnext;
+		} 
 	}
 	
-	/* 删除NULL对象和索引表，保留RCU */	
+	/* 删除NULL对象和索引表 */	
 	delete end_it;
 	delete hidx;
 }
 
 
 template<typename T, unsigned int INDEX_SIZE>
-T *hash_pair<T, INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n, int inc)
-{
+T hash_pair<T, INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n, int inc) {
 	int x, y, n;
 	unsigned long hash;
 	hash_index *pindex;
@@ -189,19 +185,20 @@ T *hash_pair<T, INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n, int inc)
 	while(1) {
 		do {
 			for (int idn=n; idn<CFG_PAIR_ITEM_SIZE; idn++) {
-				
+				T ret = pindex->items[idn].pair;
+				rmb();
 				hash = pindex->items[idn].hash;
 				
 				/* 当前INDEX搜索结束 */
 				if (!hash) {
 					goto next;
-				} else if (hash != -1UL) {
+				} else if ((hash != -1ul) && (hash != 1ul)){
 					
 					/* 定位到有效条目 */
 					pos_x = x;
 					pos_y = y;
 					pos_n = idn;
-					return &pindex->items[idn].pair;
+					return ret;
 				}
 			}
 			y++;
@@ -227,58 +224,52 @@ next:
 
 
 template<typename T, unsigned int INDEX_SIZE>
-T *hash_pair<T, INDEX_SIZE>::find(unsigned long hash)
-{
+T hash_pair<T, INDEX_SIZE>::find(unsigned long hash) {
 	unsigned int index;
 	unsigned long save_hash;
 	hash_index *pindex;
-	
-	if (!hash || (hash == -1UL)) {
-		return NULL;
-	}
 	
 	index = (unsigned int)(hash % mod_size);
 	pindex = &hidx[index];
 	
 	do {
 		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
+			T ret = pindex->items[i].pair;
+			rmb();
 			save_hash = pindex->items[i].hash;
 			
 			/* 搜索结束 */
 			if (!save_hash) {
-				return NULL;
+				return (T)0;
 			}
 			
 			/* 获得匹配 */
 			if (save_hash == hash) {
-				rmb();
-				return &pindex->items[i].pair;
+				return ret;
 			}
 		}
 		pindex = pindex->next;
 	} while (pindex);
 	
-	return NULL;
+	return (T)0;
 }
 
 
 template<typename T, unsigned int INDEX_SIZE>
-T *hash_pair<T, INDEX_SIZE>::update(unsigned long hash, T &pair)
+bool hash_pair<T, INDEX_SIZE>::update(unsigned long hash, T &pair)
 {
 	unsigned int index;
 	unsigned long save_hash;
 	hash_index *pindex, *prev;
 	
-	if (!hash || (hash == -1UL)) {
-		return NULL;
-	}
-	
 	index = (unsigned int)(hash % mod_size);
 	prev = pindex = &hidx[index];
 	
 	/* 第一轮搜索，匹配是否存在该条目 */
 	do {
 		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
+			T tmp = pindex->items[i].pair;
+			rmb();
 			save_hash = pindex->items[i].hash;
 			
 			/* 搜索结束 */
@@ -288,9 +279,11 @@ T *hash_pair<T, INDEX_SIZE>::update(unsigned long hash, T &pair)
 			
 			/* 获得匹配 */
 			if (save_hash == hash) {
-				wmb();
-				pindex->items[i].pair = pair;
-				return &pindex->items[i].pair;
+				T *ptwr = &pindex->items[i].pair;
+				if (__sync_bool_compare_and_swap(ptwr, tmp, pair)) {
+					return true;
+				}
+				return update(hash, pair);
 			}
 		}
 		pindex = pindex->next;
@@ -301,107 +294,41 @@ phase2:
 	pindex = prev;
 	do {
 		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
+			T tmp = pindex->items[i].pair;
+			rmb();
 			save_hash = pindex->items[i].hash;
-
-			/* 搜索结束，创建新条目 */
-			if (!save_hash || (save_hash == -1UL)) {				
-
-				/* 更新条目信息 */
-				pindex->items[i].pair = pair;
-
-				/* 增加内存屏障，确保写入先后顺序 */
-				wmb();
-				pindex->items[i].hash = hash;
-				return &pindex->items[i].hash;
+			
+			if ((!save_hash) || (save_hash == -1ul)) {
+				unsigned long *phwr = &pindex->items[i].hash;
+				if (__sync_bool_compare_and_swap(phwr, save_hash, 1)) {
+					pindex->items[i].pair = pair;
+					wmb();
+					pindex->items[i].hash = hash;
+					return true;
+				}
+				return update(hash, pair);
 			}
 		}
 		prev = pindex;
 		pindex = pindex->next;
 	} while (pindex);
 	
-	/* 申请新的索引项, 此处未再考虑Cache对齐；因为正常情况下概率较低 */
+	/* 申请新的索引项 */
 	pindex = new hash_index();
 	
 	/* 更新条目信息 */
 	pindex->items[0].pair = pair;
 	pindex->items[0].hash = hash;
+	wmb();
 
 	/* 增加内存屏障，确保写入先后顺序 */
-	wmb();
-	prev->next = pindex;	
-	return &pindex->items[0].pair;
-}
-
-
-template<typename T, unsigned int INDEX_SIZE>
-T *hash_pair<T, INDEX_SIZE>::get(unsigned long hash) {
-	unsigned int index;
-	unsigned long save_hash;
-	hash_index *pindex, *prev;
-	
-	if (!hash || (hash == -1UL)) {
-		return NULL;
+	hash_index **pwrite = &prev->next;
+	if (__sync_bool_compare_and_swap(pwrite, NULL, pindex)) {
+		return true;
 	}
-	
-	index = (unsigned int)(hash % mod_size);
-	prev = pindex = &hidx[index];
-	
-	/* 第一轮搜索，匹配是否存在该条目 */
-	do {
-		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
-			save_hash = pindex->items[i].hash;
-			
-			/* 搜索结束 */
-			if (!save_hash) {
-				goto phase2;	
-			}
-			
-			/* 获得匹配 */
-			if (save_hash == hash) {
-				rmb();
-				return &pindex->items[i].pair;
-			}
-		}
-		pindex = pindex->next;
-	} while (pindex);
-	
-	/* 第二轮搜索，插入/更新条目 */
-phase2:
-	T *pobj = new T();
-	pindex = prev;
-	do {
-		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
-			save_hash = pindex->items[i].hash;
-
-			/* 搜索结束，创建新条目 */
-			if (!save_hash || (save_hash == -1UL)) {				
-
-				/* 更新条目信息 */
-				pindex->items[i].pair = pair;
-
-				/* 增加内存屏障，确保写入先后顺序 */
-				wmb();
-				pindex->items[i].hash = hash;
-				return &pindex->items[i].pair;
-			}
-		}
-		prev = pindex;
-		pindex = pindex->next;
-	} while (pindex);
-	
-	/* 申请新的索引项, 此处未再考虑Cache对齐；因为正常情况下概率较低 */
-	pindex = new hash_index();
-	
-	/* 更新条目信息 */
-	pindex->items[0].pair = pair;
-	pindex->items[0].hash = hash;
-
-	/* 增加内存屏障，确保写入先后顺序 */
-	wmb();
-	prev->next = pindex;	
-	return &pindex->items[0].pair;
+	delete pindex;
+	return update(hash, pair);
 }
-
 
 
 template<typename T, unsigned int INDEX_SIZE>
@@ -410,10 +337,6 @@ void hash_pair<T, INDEX_SIZE>::remove(unsigned long hash)
 	unsigned int index;
 	unsigned long save_hash;
 	hash_index *pindex;
-	
-	if (!hash || (hash == -1UL)) {
-		return;
-	}
 	
 	index = (unsigned int)(hash % mod_size);
 	pindex = &hidx[index];
@@ -429,10 +352,11 @@ void hash_pair<T, INDEX_SIZE>::remove(unsigned long hash)
 			
 			/* 获得匹配 */
 			if (save_hash == hash) {
-				
-				/* 增加删除标记 */
-				pindex->items[i].hash = -1UL;
-				wmb();
+				T *phwr = &pindex->items[i].hash;
+				if (__sync_bool_compare_and_swap(phwr, save_hash, -1ul)) {
+					return;
+				}
+				remove(hash);
 				return;
 			}
 		}
@@ -457,11 +381,11 @@ typename hash_pair<T, INDEX_SIZE>::it &hash_pair<T, INDEX_SIZE>::end(void) {
 
 
 template<typename T, unsigned int INDEX_SIZE>
-T *hash_pair<T, INDEX_SIZE>::it::operator*() {
+T hash_pair<T, INDEX_SIZE>::it::operator*() {
 	if (instance) {
 		return instance->locate(pos_x, pos_y, pos_n, 0);
 	}
-	return NULL;
+	return (T)0;
 }
 
 

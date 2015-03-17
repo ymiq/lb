@@ -7,12 +7,10 @@
 #include <unistd.h>
 #include <utils/log.h>
 #include <qao/question.h>
+#include "hub_global.h"
 #include "hub_csrv.h"
 #include "robot_clnt.h"
 
-extern "C" {
-extern robot_clnt *robot_sock;
-};
 
 using namespace std;
 
@@ -40,6 +38,10 @@ void hub_csrv::read(int sock, short event, void* arg) {
 	try {
 		question *q = new question((const char*)buffer, len);
 		
+		/* 绑定Server和QAO */
+		csrv_bind->add(q->get_token(), srv);
+		q->reference();
+		
 		/* 显示对象内容 */
 		q->dump();
 		
@@ -57,6 +59,8 @@ void hub_csrv::read(int sock, short event, void* arg) {
 
 void hub_csrv::send_done(qao_base *qao, bool send_ok) {
 	/* 释放发送对象 */
-	delete qao;
+	if (!qao->dereference()) {
+		delete qao;
+	}
 }
 

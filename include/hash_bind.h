@@ -1,4 +1,20 @@
-﻿#ifndef __HASH_BIND_H__
+﻿/*
+ *
+ *	无锁动态键值对，用于存储键值对。
+ * 	支持多个读者，多个写者。不需要使用RCU_MAN进行辅助更新处理。
+ *  V : 要求值必须为指针，或者整型数据类型（但要求0值表示不合法数据）。
+ *  KS：设置为MAX_HASHS/8比较合理。MAX_HASHS表示动态数组预计存储最多Hash值数量。
+ *  KS：建议为2^n，如果不是，将会被强制调整。
+ *  VS：设置为MAX_VALUES/8比较合理。MAX_VALUES表示动态数组预计存储最多Value值数量。
+ *  VS：建议为2^n，如果不是，将会被强制调整。
+ *
+ *  内存使用约：(2 * KS + VS) × sizeof(unsigned long) × 32
+ *
+ *  注意：该模板未实现拷贝构造函数，创建的对象不能被复制，也不建议对该类实例化对象进行复制。
+ *
+ */
+
+#ifndef __HASH_BIND_H__
 #define __HASH_BIND_H__
 
 #include <cstdlib>
@@ -8,42 +24,42 @@
 #include <evsock.h>
 #include <evclnt.h>
 #include <hash_array.h>
+#include <hash_pair.h>
 
 using namespace std;
 
-#define KEY_ARRAY	hash_array<HASH, KS>	
+#define KEY_ARRAY	hash_array<KS>	
 
-template<typename K, typename V, unsigned int KS, unsigned int VS>
+template<typename V, unsigned int KS, unsigned int VS>
 class hash_bind {
 public:
 	hash_bind() {};
 	~hash_bind() {};
 	
-	int add(K key, V &value);
-	int remove(K key);
-	int remove(V &value);
-	int update(K key, V &value);
+	bool add(unsigned long key, V &value);
+	void remove(unsigned long key);
+	void remove(V &value);
+//	int update(unsigned long key, V &value);
 	
-	V get_val(K key);
+	V get_val(unsigned long key);
 
 protected:
 	
 private:
-	hash_pair<HASH, KS> key_table;
+	hash_pair<V, KS> key_table;
 	hash_pair<KEY_ARRAY *, VS> value_table;
 };
 
 
-template<typename K, typename V, unsigned int KS, unsigned int VS>
-bool hash_bind<K, V, KS, VS>::add(K key, V &val) {
+template<typename V, unsigned int KS, unsigned int VS>
+bool hash_bind<V, KS, VS>::add(unsigned long key, V &value) {
 	/* 添加到key_table */
-	V *rv = key_table.update(key, val);
-	if (rv == NULL) {
+	if (!key_table.update(key, value)) {
 		return false;
 	}
 	
 	/* 添加到val_table */
-	KEY_ARRAY *key_array = value_table.get(val);
+	KEY_ARRAY *key_array = value_table.get(value);
 	if (!key_array) {
 		key_table.remove(key);
 		return false;
@@ -56,25 +72,47 @@ bool hash_bind<K, V, KS, VS>::add(K key, V &val) {
 }
 
 
-template<typename K, typename V, unsigned int KS, unsigned int VS>
-bool hash_bind<K, V, KS, VS>::remove(K key) {
-	/* 添加到key_table */
-	V *rv = key_table.update(key, val);
-	if (rv == NULL) {
-		return false;
+template<typename V, unsigned int KS, unsigned int VS>
+void hash_bind<V, KS, VS>::remove(unsigned long key) {
+	/* 删除key_table中相关内容 */
+	V *rv = key_table.find(key);
+	if (rv != NULL) {
+		V value = *rv;
+		key_table.remove(key);
+		
+		/* 删除val_table中相关内容 */
+		KEY_ARRAY *key_array = value_table.find(value);
+		if (key_array) {
+			key_array.remove(key);
+		}
+	}
+}
+
+
+template<typename V, unsigned int KS, unsigned int VS>
+void hash_bind<V, KS, VS>::remove(V &value) {
+	/* 获取KEY数组 */
+	KEY_ARRAY *key_array = value_table.find(value);
+	if (key_array == NULL) {
+		return;
 	}
 	
-	/* 添加到val_table */
-	KEY_ARRAY *key_array = value_table.get(val);
-	if (!key_array) {
-		key_table.remove(key);
-		return false;
+	/* 循环删除所有KEY */
+	typename hash_pair<V, KS>::it it;
+	for (it = key_array->begin(); it != key_array->end(); it++) {
+		unsigned long key = it;
+		value_table.remove(key);
 	}
-	bool ret = key_array.add(key);
-	if (!ret) {
-		key_table.remove(key);
-	}
-	return ret;
+	
+	/* 删除val_table中内容 */
+	value_table.remove(value);
 }
+
+
+template<typename V, unsigned int KS, unsigned int VS>
+V hash_bind<V, KS, VS>::get_val(unsigned long key) {
+	return key_table.find(key);
+}
+
 
 #endif /* __HASH_BIND_H__ */

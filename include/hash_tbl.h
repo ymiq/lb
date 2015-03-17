@@ -1,6 +1,15 @@
 ﻿/*
- *	无锁HASH表，64位HASH值
- * 	支持多个读者，但支持一个写者!	     
+ *
+ *	无锁动态键值对，用于存储键值对。
+ * 	只支持一个写者，但支持多个读者。并且需要使用RCU_MAN进行辅助更新处理。
+ *  T         : 必须为结构体指针或者类指针，使用new申请
+ *  INDEX_SIZE：设置为MAX_HASHS/8比较合理。MAX_HASHS表示动态数组预计存储最多Hash值数量。
+ *  INDEX_SIZE：建议为2^n，如果不是，将会被强制调整。
+ *
+ *  内存使用约：INDEX_SIZE × sizeof(unsigned long) × 32
+ *
+ *  注意：该模板未实现拷贝构造函数，创建的对象不能被复制，也不建议对该类实例化对象进行复制。
+ *
  */
 
 #ifndef __HASH_TABLE_H__
@@ -60,7 +69,7 @@ protected:
 	
 private:
 	/* 定义为2^n - 1 */
-	#define CFG_HASH_ITEM_SIZE		7
+	#define CFG_HASH_ITEM_SIZE		15
 
 	typedef struct hash_item{
 		unsigned long hash;
@@ -195,13 +204,12 @@ T *hash_tbl<T, INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n, int inc)
 	while(1) {
 		do {
 			for (int idn=n; idn<CFG_HASH_ITEM_SIZE; idn++) {
-				
 				hash = pindex->items[idn].hash;
 				
 				/* 当前INDEX搜索结束 */
 				if (!hash) {
 					goto next;
-				} else if (hash != -1UL) {
+				} else if ((hash != -1ul) && (hash != 1ul)) {
 					
 					/* 定位到有效条目 */
 					pos_x = x;

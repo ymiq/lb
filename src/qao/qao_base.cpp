@@ -52,6 +52,11 @@ int qao_base::get_type(void) {
 }
 
 
+unsigned long qao_base::get_token(void) {
+	return qao_token;
+}
+
+
 void qao_base::init(int type, int version, int qos) {
 	pid_t pid = getpid();
 	unsigned long token = (unsigned long)pid;

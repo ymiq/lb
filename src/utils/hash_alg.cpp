@@ -42,36 +42,48 @@ static inline unsigned int hash_32(unsigned int val, unsigned int bits)
 }
 
 
-unsigned long company_hash(const char *company) {
-	MD5_CTX ctx;
-	unsigned char md5[16];
-	unsigned long hash = 0;
-	
-	MD5_Init(&ctx);
-	MD5_Update(&ctx, company, strlen(company));
-	MD5_Final(md5, &ctx);
-	
-	memcpy(&hash, md5, sizeof(hash));
-	
-	return hash;
+unsigned long pointer_hash(void *ptr) {
+	unsigned long ret = hash_64((unsigned long)ptr, 64);
+	if ((ret == 0) || (ret == 1) || (ret == -1ul)) {
+		ret = GOLDEN_RATIO_PRIME_64;
+	}
+	return ret;
 }
 
 
 unsigned long string_hash(const char *string) {
 	MD5_CTX ctx;
-	unsigned char md5[16];
-	unsigned long hash = 0;
+	unsigned long hash[4];
 	
 	MD5_Init(&ctx);
 	MD5_Update(&ctx, string, strlen(string));
-	MD5_Final(md5, &ctx);
+	MD5_Final((unsigned char*)hash, &ctx);
 	
-	memcpy(&hash, md5, sizeof(hash));
-	
-	return hash;
+	unsigned long ret = hash[0];
+	if ((ret == 0) || (ret == 1) || (ret == -1ul)) {
+		ret = GOLDEN_RATIO_PRIME_64;
+	}
+	return ret;
 }
 
 
-unsigned long pointer_hash(void *ptr) {
-	return hash_64((unsigned long)ptr, 64);
+unsigned long data_hash(const char *data, int len) {
+	MD5_CTX ctx;
+	unsigned long hash[4];
+	
+	MD5_Init(&ctx);
+	MD5_Update(&ctx, data, len);
+	MD5_Final((unsigned char*)hash, &ctx);
+	
+	unsigned long ret = hash[0];
+	if ((ret == 0) || (ret == 1) || (ret == -1ul)) {
+		ret = GOLDEN_RATIO_PRIME_64;
+	}
+	return ret;
 }
+
+
+unsigned long company_hash(const char *company) {
+	return string_hash(company);
+}
+

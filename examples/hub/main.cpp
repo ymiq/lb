@@ -10,9 +10,11 @@
 #include <event.h>
 #include <utils/log.h>
 #include <evsrv.h>
+#include "hub_global.h"
 #include "hub_csrv.h"
 #include "hub_ssrv.h"
 #include "robot_clnt.h"
+#include <hash_bind.h>
 
 #define CFG_LISTEN_IP		"127.0.0.1"
 #define CFG_LISTEN_PORT		10000
@@ -37,7 +39,11 @@ static void help(void) {
 	printf("	-d, --deamon     daemonize\n");
 }
 
+/* 全局数据结构 */
 robot_clnt *robot_sock = NULL;
+
+/* QAO对象管理器，用于绑定QAO对象和clb服务Socket */
+CSRV_BIND *csrv_bind = NULL;
 
 static bool parser_opt(int argc, char **argv) {
 	int c;
@@ -160,10 +166,7 @@ int main(int argc, char* argv[]) {
 			return 0;
 		}
 	}
-	
-	/* 创建QAO对象管理器 */
-	
-		
+			
     /* 创建和Robot通信的客户端 */
 	pthread_t th_robot;
 	if (pthread_create(&th_robot, NULL, thread_robot, NULL) != 0) {
@@ -176,6 +179,14 @@ int main(int argc, char* argv[]) {
 	if (pthread_create(&th_clb, NULL, thread_clb, NULL) != 0) {
 		printf("Create worker thread failed");
 		return -1;
+	}
+	
+	/* 创建QAO对象管理器，用于绑定QAO对象和clb服务Socket */
+	try {
+		csrv_bind = new CSRV_BIND();
+	} catch (const char *msg) {
+		LOGE("Can't creat csrv_bind: %s", msg);
+		exit(-1);
 	}
 	
 	/* 创建和SLB通信的服务 */

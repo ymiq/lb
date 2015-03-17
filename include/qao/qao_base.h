@@ -61,6 +61,7 @@ public:
 	int get_qos(void);
 	int set_type(int qos);
 	int get_type(void);
+	unsigned long get_token(void);
 
 	/* 类型初始化 */
 	void init(int type, int version, int qos);
