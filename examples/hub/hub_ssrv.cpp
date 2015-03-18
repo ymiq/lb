@@ -8,6 +8,7 @@
 #include <utils/log.h>
 #include <qao/question.h>
 #include <qao/answer.h>
+#include <qao/ssrv_factory.h>
 #include "hub_ssrv.h"
 #include "hub_global.h"
 
@@ -35,15 +36,25 @@ void hub_ssrv::read(int sock, short event, void* arg) {
 	
 	/* 由序列化数据还原成Answer对象 */
 	try {
-		answer *qao = new answer((const char*)buffer, len);
+		ssrv_factory *qao = new ssrv_factory((const char*)buffer, len);
+		if (qao->get_type() == QAO_SCLNT_DECL) {
+			
+			/* 绑定HASH 和 Socket  */
+			sclnt_decl *decl = qao->get_sclnt_decl();
+			unsigned long hash = decl->hash;
+			
+			ssrv_bind->add(hash, srv);
+			
+		} else {
 		
-		/* 显示对象内容 */
-		qao->dump();
-		
-		/* 把接收到Answer数据发送给fcgi */
-		hub_csrv *csrv = csrv_bind->get_val(qao->get_token());
-		if (csrv != NULL) {
-			csrv->ev_send(qao);
+			/* 显示对象内容 */
+			qao->dump();
+			
+			/* 把接收到Answer数据发送给fcgi */
+			hub_csrv *csrv = csrv_bind->get_val(qao->get_token());
+			if (csrv != NULL) {
+				csrv->ev_send(qao);
+			}
 		}
 		
 	} catch (const char *msg) {

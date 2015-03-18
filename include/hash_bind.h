@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <evsock.h>
 #include <evclnt.h>
+#include <utils/hash_alg.h>
 #include <hash_array.h>
 #include <hash_pair.h>
 
@@ -39,7 +40,6 @@ public:
 	bool add(unsigned long key, V &value);
 	void remove(unsigned long key);
 	void remove(V &value);
-//	int update(unsigned long key, V &value);
 	
 	V get_val(unsigned long key);
 
@@ -53,18 +53,28 @@ private:
 
 template<typename V, unsigned int KS, unsigned int VS>
 bool hash_bind<V, KS, VS>::add(unsigned long key, V &value) {
+	bool ret = false;
+	
 	/* 添加到key_table */
-	if (!key_table.update(key, value)) {
-		return false;
+	if (!key_table.add(key, value)) {
+		return ret;
 	}
 	
 	/* 添加到val_table */
-	KEY_ARRAY *key_array = value_table.get(value);
-	if (!key_array) {
-		key_table.remove(key);
-		return false;
+	unsigned long vhash = pointer_hash(&value);
+	KEY_ARRAY *key_array = value_table.find(vhash);
+	if (key_array) {
+		ret = key_array->add(key);
+	} else {
+		key_array = new KEY_ARRAY();
+		ret = key_array->add(key);
+		if (ret) {
+			ret = value_table.add(vhash, key_array);
+		}
+		if (!ret) {
+			delete key_array;
+		}
 	}
-	bool ret = key_array.add(key);
 	if (!ret) {
 		key_table.remove(key);
 	}
@@ -77,11 +87,11 @@ void hash_bind<V, KS, VS>::remove(unsigned long key) {
 	/* 删除key_table中相关内容 */
 	V *rv = key_table.find(key);
 	if (rv != NULL) {
-		V value = *rv;
 		key_table.remove(key);
 		
 		/* 删除val_table中相关内容 */
-		KEY_ARRAY *key_array = value_table.find(value);
+		unsigned long vhash = pointer_hash(&rv);
+		KEY_ARRAY *key_array = value_table.find(vhash);
 		if (key_array) {
 			key_array.remove(key);
 		}

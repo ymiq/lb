@@ -38,6 +38,8 @@ typedef struct serial_data {
 #define QAO_ANSWER			0x30
 #define QAO_CANDIDATE		0x40
 
+#define QAO_SCLNT_DECL		0x80
+
 class qao_base {
 public:
 	qao_base();
@@ -51,6 +53,7 @@ public:
 
 	/* 方便调试、跟踪分析。*/
 	virtual void dump(void) {};
+	virtual void dump(const char *fmt, ...) {};
 	
 	/* 引用计数处理 */
 	int reference(void);
@@ -59,7 +62,7 @@ public:
 	/* 基本属性操作 */
 	int set_qos(int qos);
 	int get_qos(void);
-	int set_type(int qos);
+	int set_type(int type);
 	int get_type(void);
 	unsigned long get_token(void);
 

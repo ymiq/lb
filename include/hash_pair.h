@@ -33,7 +33,7 @@ public:
 	~hash_pair();
 
 	void remove(unsigned long hash);
-	bool update(unsigned long hash, T &pair);
+	bool add(unsigned long hash, T &pair);
 	T get(unsigned long hash);
 	T find(unsigned long hash);
 	
@@ -256,7 +256,7 @@ T hash_pair<T, INDEX_SIZE>::find(unsigned long hash) {
 
 
 template<typename T, unsigned int INDEX_SIZE>
-bool hash_pair<T, INDEX_SIZE>::update(unsigned long hash, T &pair)
+bool hash_pair<T, INDEX_SIZE>::add(unsigned long hash, T &pair)
 {
 	unsigned int index;
 	unsigned long save_hash;
@@ -279,11 +279,11 @@ bool hash_pair<T, INDEX_SIZE>::update(unsigned long hash, T &pair)
 			
 			/* 获得匹配 */
 			if (save_hash == hash) {
-				T *ptwr = &pindex->items[i].pair;
+				volatile T *ptwr = &pindex->items[i].pair;
 				if (__sync_bool_compare_and_swap(ptwr, tmp, pair)) {
 					return true;
 				}
-				return update(hash, pair);
+				return add(hash, pair);
 			}
 		}
 		pindex = pindex->next;
@@ -294,19 +294,17 @@ phase2:
 	pindex = prev;
 	do {
 		for (int i=0; i<CFG_PAIR_ITEM_SIZE; i++) {
-			T tmp = pindex->items[i].pair;
-			rmb();
 			save_hash = pindex->items[i].hash;
 			
 			if ((!save_hash) || (save_hash == -1ul)) {
-				unsigned long *phwr = &pindex->items[i].hash;
+				volatile unsigned long *phwr = &pindex->items[i].hash;
 				if (__sync_bool_compare_and_swap(phwr, save_hash, 1)) {
 					pindex->items[i].pair = pair;
 					wmb();
 					pindex->items[i].hash = hash;
 					return true;
 				}
-				return update(hash, pair);
+				return add(hash, pair);
 			}
 		}
 		prev = pindex;
@@ -327,7 +325,7 @@ phase2:
 		return true;
 	}
 	delete pindex;
-	return update(hash, pair);
+	return add(hash, pair);
 }
 
 
@@ -352,7 +350,7 @@ void hash_pair<T, INDEX_SIZE>::remove(unsigned long hash)
 			
 			/* 获得匹配 */
 			if (save_hash == hash) {
-				T *phwr = &pindex->items[i].hash;
+				volatile unsigned long *phwr = &pindex->items[i].hash;
 				if (__sync_bool_compare_and_swap(phwr, save_hash, -1ul)) {
 					return;
 				}

@@ -44,6 +44,7 @@ robot_clnt *robot_sock = NULL;
 
 /* QAO对象管理器，用于绑定QAO对象和clb服务Socket */
 CSRV_BIND *csrv_bind = NULL;
+SSRV_BIND *ssrv_bind = NULL;
 
 static bool parser_opt(int argc, char **argv) {
 	int c;
@@ -184,6 +185,7 @@ int main(int argc, char* argv[]) {
 	/* 创建QAO对象管理器，用于绑定QAO对象和clb服务Socket */
 	try {
 		csrv_bind = new CSRV_BIND();
+		ssrv_bind = new SSRV_BIND();
 	} catch (const char *msg) {
 		LOGE("Can't creat csrv_bind: %s", msg);
 		exit(-1);

@@ -1,4 +1,6 @@
-﻿#include <unistd.h>
+﻿#include <string>
+#include <sstream>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -9,7 +11,9 @@
 #include <getopt.h>
 #include <event.h>
 #include <utils/log.h>
-#include <evsrv.h>
+#include <utils/hash_alg.h>
+#include <qao/sclnt_decl.h>
+#include <evclnt.h>
 #include "slb_clnt.h"
 
 #define CFG_LISTEN_IP		"127.0.0.1"
@@ -93,11 +97,28 @@ int main(int argc, char* argv[]) {
          }
      }
 
-	/* 创建基于Event的客户端，用于发送命令和接受响应 */	
-	evclnt<slb_clnt> clnt(ip_str, (unsigned short)(port + 1000));
-	slb_clnt *sk = clnt.create_evsock();
-	if (sk) {
-    	clnt.loop();
+	/* 创建32个基于Event的应答席位 */
+	for (int i=0; i<32; i++) {
+		char nstr[256];
+		sprintf(nstr, "www.%d.com", i+1);
+		string name(nstr);
+		evclnt<slb_clnt> *pclnt = new evclnt<slb_clnt>(ip_str, (unsigned short)(port));
+		slb_clnt *sk = pclnt->create_evsock();
+		if (sk) {
+			sclnt_decl *qao = new sclnt_decl();
+			sk->name = qao->name = name;
+			sk->hash = qao->hash = company_hash(name.c_str());
+			
+			/* 发送当前席位ID */
+			sk->ev_send(qao);
+			
+			/* 启动席位对应的线程 */
+	    	pclnt->loop_thread();
+	    }
+	}
+    
+    while(1) {
+    	sleep(100);
     }
     return 0;
 }

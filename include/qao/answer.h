@@ -29,6 +29,7 @@ public:
 	
 	char *serialization(size_t &len);
 	void dump(void);
+	void dump(const char *fmt, ...);
 
 public:
 	unsigned long hash;

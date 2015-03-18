@@ -1,5 +1,5 @@
-﻿#ifndef __ROBOT_CLNT_H__
-#define __ROBOT_CLNT_H__
+﻿#ifndef __SLB_CLNT_H__
+#define __SLB_CLNT_H__
 
 #include <cstdlib>
 #include <cstdio>
@@ -21,9 +21,13 @@ public:
 	static void read(int sock, short event, void* arg);
 	
 		
+public:
+	string name;
+	unsigned long hash;
+	
 protected:
 	
 private:
 };
 
-#endif /* __ROBOT_CLNT_H__ */
+#endif /* __SLB_CLNT_H__ */

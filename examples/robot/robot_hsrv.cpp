@@ -34,13 +34,13 @@ void robot_hsrv::read(int sock, short event, void* arg) {
 	
 	/* 把序列化数据转换为Candidate对象 */
 	try {
-		candidate *q = new candidate((const char*)buffer, len);
+		candidate *qao = new candidate((const char*)buffer, len);
 		
 		/* 显示对象内容 */
-		q->dump();
+		qao->dump();
 		
 		/* 把Candidate发给Hub */
-		srv->ev_send(q);
+		srv->ev_send(qao);
 		
 	} catch (const char *msg) {
 		printf("Get error question");
