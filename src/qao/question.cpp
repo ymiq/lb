@@ -35,6 +35,10 @@ question::question(const char *str, size_t len) {
 	type = QAO_QUESTION;
 	datalen = serial["datalen"].asUInt();
 	data = serial["data"].asString();
+#ifdef CFG_QAO_TRACE
+	string trace = serial["trace"].asString();
+	init(trace);
+#endif
 }
 
 
@@ -48,6 +52,9 @@ char *question::serialization(size_t &len) {
 	serial["type"] = type;
 	serial["datalen"] = (Json::UInt)datalen;
 	serial["data"] = data;
+#ifdef CFG_QAO_TRACE	
+	serial["trace"] = serial_trace();
+#endif
 		
 	string json_str = writer.write(serial);
 	size_t json_len = json_str.length() + 1;

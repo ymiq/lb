@@ -7,6 +7,7 @@ CLBFCGI_SRCS += src/qao/qao_base.cpp
 CLBFCGI_SRCS += src/qao/cctl_req.cpp
 CLBFCGI_SRCS += src/qao/cctl_rep.cpp
 CLBFCGI_SRCS += src/qao/cdat_wx.cpp
+CLBFCGI_SRCS += src/qao/answer.cpp
 CLBFCGI_SRCS += src/utils/hash_alg.cpp
 CLBFCGI_SRCS += src/utils/logger.cpp
 CLBFCGI_SRCS += src/utils/lb_db.cpp

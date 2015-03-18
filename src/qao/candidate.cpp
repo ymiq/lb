@@ -34,7 +34,11 @@ candidate::candidate(const char *str, size_t len) {
 	msgid = serial["msgid"].asUInt64();
 	type = QAO_CANDIDATE;
 	datalen = serial["datalen"].asUInt();
-	data = "candicate " + serial["data"].asString();
+	data = serial["data"].asString();
+#ifdef CFG_QAO_TRACE
+	string trace = serial["trace"].asString();
+	init(trace);
+#endif
 }
 
 
@@ -48,6 +52,9 @@ char *candidate::serialization(size_t &len) {
 	serial["type"] = type;
 	serial["datalen"] = (Json::UInt)datalen;
 	serial["data"] = data;
+#ifdef CFG_QAO_TRACE	
+	serial["trace"] = serial_trace();
+#endif
 		
 	string json_str = writer.write(serial);
 	size_t json_len = json_str.length() + 1;

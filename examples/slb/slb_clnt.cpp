@@ -41,8 +41,14 @@ void slb_clnt::read(int sock, short event, void* arg) {
 	try {
 		answer *qao = new answer((const char*)buffer, len);
 		
-		/* 显示对象内容 */
-		qao->dump(clnt->name.c_str());
+		/* 记录站点信息, 显示对象内容 */
+#ifdef CFG_QAO_TRACE		
+		qao->trace("slb_clnt(%lx,%s)", clnt->hash, clnt->name.c_str());
+		qao->dump_trace();
+#endif
+#ifdef CFG_QAO_DUMP
+		qao->dump();
+#endif
 		
 		/* 把Candidate发给Hub */
 		clnt->ev_send(qao);

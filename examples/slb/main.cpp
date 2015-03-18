@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
 	/* 创建32个基于Event的应答席位 */
 	for (int i=0; i<32; i++) {
 		char nstr[256];
-		sprintf(nstr, "www.%d.com", i+1);
+		sprintf(nstr, "www.%d.com", i);
 		string name(nstr);
 		evclnt<slb_clnt> *pclnt = new evclnt<slb_clnt>(ip_str, (unsigned short)(port));
 		slb_clnt *sk = pclnt->create_evsock();

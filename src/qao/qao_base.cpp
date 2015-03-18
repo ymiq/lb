@@ -15,6 +15,7 @@ qao_base::qao_base(void) {
 	qao_version = 0;
 	qao_qos = 0;
 	ref_cnt = 1;
+	track = "";
 }
 
 
@@ -109,3 +110,33 @@ int qao_base::persistence(void) {
 	return -1;
 }
 
+
+#ifdef CFG_QAO_TRACE	
+void qao_base::trace(const char *fmt, ...) {
+    va_list ap;
+    char buf[1024];
+
+    va_start(ap, fmt);
+    vsnprintf(buf, 1023, fmt, ap);
+    va_end(ap);
+    
+	track += buf;
+	track += " -> ";
+}
+
+
+string &qao_base::serial_trace(void) {
+	return track;
+}
+
+
+void qao_base::init(string &trace) {
+	track = trace;
+}
+
+
+void qao_base::dump_trace(void) {
+	LOGI(track.c_str());
+}
+
+#endif

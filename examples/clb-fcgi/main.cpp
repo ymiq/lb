@@ -109,6 +109,10 @@ static void *thread_worker(void *args) {
 			/* 把XML数据转换为对象 */
 			cdat_wx wx(buffer, len);
 			hash = wx.hash;
+#ifdef CFG_QAO_TRACE		
+			wx.trace("fcgi");
+			wx.dump_trace();
+#endif
 			
 		    /* 分发数据包 */
 		    unsigned int lb_status = 0;

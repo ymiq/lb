@@ -54,6 +54,13 @@ public:
 	/* 方便调试、跟踪分析。*/
 	virtual void dump(void) {};
 	virtual void dump(const char *fmt, ...) {};
+
+#ifdef CFG_QAO_TRACE	
+	void trace(const char *fmt, ...);
+	string &serial_trace(void);
+	void init(string &trace);
+	void dump_trace(void);
+#endif
 	
 	/* 引用计数处理 */
 	int reference(void);
@@ -84,7 +91,10 @@ protected:
 	
 private:
 	unsigned int ref_cnt;
-	static unsigned int seqno;		
+	static unsigned int seqno;
+#ifdef CFG_QAO_TRACE	
+	string track;
+#endif
 };
 
 

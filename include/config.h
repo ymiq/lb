@@ -3,6 +3,9 @@
 #ifndef _CONFIG_H__
 #define _CONFIG_H__
 
+#define CFG_QAO_TRACE
+// #define CFG_QAO_DUMP	
+
 /* 客户端均衡表和统计表索引 */
 #define CFG_INDEX_SIZE	0x10000
 #define CFG_ITEMS_SIZE	7

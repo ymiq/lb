@@ -42,9 +42,15 @@ void hub_csrv::read(int sock, short event, void* arg) {
 		csrv_bind->add(q->get_token(), srv);
 		q->reference();
 		
-		/* 显示对象内容 */
+		/* 记录站点信息, 显示对象内容 */
+#ifdef CFG_QAO_TRACE		
+		q->trace("hub_csrv(%lx)", q->hash);
+		q->dump_trace();
+#endif
+#ifdef CFG_QAO_DUMP
 		q->dump();
-		
+#endif
+
 		/* 把问题发给Robot */
 		robot_sock->ev_send(q);
 		

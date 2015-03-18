@@ -42,8 +42,14 @@ void robot_clnt::read(int sock, short event, void* arg) {
 	try {
 		candidate *qao = new candidate((const char*)buffer, len);
 		
-		/* 显示对象内容 */
+		/* 记录站点信息, 显示对象内容 */
+#ifdef CFG_QAO_TRACE		
+		qao->trace("robot_clnt");
+		qao->dump_trace();
+#endif
+#ifdef CFG_QAO_DUMP
 		qao->dump();
+#endif
 		
 		/* 根据目的HASH值，获取发送SLB socket */
 		unsigned long hash = qao->hash;
