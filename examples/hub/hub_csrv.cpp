@@ -44,15 +44,15 @@ void hub_csrv::read(int sock, short event, void* arg) {
 		
 		/* 记录站点信息, 显示对象内容 */
 #ifdef CFG_QAO_TRACE		
-		q->trace("hub_csrv(%lx)", q->hash);
-		q->dump_trace();
+		q->trace("hub_csrv");
+//		q->dump_trace();
 #endif
 #ifdef CFG_QAO_DUMP
 		q->dump();
 #endif
 
 		/* 把问题发给Robot */
-		robot_sock->ev_send(q);
+		robot_sock->ev_send_inter_thread(q);
 		
 	} catch (const char *msg) {
 		printf("Get error question");
@@ -65,8 +65,6 @@ void hub_csrv::read(int sock, short event, void* arg) {
 
 void hub_csrv::send_done(qao_base *qao, bool send_ok) {
 	/* 释放发送对象 */
-	if (!qao->dereference()) {
-		delete qao;
-	}
+	delete qao;
 }
 

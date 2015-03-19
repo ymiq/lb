@@ -85,7 +85,7 @@ bool hash_bind<V, KS, VS>::add(unsigned long key, V &value) {
 template<typename V, unsigned int KS, unsigned int VS>
 void hash_bind<V, KS, VS>::remove(unsigned long key) {
 	/* 删除key_table中相关内容 */
-	V *rv = key_table.find(key);
+	V rv = key_table.find(key);
 	if (rv != NULL) {
 		key_table.remove(key);
 		
@@ -93,7 +93,7 @@ void hash_bind<V, KS, VS>::remove(unsigned long key) {
 		unsigned long vhash = pointer_hash(&rv);
 		KEY_ARRAY *key_array = value_table.find(vhash);
 		if (key_array) {
-			key_array.remove(key);
+			key_array->remove(key);
 		}
 	}
 }

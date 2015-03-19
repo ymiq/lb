@@ -106,6 +106,11 @@ void qao_base::serial_header(serial_data *header, int len_off, int datalen) {
 }
 
 
+bool qao_base::serial_header_check(serial_data *header) {
+	return true;
+}
+
+
 int qao_base::persistence(void) {
 	return -1;
 }

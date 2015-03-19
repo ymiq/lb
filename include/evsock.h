@@ -49,7 +49,9 @@ public:
 	void quit(void);
 	
 	void *ev_recv(size_t &len, bool &fragment);
+	void *ev_recv_raw(size_t &len);
 	void recv_done(void *buf);
+	void recv_raw_done(void *buf, size_t off, size_t len);
 	
 	bool ev_send(const void *buf, size_t len);
 	bool ev_send(const void *buf, size_t len, int qos);

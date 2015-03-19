@@ -22,6 +22,7 @@ typedef struct serial_data {
 	unsigned char type;
 	unsigned char version;		/* 高2位表示处理优先级Qos */
 	unsigned short datalen;		/* 数据长度，不包含serial_data长度 */
+	unsigned int checksum;		/* 头信息校验值 */	
 	unsigned char data[0];
 }__attribute__((packed)) serial_data;
 
@@ -56,10 +57,10 @@ public:
 	virtual void dump(const char *fmt, ...) {};
 
 #ifdef CFG_QAO_TRACE	
-	void trace(const char *fmt, ...);
-	string &serial_trace(void);
-	void init(string &trace);
-	void dump_trace(void);
+	virtual void trace(const char *fmt, ...);
+	virtual string &serial_trace(void);
+	virtual void init(string &trace);
+	virtual void dump_trace(void);
 #endif
 	
 	/* 引用计数处理 */
@@ -83,6 +84,8 @@ public:
 	void serial_header(serial_data *header, int len_off, int datalen);
 	void serial_header(serial_data *header, int len_off, int datalen, int fragment);
 	
+	bool serial_header_check(serial_data *header);
+
 protected:
 	unsigned long qao_token;	/* Token */
 	unsigned int qao_type;		/* 对象类型 */

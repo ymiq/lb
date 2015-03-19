@@ -27,6 +27,12 @@ public:
 	char *serialization(size_t &len);
 	void dump(void);
 
+#ifdef CFG_QAO_TRACE	
+	void trace(const char *fmt, ...);
+	string &serial_trace(void);
+	void dump_trace(void);
+#endif
+
 	sclnt_decl *get_sclnt_decl(void);
 	answer *get_answer(void);
 

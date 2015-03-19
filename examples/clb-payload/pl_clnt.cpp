@@ -7,23 +7,23 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
-#include <qao/candidate.h>
-#include "robot_clnt.h"
-#include "hub_global.h"
+#include "pl_clnt.h"
+#include <qao/answer.h>
 
 
 
-void robot_clnt::send_done(void *buf, size_t len, bool send_ok) {
+void pl_clnt::send_done(void *buf, size_t len, bool send_ok) {
+	delete[] (char*)buf;
 }
 
 
-void robot_clnt::send_done(qao_base *qao, bool send_ok) {
+void pl_clnt::send_done(qao_base *qao, bool send_ok) {
 	delete qao;
 }
 
 
-void robot_clnt::read(int sock, short event, void* arg) {
-	robot_clnt *clnt = (robot_clnt *)arg;
+void pl_clnt::read(int sock, short event, void* arg) {
+	pl_clnt *clnt = (pl_clnt *)arg;
 	void *buffer;
 	size_t len;
 	bool fragment = false;
@@ -38,30 +38,25 @@ void robot_clnt::read(int sock, short event, void* arg) {
 		return;
 	}
 	
-	/* 由序列化数据转换为Question对象 */
+	/* 把序列化数据转换为answer对象 */
 	try {
-		candidate *qao = new candidate((const char*)buffer, len);
+		answer *qao = new answer((const char*)buffer, len);
 		
 		/* 记录站点信息, 显示对象内容 */
 #ifdef CFG_QAO_TRACE		
-		qao->trace("robot_clnt");
+		qao->trace("pl_clnt");
 //		qao->dump_trace();
 #endif
 #ifdef CFG_QAO_DUMP
 		qao->dump();
 #endif
 		
-		/* 根据目的HASH值，获取发送SLB socket */
-		unsigned long hash = qao->hash;
-		hub_ssrv *ssrv = ssrv_bind->get_val(hash);
-		if (ssrv) {
-			/* 把接收的对象转发给SLB客户端 */
-			ssrv->ev_send_inter_thread(qao);
-		}
+		/* 把Candidate发给Hub */
+		clnt->ev_send(qao);
 		
 	} catch (const char *msg) {
 		printf("Get error question");
-	}
+	}	
 	
 	/* 接收数据处理完成，释放资源 */
 	clnt->recv_done(buffer);

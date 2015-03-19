@@ -201,6 +201,9 @@ void *evsock::ev_recv(size_t &len, bool &fragment) {
     rd_size = recv(sockfd, precv, recv_len, MSG_DONTWAIT);
     if (rd_size != (int)recv_len) {
     	LOGE("recv length umatch, want %d but %d", recv_len, rd_size);
+    	if (errno == EAGAIN) {
+    		LOGE("EAGAIN");
+    	}
    		delete[] buffer;
     	if (fragment) {
 			frags.remove(token);
@@ -221,6 +224,46 @@ error_quit:
 	len = rd_size;
 	fragment = false;
 	return NULL;
+}
+
+
+void *evsock::ev_recv_raw(size_t &len) {
+	int buf_size = 2048;
+	size_t ret_len;
+	
+    /* 接收Socket数据 */
+    char *buffer = new char[buf_size];
+    char *pwrite = buffer;
+    size_t remain = buf_size;
+    ret_len = 0;
+    while (1) {
+    	/* 读取数据 */
+	    int rd_size = recv(sockfd, pwrite, remain, MSG_DONTWAIT);
+	   	if (rd_size <= 0) {
+	   		if (errno == EAGAIN) {
+	   			LOGE("EAGAIN");
+	   			break;
+	   		}
+	   		len = rd_size;
+	   		delete[] buffer;
+	   		return NULL;
+	   	} else if (rd_size < (int)remain) {
+		   	ret_len += rd_size;
+	   		break;
+	   	}
+	   	ret_len += rd_size;
+	   	
+	   	/* 缓冲区不足，重新申请 */
+	   	char *nbuf = new char[buf_size * 2];
+	   	memcpy(nbuf, buffer, buf_size);
+	   	delete[] buffer;
+	   	buffer = nbuf;
+	   	pwrite = buffer + buf_size;
+	   	remain = buf_size;
+	   	buf_size *= 2;
+	}
+	len = ret_len;
+   	return buffer;
 }
 
 

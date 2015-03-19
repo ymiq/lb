@@ -50,7 +50,7 @@ void hub_ssrv::read(int sock, short event, void* arg) {
 		/* 记录站点信息, 显示对象内容 */
 #ifdef CFG_QAO_TRACE		
 			qao->trace("hub_ssrv");
-			qao->dump_trace();
+//			qao->dump_trace();
 #endif
 #ifdef CFG_QAO_DUMP
 			qao->dump();
@@ -59,8 +59,9 @@ void hub_ssrv::read(int sock, short event, void* arg) {
 			/* 把接收到Answer数据发送给fcgi */
 			hub_csrv *csrv = csrv_bind->get_val(qao->get_token());
 			if (csrv != NULL) {
-				csrv->ev_send(qao);
+				csrv->ev_send_inter_thread(qao);
 			}
+			csrv_bind->remove(qao->get_token());
 		}
 		
 	} catch (const char *msg) {

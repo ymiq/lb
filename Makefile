@@ -23,6 +23,31 @@ CLBFCGI_LDFLAGS = -lstdc++ -lpthread -lfcgi
 CLBFCGI_LDFLAGS += -L/usr/lib64/mysql/ -lmysqlclient
 CLBFCGI_LDFLAGS += -lcrypto -levent -ljsoncpp -lexpat
 
+CLBSRV_TARGET := bin/clb-srv
+CLBSRV_SRCS += examples/clb-srv/main.cpp
+CLBSRV_SRCS += examples/clb-srv/clb_srv.cpp
+CLBSRV_SRCS += examples/clb-fcgi/cfg_db.cpp
+CLBSRV_SRCS += examples/clb-fcgi/cmd_srv.cpp
+CLBSRV_SRCS += src/qao/qao_base.cpp
+CLBSRV_SRCS += src/qao/cctl_req.cpp
+CLBSRV_SRCS += src/qao/cctl_rep.cpp
+CLBSRV_SRCS += src/qao/cdat_wx.cpp
+CLBSRV_SRCS += src/qao/answer.cpp
+CLBSRV_SRCS += src/utils/hash_alg.cpp
+CLBSRV_SRCS += src/utils/logger.cpp
+CLBSRV_SRCS += src/utils/lb_db.cpp
+CLBSRV_SRCS += src/evsock.cpp
+CLBSRV_SRCS += src/rcu_man.cpp
+CLBSRV_SRCS += src/clb_tbl.cpp
+CLBSRV_SRCS += src/stat/clb_stat.cpp
+CLBSRV_SRCS += src/stat/stat_man.cpp
+CLBSRV_SRCS += src/clb_grp.cpp
+CLBSRV_SRCS += src/clb_clnt.cpp
+CLBSRV_CPPFLAGS = -O2 -Wall -Werror -I./include  -I./examples/clb-fcgi
+CLBSRV_LDFLAGS = -lstdc++ -lpthread -lfcgi 
+CLBSRV_LDFLAGS += -L/usr/lib64/mysql/ -lmysqlclient
+CLBSRV_LDFLAGS += -lcrypto -levent -ljsoncpp -lexpat
+
 CLBCMD_TARGET := bin/clb-cmd
 CLBCMD_SRCS = examples/clb-cmd/main.cpp
 CLBCMD_SRCS += examples/clb-cmd/cmd_clnt.cpp
@@ -39,8 +64,17 @@ CLBCMD_LDFLAGS = -lstdc++ -lpthread -L/usr/lib64/mysql/ -lmysqlclient -lcrypto -
 CLBPL_TARGET := bin/clb-payload
 CLBPL_SRCS = examples/clb-payload/main.cpp
 CLBPL_SRCS += examples/clb-payload/http.cpp
-CLBPL_CPPFLAGS = -O2 -Wall -Werror -I examples/clb-payload/
-CLBPL_LDFLAGS = -lstdc++ -lpthread -lcurl
+CLBPL_SRCS += examples/clb-payload/pl_clnt.cpp
+CLBPL_SRCS += src/qao/qao_base.cpp
+CLBPL_SRCS += src/qao/question.cpp
+CLBPL_SRCS += src/qao/candidate.cpp
+CLBPL_SRCS += src/qao/answer.cpp
+CLBPL_SRCS += src/utils/logger.cpp
+CLBPL_SRCS += src/utils/hash_alg.cpp
+CLBPL_SRCS += src/rcu_man.cpp
+CLBPL_SRCS += src/evsock.cpp
+CLBPL_CPPFLAGS = -O2 -Wall -Werror -I./include
+CLBPL_LDFLAGS = -lstdc++ -lpthread -levent -ljsoncpp -lcrypto -lcurl
 
 HUB_TARGET := bin/hub
 HUB_SRCS = examples/hub/main.cpp
@@ -95,7 +129,7 @@ TEST_LDFLAGS = -lstdc++ -lpthread -lexpat
 
 
 .DEFAULT: all
-all: clb_fcgi clb_cmd clb_pl hub robot slb
+all: clb_fcgi clb_srv clb_cmd clb_pl hub robot slb
 	@echo "All done."
 
 .PHONY: clb_fcgi clb_cfgi_clean
@@ -104,7 +138,15 @@ clb_fcgi: prepare clb_cfgi_clean
 	@gcc $(CLBFCGI_CPPFLAGS) $(CLBFCGI_LDFLAGS) $(CLBFCGI_SRCS) -o $(CLBFCGI_TARGET)
 
 clb_cfgi_clean:
-	@rm -f $(TARCLBFCGI_TARGETGET) 
+	@rm -f $(CLBFCGI_TARGET) 
+	
+.PHONY: clb_srv clb_srv_clean
+clb_srv: prepare clb_srv_clean
+	@echo Building $@
+	@gcc $(CLBSRV_CPPFLAGS) $(CLBSRV_LDFLAGS) $(CLBSRV_SRCS) -o $(CLBSRV_TARGET)
+
+clb_srv_clean:
+	@rm -f $(CLBSRV_TARGET) 
 	
 .PHONY: lb_cmd lb_cmd_clean
 clb_cmd: prepare clb_cmd_clean

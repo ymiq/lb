@@ -10,6 +10,10 @@
 
 using namespace std;
 
+extern "C" {
+	void answer_reply(qao_base *qao);
+};
+
 class clb_clnt : public evsock {
 public:
 	~clb_clnt() {};

@@ -4,7 +4,8 @@ stop() {
 	killall slb
 	killall hub
 	killall robot
-	killall -v clb-fcgi
+	killall clb-srv
+#	killall clb-fcgi
 }
 
 start() {
@@ -14,8 +15,10 @@ start() {
 	usleep 100000
 	./bin/slb -p 12000 -d
 	usleep 100000
-	fcgistarter -c /home/work/test/lb/bin/clb-fcgi -p 9000 -N 1
+	./bin/clb-srv -p 7000 -d
 	usleep 100000
+#	fcgistarter -c /home/work/test/lb/bin/clb-fcgi -p 9000 -N 1
+#	usleep 100000
 }
 
 # Handle how we were called.

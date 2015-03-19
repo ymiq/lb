@@ -7,7 +7,7 @@
 #include <sys/time.h>
 #include <json/json.h>
 #include <json/value.h>
-#include <qao/qao_base.h>
+#include <qao/ssrv_factory.h>
 #include <qao/ssrv_factory.h>
 #include <qao/sclnt_decl.h>
 #include <qao/answer.h>
@@ -70,3 +70,25 @@ sclnt_decl *ssrv_factory::get_sclnt_decl(void) {
 answer *ssrv_factory::get_answer(void) {
 	return dynamic_cast<answer *>(qao);
 }
+
+
+#ifdef CFG_QAO_TRACE	
+void ssrv_factory::trace(const char *fmt, ...) {
+    va_list ap;
+
+    va_start(ap, fmt);
+    qao->trace(fmt, ap);
+    va_end(ap);
+}
+
+
+string &ssrv_factory::serial_trace(void) {
+	return qao->serial_trace();
+}
+
+
+void ssrv_factory::dump_trace(void) {
+	qao->dump_trace();
+}
+
+#endif

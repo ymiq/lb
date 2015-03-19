@@ -156,6 +156,9 @@ static void *thread_worker(void *args) {
 	return NULL;  
 }
 
+void answer_reply(qao_base *qao) {
+}
+
 
 int main(int argc, char *argv[]) {
 	/* 开启日志记录 */
