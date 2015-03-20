@@ -75,6 +75,7 @@ private:
 	unsigned int mod_size;
 	hash_index *hidx;
 	it *end_it;	
+	int count;
 };
 
 
@@ -98,6 +99,7 @@ hash_array<INDEX_SIZE>::hash_array() {
 	/* 申请哈希表索引 */
 	hidx = new hash_index[mod_size]();	
 	end_it = new it(NULL, mod_size);
+	count = 0;
 }
 
 
@@ -273,7 +275,7 @@ phase2:
 	do {
 		for (int i=0; i<CFG_ARRAY_ITEM_SIZE; i++) {
 			save_hash = pindex->items[i];
-			if (!save_hash || (save_hash == -1UL)) {
+			if (!save_hash || (save_hash == -1ul)) {
 				unsigned long *pwrite = &pindex->items[i];
 				if (__sync_bool_compare_and_swap(pwrite, save_hash, hash)){
 					return true;
@@ -287,6 +289,7 @@ phase2:
 	
 	/* 申请新的索引项, 此处未再考虑Cache对齐；因为正常情况下概率较低 */
 	pindex = new hash_index();
+//	LOGE("new array indx: %d for %lx", count++, hash);
 	pindex->items[0] = hash;
 	wmb();	/* 增加内存屏障，确保写入先后顺序 */
 
@@ -295,6 +298,7 @@ phase2:
 	if (__sync_bool_compare_and_swap(pwrite, NULL, pindex)) {
 		return true;
 	}
+	count--;
 	delete pindex;
 	return add(hash);
 }

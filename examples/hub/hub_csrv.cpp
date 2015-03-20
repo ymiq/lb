@@ -21,16 +21,21 @@ void hub_csrv::read(int sock, short event, void* arg) {
 	hub_csrv *srv = (hub_csrv *)arg;
 	void *buffer;
 	size_t len = 0;
-	bool fragment = false;
+	bool partition = false;
 	
 	/* 接收数据 */
-	buffer = srv->ev_recv(len, fragment);
+	buffer = srv->ev_recv(len, partition);
 	if ((int)len <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
 		delete srv;
 		return;
-	} else if (fragment) {
+	} else if (partition) {
+		return;
+	}
+	
+	/* 检查数据是否有效 */
+	if (buffer == NULL) {
 		return;
 	}
 	
@@ -40,7 +45,6 @@ void hub_csrv::read(int sock, short event, void* arg) {
 		
 		/* 绑定Server和QAO */
 		csrv_bind->add(q->get_token(), srv);
-		q->reference();
 		
 		/* 记录站点信息, 显示对象内容 */
 #ifdef CFG_QAO_TRACE		

@@ -16,6 +16,8 @@ using namespace std;
 
 
 cdat_wx::cdat_wx(const char *str, size_t len) {
+	data = NULL;
+	
 	/* 创建一个XML分析器。*/
 	XML_Parser parser = XML_ParserCreate(NULL);
 	if (!parser) {
@@ -35,10 +37,17 @@ cdat_wx::cdat_wx(const char *str, size_t len) {
 				XML_ErrorString(XML_GetErrorCode(parser)));
 		throw((const char*)errmsg);
 	}
-	
+
 	/* 释放XML解析器 */
 	XML_ParserFree(parser);
 	init(QAO_CDAT_WX, 0, 0);
+}
+
+
+cdat_wx::~cdat_wx() {
+	if (data) {
+		delete[] data;
+	}
 }
 
 
@@ -74,7 +83,7 @@ void cdat_wx::tag_data(void *data, const char *s, int len) {
 	char *buf = new char[len+1];
 	memcpy(buf, s, len);
 	buf[len] = '\0';
-	
+
 	switch (pwx->tag_type) {
 		case CFG_TAG_TOUSERNAME:
 			pwx->hash = company_hash(buf);
@@ -119,7 +128,7 @@ void cdat_wx::tag_data(void *data, const char *s, int len) {
 	
 	/* 释放缓冲区 */
 	if (buf) {
-		delete buf;
+		delete[] buf;
 	}
 }
 

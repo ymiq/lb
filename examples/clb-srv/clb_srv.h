@@ -31,6 +31,7 @@ private:
 	clb_grp *pgrp;
 	rcu_man *prcu;
 	int tid;
+	static unsigned long questions;
 };
 
 extern "C" {

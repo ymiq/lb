@@ -140,15 +140,18 @@ static void *thread_worker(void *args) {
 }
 
 void answer_reply(qao_base *qao) {
-	clb_srv *srv = qao_bind->get_val(qao->get_token());
+	unsigned long token = qao->get_token();
+	clb_srv *srv = qao_bind->get_val(token);
 	if (srv != NULL) {
 		srv->ev_send_inter_thread(qao);
+		qao_bind->remove(token);
 	}
-	qao_bind->remove(qao->get_token());
 }
 
 void qao_srv_bind(qao_base *qao, clb_srv *srv) {
-	qao_bind->add(qao->get_token(), srv);
+	unsigned long token = qao->get_token();
+//	LOGE("SRV BIND: %lx, %p", token, srv);
+	qao_bind->add(token, srv);
 }
 
 

@@ -33,7 +33,7 @@ using namespace std;
 class cdat_wx: virtual public qao_base {
 public:
 	cdat_wx(const char *str, size_t len);
-	~cdat_wx() {};
+	~cdat_wx();
 	
 	char *serialization(size_t &len);
 	void dump(void);

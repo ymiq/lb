@@ -28,4 +28,8 @@ protected:
 private:
 };
 
+extern "C" {
+	void dump_receive(void);
+}
+
 #endif /* __PL_CLNT_H__ */

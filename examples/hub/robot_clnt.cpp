@@ -26,15 +26,20 @@ void robot_clnt::read(int sock, short event, void* arg) {
 	robot_clnt *clnt = (robot_clnt *)arg;
 	void *buffer;
 	size_t len;
-	bool fragment = false;
+	bool partition = false;
 	
 	/* 接收数据 */
-	buffer = clnt->ev_recv(len, fragment);
+	buffer = clnt->ev_recv(len, partition);
 	if ((int)len <= 0) {
 		/* = 0: 服务端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
 		exit(1);
-	} else if (fragment) {
+	} else if (partition) {
+		return;
+	}
+	
+	/* 检查数据是否有效 */
+	if (buffer == NULL) {
 		return;
 	}
 	

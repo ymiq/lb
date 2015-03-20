@@ -27,19 +27,27 @@ clb_srv::clb_srv(int fd, struct event_base* base) : evsock(fd, base) {
 clb_srv::~clb_srv() {
 }
 
-
+unsigned long clb_srv::questions = 0;
+	
 void clb_srv::read(int sock, short event, void* arg) {
 	clb_srv *srv = (clb_srv *)arg;
 	void *buffer;
 	size_t len = 0;
-	bool fragment;
+	bool partition;
 	
 	/* 接收数据 */
-	buffer = srv->ev_recv(len, fragment);
+	buffer = srv->ev_recv(len, partition);
 	if ((int)len <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
 		delete srv;
+		return;
+	} else if (partition) {
+		return;
+	}
+	
+	/* 检查数据是否有效 */
+	if (buffer == NULL) {
 		return;
 	}
 	
@@ -63,7 +71,7 @@ void clb_srv::read(int sock, short event, void* arg) {
 #ifdef CFG_QAO_TRACE		
 			wx.trace("clb_srv");
 #endif
-			
+
 			/* 绑定Server和QAO */
 			qao_srv_bind(&wx, srv);
 
@@ -83,12 +91,16 @@ void clb_srv::read(int sock, short event, void* arg) {
 			    	}
 			    }
 		    }
+	unsigned long qs = __sync_add_and_fetch(&questions, 1);	
+	if ((qs % 50000) == 0) {
+		LOGE("GET QS: %ld", qs);
+	}
 		    
 		    /* 统计处理 */
 		    if (stat_status) {	
 	//		    srv->pstat->stat(hash, 1);	    
 		    }
-		    	    
+
 			/* Worker线程主处理结束 */
 		    srv->prcu->job_end(srv->tid);
 	
@@ -106,7 +118,7 @@ void clb_srv::read(int sock, short event, void* arg) {
 
 
 void clb_srv::send_done(void *buf, size_t len, bool send_ok) {
-
+	delete[] (char*)buf;
 }
 
 

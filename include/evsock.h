@@ -12,15 +12,7 @@
 using namespace std;
 
 /* 定义数据包分片大小 */
-#define CFG_FRAGMENT_SIZE		(16*1024)
-
-typedef struct frag_pack {
-	unsigned long token;	
-	unsigned long time;		/* 时间戳 */
-	unsigned int length;	/* 数据包总长度 */
-	unsigned int rcvlen;	/* 接收总长度 */
-	char *buffer;			/* 数据缓冲区 */
-}frag_pack;
+#define CFG_SECTION_SIZE		(16*1024)
 
 class evsock {
 private:
@@ -28,13 +20,13 @@ private:
 	public:
 		~ev_job() {};
 		ev_job(char *buf, size_t len, qao_base *qao) 
-						: buf(buf), len(len), qao(qao), fragment(false) {};
+						: buf(buf), len(len), qao(qao), section(false) {};
 			
 	public:
 		char *buf;
 		size_t len;		
 		qao_base *qao;
-		bool fragment;
+		bool section;				/* 分段：一个数据内容在应用层被拆分成大小不超过SECTION_SIZE的数据段进行发送 */
 		unsigned int offset;
 		serial_data header;
 	};
@@ -48,7 +40,7 @@ public:
 	
 	void quit(void);
 	
-	void *ev_recv(size_t &len, bool &fragment);
+	void *ev_recv(size_t &len, bool &partition);
 	void *ev_recv_raw(size_t &len);
 	void recv_done(void *buf);
 	void recv_raw_done(void *buf, size_t off, size_t len);
@@ -74,9 +66,26 @@ protected:
 	struct event_base* evbase;
 	
 private:
+	/* 分片接收相关变量 */
+	bool frag_flag;				/* 分片: 一个数据内容段被协议栈拆分成多个分片 */
+	bool frag_sec;				/* 正在分片数据为分段报文分片 */
+	char *frag_buf;
+	size_t frag_len;			/* 缓冲区总长度 */
+	size_t frag_off;			/* 缓冲区接收偏移 */
+	serial_data frag_header;
+	
+	/* 分段接收相关变量 */
+	unsigned long sec_token;	
+	char *sec_buf;				/* 数据缓冲区 */
+	unsigned int sec_len;		/* 缓冲区总长度 */
+	unsigned int sec_off;		/* 缓冲区接收偏移 */
+	
+	/* 跨线程写事件 */
 	int efd;
 	job_queue<ev_job*> wq;
-	hash_tbl<frag_pack, 256> frags;
+	
+	void frag_prepare(void *buf, size_t len, size_t off, bool bsec);
+	int ev_recv_frag(size_t &len, bool &partition);
 };
 	
 #endif /* __EVSOCK_H__ */ 

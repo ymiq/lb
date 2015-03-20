@@ -84,7 +84,8 @@ private:
 	
 	unsigned int mod_size;
 	hash_index *hidx;
-	it *end_it;	
+	it *end_it;
+	int count;
 };
 
 
@@ -113,6 +114,7 @@ hash_pair<T, INDEX_SIZE>::hash_pair()
 	/* 申请哈希表索引 */
 	hidx = new hash_index[mod_size]();
 	end_it = new it(NULL, mod_size);
+	count = 0;
 }
 
 
@@ -313,6 +315,7 @@ phase2:
 	
 	/* 申请新的索引项 */
 	pindex = new hash_index();
+	LOGI("New hash_index: %d", count++);
 	
 	/* 更新条目信息 */
 	pindex->items[0].pair = pair;

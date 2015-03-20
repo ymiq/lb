@@ -28,6 +28,7 @@ public:
 protected:
 	
 private:
+	static unsigned long questions;
 };
 
 #endif /* __SLB_CLNT_H__ */

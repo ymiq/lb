@@ -414,23 +414,25 @@ void cmd_srv::read(int sock, short event, void* arg) {
 	cmd_srv *srv = (cmd_srv *)arg;
 	void *buffer;
 	size_t size = 0;
-	bool fragment = false;
+	bool partition = false;
 	
 	/* 接收数据 */
-	buffer = srv->ev_recv(size, fragment);
+	buffer = srv->ev_recv(size, partition);
 	if ((int)size <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
 		delete srv;
 		return;
-	} else if (fragment) {
+	} else if (partition) {
 		return;
-	} else if (size <= sizeof(serial_data)) {
-		/* 释放缓冲区 */
-		srv->recv_done(buffer);
+	} 
+	
+	/* 检查数据是否有效 */
+	if (buffer == NULL) {
 		return;
 	}
-//	LOGI("RECV(%d): %s", size, (const char*)buffer + sizeof(serial_data));
+
+	//	LOGI("RECV(%d): %s", size, (const char*)buffer + sizeof(serial_data));
 	
 	/* 处理命令 */
 	try {

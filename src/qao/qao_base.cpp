@@ -93,9 +93,9 @@ void qao_base::serial_header(serial_data *header) {
 }
 
 
-void qao_base::serial_header(serial_data *header, int len_off, int datalen, int fragment) {
+void qao_base::serial_header(serial_data *header, int len_off, int datalen, int partition) {
 	header->length = ((unsigned int) len_off) & 0x03ffffff;
-	header->length |= (((unsigned int) fragment) & 0x03) << 30;
+	header->length |= (((unsigned int) partition) & 0x03) << 30;
 	header->datalen = (unsigned short)datalen;
 	serial_header(header);
 }

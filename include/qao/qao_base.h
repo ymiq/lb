@@ -82,7 +82,7 @@ public:
 	/* 序列化辅助函数，用于生成序列化头信息 */
 	void serial_header(serial_data *header);
 	void serial_header(serial_data *header, int len_off, int datalen);
-	void serial_header(serial_data *header, int len_off, int datalen, int fragment);
+	void serial_header(serial_data *header, int len_off, int datalen, int partition);
 	
 	bool serial_header_check(serial_data *header);
 

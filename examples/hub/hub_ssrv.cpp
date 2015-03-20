@@ -21,16 +21,21 @@ void hub_ssrv::read(int sock, short event, void* arg) {
 	hub_ssrv *srv = (hub_ssrv *)arg;
 	void *buffer;
 	size_t len = 0;
-	bool fragment = false;
+	bool partition = false;
 	
 	/* 接收数据 */
-	buffer = srv->ev_recv(len, fragment);
+	buffer = srv->ev_recv(len, partition);
 	if ((int)len <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
 		delete srv;
 		return;
-	} else if (fragment) {
+	} else if (partition) {
+		return;
+	}
+	
+	/* 检查数据是否有效 */
+	if (buffer == NULL) {
 		return;
 	}
 	
@@ -57,11 +62,12 @@ void hub_ssrv::read(int sock, short event, void* arg) {
 #endif
 
 			/* 把接收到Answer数据发送给fcgi */
-			hub_csrv *csrv = csrv_bind->get_val(qao->get_token());
+			unsigned long token = qao->get_token();
+			hub_csrv *csrv = csrv_bind->get_val(token);
 			if (csrv != NULL) {
 				csrv->ev_send_inter_thread(qao);
+				csrv_bind->remove(token);
 			}
-			csrv_bind->remove(qao->get_token());
 		}
 		
 	} catch (const char *msg) {
@@ -75,8 +81,6 @@ void hub_ssrv::read(int sock, short event, void* arg) {
 
 void hub_ssrv::send_done(qao_base *qao, bool send_ok) {
 	/* 释放发送对象 */
-	if (!qao->dereference()) {
-		delete qao;
-	}
+	delete qao;
 }
 

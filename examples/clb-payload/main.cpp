@@ -177,7 +177,16 @@ static void rand_post(pl_clnt *sk, unsigned long msgid) {
 }
 
 
-static int total_sends = 0;
+static unsigned long total_recv = 0;
+static unsigned long total_sends = 0;
+static struct timeval start_tv;
+
+void dump_receive(void) {
+	unsigned long reply = __sync_add_and_fetch(&total_recv, 1);
+	if ((reply % 50000) == 0) {
+		printf("REPLAY: %ld\n", reply);
+	}
+}
 
 static void *pthread_ask_http(void *args) {
 	http http_client;
@@ -186,19 +195,34 @@ static void *pthread_ask_http(void *args) {
 	while (1) {
 		
 		/* 随机发送(100~1124)个包 */
-		int send_packets = (rand() % 64) + 16;
-		printf("Send: %d\n", send_packets);
-		for (int cnt=0; cnt<=send_packets; cnt++) {
+		unsigned long send_packets = (rand() % 64) + 16;
+		for (unsigned long cnt=0; cnt<=send_packets; cnt++) {
 
 			string url = "localhost/wxif";
 			string post = "<xml></xml>";
 			string response;
 			rand_post(&http_client, msgid++);
 		}
-		printf("Send Questions: %d\n", __sync_add_and_fetch(&total_sends, send_packets));
 		
 		/* 随机Sleep一段时间(50~200ms) */
 		rand_delay(1000, 2000);
+		
+		/* 显示问题数量和提问速度 */
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+		unsigned long diff;
+		if (tv.tv_usec >= start_tv.tv_usec) {
+			diff = (tv.tv_sec - start_tv.tv_sec) * 10 + 
+				(tv.tv_usec - start_tv.tv_usec) / 100000;
+		} else {
+			diff = (tv.tv_sec - start_tv.tv_sec - 1) * 10 + 
+				(tv.tv_usec + 1000000 - start_tv.tv_usec) / 100000;
+		}
+		if (!diff) {
+			diff = 10;
+		}
+		unsigned long questions = __sync_add_and_fetch(&total_sends, send_packets);
+		printf("Questions: %ld, speed: %ld qps\n", questions, (questions * 10) / diff);
 	}
 	return NULL;
 }
@@ -218,8 +242,8 @@ static void *pthread_ask_simple(void *args) {
 	while (1) {
 		
 		/* 随机发送(100~1124)个包 */
-		int send_packets = (rand() % 256) + 100;
-		for (int cnt=0; cnt<=send_packets; cnt++) {
+		unsigned long send_packets = (rand() % 256) + 1024;
+		for (unsigned long cnt=0; cnt<=send_packets; cnt++) {
 
 			string url = "localhost/wxif";
 			string post = "<xml></xml>";
@@ -228,10 +252,27 @@ static void *pthread_ask_simple(void *args) {
 				rand_post(sk, msgid++);
 			}
 		}
-		printf("Send Questions: %d\n", __sync_add_and_fetch(&total_sends, send_packets));
 		
 		/* 随机Sleep一段时间(50~200ms) */
-		rand_delay(1000, 2000);
+		rand_delay(200, 500);
+
+		/* 显示问题数量和提问速度 */
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+		unsigned long diff;
+		if (tv.tv_usec >= start_tv.tv_usec) {
+			diff = (tv.tv_sec - start_tv.tv_sec) * 10 + 
+				(tv.tv_usec - start_tv.tv_usec) / 100000;
+		} else {
+			diff = (tv.tv_sec - start_tv.tv_sec - 1) * 10 + 
+				(tv.tv_usec + 1000000 - start_tv.tv_usec) / 100000;
+		}
+		if (!diff) {
+			diff = 10;
+		}
+		unsigned long questions = __sync_add_and_fetch(&total_sends, send_packets);
+		printf("Questions: %ld, speed: %ld qps\n", questions, (questions * 10) / diff);
+		
 	}
 	return NULL;
 }
@@ -264,6 +305,8 @@ int main(int argc, char *argv[]) {
 
 	/* 设置随机数种子 */
 	srand((int)time(NULL));
+	
+	gettimeofday(&start_tv, NULL);
 	
 	/* 创建多线程，模拟用户提问 */
 	pthread_t th_sim[CFG_SIM_THREADS];
