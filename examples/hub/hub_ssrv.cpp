@@ -65,7 +65,9 @@ void hub_ssrv::read(int sock, short event, void* arg) {
 			unsigned long token = qao->get_token();
 			hub_csrv *csrv = csrv_bind->get_val(token);
 			if (csrv != NULL) {
-				csrv->ev_send_inter_thread(qao);
+				if (!csrv->ev_send_inter_thread(qao)) {
+					delete qao;
+				}
 				csrv_bind->remove(token);
 			}
 		}

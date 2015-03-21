@@ -51,7 +51,9 @@ void robot_hsrv::read(int sock, short event, void* arg) {
 #endif
 		
 		/* 把Candidate发给Hub */
-		srv->ev_send(qao);
+		if (!srv->ev_send(qao)) {
+			delete qao;
+		}
 		
 	} catch (const char *msg) {
 		printf("Get error question");

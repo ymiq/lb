@@ -56,7 +56,10 @@ void hub_csrv::read(int sock, short event, void* arg) {
 #endif
 
 		/* 把问题发给Robot */
-		robot_sock->ev_send_inter_thread(q);
+		if (!robot_sock->ev_send_inter_thread(q)) {
+			csrv_bind->remove(q->get_token());
+			delete q;
+		}
 		
 	} catch (const char *msg) {
 		printf("Get error question");

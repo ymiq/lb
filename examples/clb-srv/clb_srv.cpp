@@ -26,8 +26,6 @@ clb_srv::clb_srv(int fd, struct event_base* base) : evsock(fd, base) {
 
 clb_srv::~clb_srv() {
 }
-
-unsigned long clb_srv::questions = 0;
 	
 void clb_srv::read(int sock, short event, void* arg) {
 	clb_srv *srv = (clb_srv *)arg;
@@ -87,14 +85,19 @@ void clb_srv::read(int sock, short event, void* arg) {
 			    	size_t wlen;
 			    	char *serial = (char*)wx.serialization(wlen);
 			    	if (serial) {
-			    		clnt_sk->ev_send_inter_thread(serial, wlen);
+			    		if(!clnt_sk->ev_send_inter_thread(serial, wlen)) {
+			    			qao_srv_unbind(&wx);
+			    			delete serial;
+			    		}
+			    	} else {
+			    		qao_srv_unbind(&wx);
 			    	}
+			    } else {
+			    	qao_srv_unbind(&wx);
 			    }
+		    } else {
+			    qao_srv_unbind(&wx);
 		    }
-	unsigned long qs = __sync_add_and_fetch(&questions, 1);	
-	if ((qs % 50000) == 0) {
-		LOGE("GET QS: %ld", qs);
-	}
 		    
 		    /* 统计处理 */
 		    if (stat_status) {	

@@ -332,6 +332,8 @@ void evsock::do_write(int sock, short event, void* arg) {
 			int len = send(sock, buf, datalen, 0);
 			if (len == (int)datalen) {
 				send_status = true;
+			} else if (len > 0) {
+				LOGW("Send buff full");
 			}
 			
 			/* 发送完成或者发送失败时，通知发送完成 */
@@ -366,6 +368,8 @@ void evsock::do_write(int sock, short event, void* arg) {
 		int len = send(sock, job->buf, datalen, 0);
 		if (len == (int)job->len) {
 			send_status = true;
+		} else if (len > 0) {
+			LOGW("Send buff full");
 		}
 		datalen = len;
 		
@@ -400,16 +404,17 @@ bool evsock::ev_send(const void *buf, size_t size, int qos) {
 		
 	/* 把当前缓冲区挂入写FIFO */
 	ev_job *job = new ev_job((char*)buf, size, NULL);
-	wq.push(job, qos);
-	
-	/* 触发写事件 */
-	if (!wq.empty() && !event_pending(&write_ev, EV_WRITE, NULL)) {
-		if (event_add(&write_ev, NULL) < 0) {
-			LOGE("event_add error\n");
-			return false;
+	bool ret = wq.push(job, qos);
+	if (ret) {
+		/* 触发写事件 */
+		if (!wq.empty() && !event_pending(&write_ev, EV_WRITE, NULL)) {
+			if (event_add(&write_ev, NULL) < 0) {
+				LOGE("event_add error\n");
+				return false;
+			}
 		}
 	}
-	return true;
+	return ret;
 }
 
 
@@ -426,16 +431,17 @@ bool evsock::ev_send(qao_base *qao) {
 		
 	/* 把当前缓冲区挂入写FIFO */
 	ev_job *job = new ev_job(NULL, 0, qao);
-	wq.push(job, qao->get_qos());
-	
-	/* 触发写事件 */
-	if (!wq.empty() && !event_pending(&write_ev, EV_WRITE, NULL)) {
-		if (event_add(&write_ev, NULL) < 0) {
-			LOGE("event_add error\n");
-			return false;
+	bool ret = wq.push(job, qao->get_qos());
+	if (ret) {
+		/* 触发写事件 */
+		if (!wq.empty() && !event_pending(&write_ev, EV_WRITE, NULL)) {
+			if (event_add(&write_ev, NULL) < 0) {
+				LOGE("event_add error\n");
+				return false;
+			}
 		}
 	}
-	return true;
+	return ret;
 }
 
 
@@ -446,12 +452,13 @@ bool evsock::ev_send_inter_thread(const void *buf, size_t size, int qos) {
 		
 	/* 把当前缓冲区挂入写FIFO */
 	ev_job *job = new ev_job((char*)buf, size, NULL);
-	wq.push(job, qos);
-	
-	/* 触发写事件 */
-	unsigned long cnt = 1;
-	write(efd, &cnt, sizeof(cnt));
-	return true;
+	bool ret = wq.push(job, qos); 
+	if (ret) {
+		/* 触发写事件 */
+		unsigned long cnt = 1;
+		write(efd, &cnt, sizeof(cnt));
+	}
+	return ret;
 }
 
 
@@ -468,12 +475,13 @@ bool evsock::ev_send_inter_thread(qao_base *qao) {
 		
 	/* 把当前缓冲区挂入写FIFO */
 	ev_job *job = new ev_job(NULL, 0, qao);
-	wq.push(job, qao->get_qos());
-	
-	/* 触发写事件 */
-	unsigned long cnt = 1;
-	write(efd, &cnt, sizeof(cnt));
-	return true;
+	bool ret = wq.push(job, 3); 
+	if (ret) {
+		/* 触发写事件 */
+		unsigned long cnt = 1;
+		write(efd, &cnt, sizeof(cnt));
+	}
+	return ret;
 }
 
 

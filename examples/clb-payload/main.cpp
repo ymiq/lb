@@ -183,8 +183,23 @@ static struct timeval start_tv;
 
 void dump_receive(void) {
 	unsigned long reply = __sync_add_and_fetch(&total_recv, 1);
-	if ((reply % 50000) == 0) {
-		printf("REPLAY: %ld\n", reply);
+	if ((reply % 10000) == 0) {
+		struct timeval tv;
+		
+		gettimeofday(&tv, NULL);
+		unsigned long diff;
+		if (tv.tv_usec >= start_tv.tv_usec) {
+			diff = (tv.tv_sec - start_tv.tv_sec) * 10 + 
+				(tv.tv_usec - start_tv.tv_usec) / 100000;
+		} else {
+			diff = (tv.tv_sec - start_tv.tv_sec - 1) * 10 + 
+				(tv.tv_usec + 1000000 - start_tv.tv_usec) / 100000;
+		}
+		if (!diff) {
+			diff = 10;
+		}
+
+		printf("REPLAY: %ld, speed: %ld qps\n", reply, (reply * 10) / diff);
 	}
 }
 
@@ -242,7 +257,7 @@ static void *pthread_ask_simple(void *args) {
 	while (1) {
 		
 		/* 随机发送(100~1124)个包 */
-		unsigned long send_packets = (rand() % 256) + 1024;
+		unsigned long send_packets = (rand() % 128) + 1024;
 		for (unsigned long cnt=0; cnt<=send_packets; cnt++) {
 
 			string url = "localhost/wxif";

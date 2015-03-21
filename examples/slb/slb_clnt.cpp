@@ -20,7 +20,6 @@ void slb_clnt::send_done(qao_base *qao, bool send_ok) {
 	delete qao;
 }
 
-unsigned long slb_clnt::questions = 0;
 	
 void slb_clnt::read(int sock, short event, void* arg) {
 	slb_clnt *clnt = (slb_clnt *)arg;
@@ -56,12 +55,10 @@ void slb_clnt::read(int sock, short event, void* arg) {
 		qao->dump();
 #endif
 	
-	unsigned long qs = __sync_add_and_fetch(&questions, 1);	
-	if ((qs % 50000) == 0) {
-//		LOGE("REPLAY: %ld", qs);
-	}
 		/* 把Candidate发给Hub */
-		clnt->ev_send(qao);
+		if (!clnt->ev_send(qao)) {
+			delete qao;
+		}
 		
 	} catch (const char *msg) {
 		printf("Get error question");

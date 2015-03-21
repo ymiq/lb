@@ -31,11 +31,11 @@ private:
 	clb_grp *pgrp;
 	rcu_man *prcu;
 	int tid;
-	static unsigned long questions;
 };
 
 extern "C" {
 	void qao_srv_bind(qao_base *qao, clb_srv *srv);
+	void qao_srv_unbind(qao_base *qao);
 };
 
 #endif /* __CLB_SRV_H__ */

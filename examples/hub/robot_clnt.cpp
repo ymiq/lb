@@ -61,7 +61,9 @@ void robot_clnt::read(int sock, short event, void* arg) {
 		hub_ssrv *ssrv = ssrv_bind->get_val(hash);
 		if (ssrv) {
 			/* 把接收的对象转发给SLB客户端 */
-			ssrv->ev_send_inter_thread(qao);
+			if (!ssrv->ev_send_inter_thread(qao)) {
+				delete qao;
+			}
 		}
 		
 	} catch (const char *msg) {
