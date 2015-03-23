@@ -40,8 +40,10 @@ evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
 		throw "event_base_set error";
 	}
 	
-	/* 接收分片标志初始化 */
+	/* 成员变量初始化 */
   	frag_flag = false;
+  	working = true;
+  	ref_cnt = 1;
 }
 
 
@@ -449,6 +451,9 @@ bool evsock::ev_send_inter_thread(const void *buf, size_t size, int qos) {
 	if (!buf || !size) {
 		return false;
 	}
+	
+	/* 增加引用计数器 */
+	__sync_add_and_fetch(&ref_cnt, 1);
 		
 	/* 把当前缓冲区挂入写FIFO */
 	ev_job *job = new ev_job((char*)buf, size, NULL);
@@ -457,6 +462,10 @@ bool evsock::ev_send_inter_thread(const void *buf, size_t size, int qos) {
 		/* 触发写事件 */
 		unsigned long cnt = 1;
 		write(efd, &cnt, sizeof(cnt));
+	}
+	
+	if (!__sync_add_and_fetch(&ref_cnt, -1)) {
+		delete this;
 	}
 	return ret;
 }
@@ -472,6 +481,9 @@ bool evsock::ev_send_inter_thread(qao_base *qao) {
 	if (!qao) {
 		return false;
 	}
+	
+	/* 增加引用计数器 */
+	__sync_add_and_fetch(&ref_cnt, 1);
 		
 	/* 把当前缓冲区挂入写FIFO */
 	ev_job *job = new ev_job(NULL, 0, qao);
@@ -480,6 +492,10 @@ bool evsock::ev_send_inter_thread(qao_base *qao) {
 		/* 触发写事件 */
 		unsigned long cnt = 1;
 		write(efd, &cnt, sizeof(cnt));
+	}
+	
+	if (!__sync_add_and_fetch(&ref_cnt, -1)) {
+		delete this;
 	}
 	return ret;
 }
@@ -501,4 +517,17 @@ void evsock::do_eventfd(int efd, short event, void* arg) {
 	}
 }
 
+
+int evsock::reference(void) {
+	return __sync_add_and_fetch(&ref_cnt, 1);
+}
+
+
+int evsock::dereference(void) {
+	int ret = __sync_add_and_fetch(&ref_cnt, -1);
+	if (!ret) {
+		delete this;
+	}
+	return ret;
+}
 

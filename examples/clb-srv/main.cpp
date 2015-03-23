@@ -146,23 +146,25 @@ void answer_reply(qao_base *qao) {
 		if (!srv->ev_send_inter_thread(qao)) {
 			delete qao;
 		}
-		qao_bind->remove(token);
 	} else {
 		delete qao;
 	}
+	qao_bind->remove(token);
 }
 
 
 void qao_srv_bind(qao_base *qao, clb_srv *srv) {
 	unsigned long token = qao->get_token();
-//	LOGE("SRV BIND: %lx, %p", token, srv);
 	qao_bind->add(token, srv);
 }
 
 
+void srv_unbind(clb_srv *srv) {
+	qao_bind->remove(srv);
+}
+
 void qao_srv_unbind(qao_base *qao) {
 	unsigned long token = qao->get_token();
-//	LOGE("SRV BIND: %lx, %p", token, srv);
 	qao_bind->remove(token);
 }
 

@@ -61,7 +61,7 @@ bool hash_bind<V, KS, VS>::add(unsigned long key, V &value) {
 	}
 	
 	/* 添加到val_table */
-	unsigned long vhash = pointer_hash(&value);
+	unsigned long vhash = pointer_hash(value);
 	KEY_ARRAY *key_array = value_table.find(vhash);
 	if (key_array) {
 		ret = key_array->add(key);
@@ -90,7 +90,7 @@ void hash_bind<V, KS, VS>::remove(unsigned long key) {
 		key_table.remove(key);
 		
 		/* 删除val_table中相关内容 */
-		unsigned long vhash = pointer_hash(&rv);
+		unsigned long vhash = pointer_hash(rv);
 		KEY_ARRAY *key_array = value_table.find(vhash);
 		if (key_array) {
 			key_array->remove(key);
@@ -102,20 +102,21 @@ void hash_bind<V, KS, VS>::remove(unsigned long key) {
 template<typename V, unsigned int KS, unsigned int VS>
 void hash_bind<V, KS, VS>::remove(V &value) {
 	/* 获取KEY数组 */
-	KEY_ARRAY *key_array = value_table.find(value);
+	unsigned long vhash = pointer_hash(value);
+	KEY_ARRAY *key_array = value_table.find(vhash);
 	if (key_array == NULL) {
 		return;
 	}
 	
 	/* 循环删除所有KEY */
-	typename hash_pair<V, KS>::it it;
-	for (it = key_array->begin(); it != key_array->end(); it++) {
-		unsigned long key = it;
+	typename KEY_ARRAY::it it;
+	for (it=key_array->begin(); it!=key_array->end(); it++) {
+		unsigned long key = *it;
 		value_table.remove(key);
 	}
 	
 	/* 删除val_table中内容 */
-	value_table.remove(value);
+	value_table.remove(vhash);
 }
 
 

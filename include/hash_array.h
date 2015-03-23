@@ -415,7 +415,7 @@ typename hash_array<INDEX_SIZE>::it& hash_array<INDEX_SIZE>::it::operator=
 
 template<unsigned int INDEX_SIZE>
 typename hash_array<INDEX_SIZE>::it hash_array<INDEX_SIZE>::it::operator++(int) {
-	it ret(this);
+	it ret = *this;
 	if (instance) {
 		instance->locate(pos_x, pos_y, pos_n, 1);
 	}

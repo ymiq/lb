@@ -36,6 +36,7 @@ private:
 extern "C" {
 	void qao_srv_bind(qao_base *qao, clb_srv *srv);
 	void qao_srv_unbind(qao_base *qao);
+	void srv_unbind(clb_srv *srv);
 };
 
 #endif /* __CLB_SRV_H__ */

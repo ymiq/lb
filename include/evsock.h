@@ -52,6 +52,9 @@ public:
 	bool ev_send_inter_thread(const void *buf, size_t len);
 	bool ev_send_inter_thread(const void *buf, size_t len, int qos);
 	bool ev_send_inter_thread(qao_base *qao);
+	
+	int reference(void);
+	int dereference(void);
 
 	virtual void send_done(void *buf, size_t len, bool send_ok) = 0;
 	virtual void send_done(qao_base *qao, bool send_ok) = 0;
@@ -83,6 +86,12 @@ private:
 	/* 跨线程写事件 */
 	int efd;
 	job_queue<ev_job*> wq;
+	
+	/* Socket状态 */
+	bool working;				/* true-正常工作，false-对端关闭或者出错 */
+	
+	/* 引用计数器 */
+	int ref_cnt;				/* 多线程访问引用计数器，避免删除引起问题 */
 	
 	void frag_prepare(void *buf, size_t len, size_t off, bool bsec);
 	int ev_recv_frag(size_t &len, bool &partition);

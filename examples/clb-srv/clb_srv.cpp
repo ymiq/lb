@@ -38,7 +38,8 @@ void clb_srv::read(int sock, short event, void* arg) {
 	if ((int)len <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
-		delete srv;
+		srv_unbind(srv);
+		srv->dereference();
 		return;
 	} else if (partition) {
 		return;

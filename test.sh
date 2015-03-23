@@ -2,10 +2,10 @@
 
 stop() {
 	killall slb
+#	killall clb-fcgi
+	killall clb-srv
 	killall hub
 	killall robot
-	killall clb-srv
-#	killall clb-fcgi
 }
 
 start() {

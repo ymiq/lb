@@ -68,8 +68,8 @@ void hub_ssrv::read(int sock, short event, void* arg) {
 				if (!csrv->ev_send_inter_thread(qao)) {
 					delete qao;
 				}
-				csrv_bind->remove(token);
 			}
+			csrv_bind->remove(token);
 		}
 		
 	} catch (const char *msg) {
