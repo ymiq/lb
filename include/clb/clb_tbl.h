@@ -9,7 +9,7 @@
 #include <rcu_obj.h>
 #include <hash_tbl.h>
 #include <evclnt.h>
-#include <clb_clnt.h>
+#include <clb/clb_clnt.h>
 
 using namespace std; 
 

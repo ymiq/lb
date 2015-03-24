@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <rcu_man.h>
-#include <clb_tbl.h>
+#include <clb/clb_tbl.h>
 #include <utils/log.h>
 #include <fcgi_stdio.h>  
 #include <evsrv.h>

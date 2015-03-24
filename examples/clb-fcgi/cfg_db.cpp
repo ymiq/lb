@@ -3,9 +3,9 @@
 #include <string>
 #include <cstdio>
 #include <utils/log.h>
-#include <clb_tbl.h>
+#include <clb/clb_tbl.h>
+#include <clb/clb_grp.h>
 #include <utils/lb_db.h>
-#include <clb_grp.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/un.h>

@@ -12,7 +12,6 @@
 #include <qao/qao_base.h>
 #include <qao/sclnt_decl.h>
 #include <qao/answer.h>
-#include <clb_tbl.h>
 #include <utils/hash_alg.h>
 
 using namespace std; 

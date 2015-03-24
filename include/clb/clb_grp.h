@@ -11,9 +11,9 @@
 #include <config.h>
 #include <hash_array.h>
 #include <hash_tbl.h>
-#include <clb_tbl.h>
+#include <clb/clb_tbl.h>
+#include <clb/clb_clnt.h>
 #include <evclnt.h>
-#include <clb_clnt.h>
 
 #define GROUP_HASH_ARRAY		hash_array<1024>
 

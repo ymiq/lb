@@ -13,7 +13,7 @@
 #include <json/json.h>
 #include <qao/qao_base.h>
 #include <stat/clb_stat.h>
-#include <clb_tbl.h>
+#include <clb/clb_tbl.h>
 
 using namespace std; 
 

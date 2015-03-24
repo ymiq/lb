@@ -19,7 +19,7 @@ using namespace std;
 #define CFG_LISTEN_BACKLOG     4096
 
 template<typename T> 
-class evsrv {
+class evsrv : public evobj{
 public:
 	~evsrv();
 	evsrv(struct in_addr ip, unsigned short port, struct event_base *eb=NULL);

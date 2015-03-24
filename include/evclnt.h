@@ -15,12 +15,13 @@
 
 #include <config.h>
 #include <utils/log.h>
+#include <evobj.h>
 #include <evsock.h>
 
 using namespace std;	
 
 template<typename T> 
-class evclnt {
+class evclnt : public evobj {
 public:
 	~evclnt();
 	evclnt(struct in_addr ip, unsigned short port, struct event_base* eb=NULL);
@@ -31,10 +32,9 @@ public:
                       void *optval, socklen_t *optlen);
 	T *evconnect(void);
 	T *get_evsock(void);
-	struct event_base* get_event_base(void);
+	void ev_close(void);
 	bool loop(void);
 	bool loop_thread(void);
-	void quit(void);
 	
 protected:
 	
@@ -97,16 +97,13 @@ evclnt<T>::evclnt(const char *ipstr, unsigned short prt, struct event_base* eb) 
     setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));  
 }
 
-
 template<class T>
-struct event_base* evclnt<T>::get_event_base(void) {
-	return base;
-}
-
-
-template<class T>
-void evclnt<T>::quit(void) {
-//	event_base_loopbreak(base);
+void evclnt<T>::ev_close(void) {
+	if (balloc_base) {
+		event_base_loopbreak(base);
+	} else {
+		delete this;
+	}
 }
 
 
@@ -173,6 +170,10 @@ T *evclnt<T>::evconnect(void) {
 		evsk_dr = NULL;
 		return NULL;
 	}
+	
+	/* À¦°óevsockºÍevclnt */
+	evsk_dr->evobj_bind(this);
+	
 	return evsk_dr;
 }
 

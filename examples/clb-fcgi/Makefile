@@ -13,13 +13,13 @@ SRCS += $(TOP_DIR)/src/qao/answer.cpp
 SRCS += $(TOP_DIR)/src/utils/hash_alg.cpp
 SRCS += $(TOP_DIR)/src/utils/logger.cpp
 SRCS += $(TOP_DIR)/src/utils/lb_db.cpp
-SRCS += $(TOP_DIR)/src/evsock.cpp
-SRCS += $(TOP_DIR)/src/rcu_man.cpp
-SRCS += $(TOP_DIR)/src/clb_tbl.cpp
 SRCS += $(TOP_DIR)/src/stat/clb_stat.cpp
 SRCS += $(TOP_DIR)/src/stat/stat_man.cpp
-SRCS += $(TOP_DIR)/src/clb_grp.cpp
-SRCS += $(TOP_DIR)/src/clb_clnt.cpp
+SRCS += $(TOP_DIR)/src/clb/clb_tbl.cpp
+SRCS += $(TOP_DIR)/src/clb/clb_grp.cpp
+SRCS += $(TOP_DIR)/src/clb/clb_clnt.cpp
+SRCS += $(TOP_DIR)/src/evsock.cpp
+SRCS += $(TOP_DIR)/src/rcu_man.cpp
 
 CPPFLAGS = -O2 -Wall -Werror -I$(TOP_DIR)/include
 

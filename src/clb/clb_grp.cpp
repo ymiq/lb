@@ -9,10 +9,10 @@
 #include <sys/unistd.h>
 #include <arpa/inet.h>
 #include <utils/log.h>
-#include <clb_grp.h>
-#include <clb_tbl.h>
+#include <clb/clb_grp.h>
+#include <clb/clb_tbl.h>
+#include <clb/clb_clnt.h>
 #include <evclnt.h>
-#include <clb_clnt.h>
 
 clb_grp::clb_grp() {
 	pclb = clb_tbl::get_inst();

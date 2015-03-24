@@ -6,11 +6,11 @@
 
 #include <unistd.h>
 #include <utils/log.h>
-#include <clb_tbl.h>
+#include <clb/clb_tbl.h>
 #include <qao/cctl_req.h>
 #include <qao/cctl_rep.h>
 #include <stat/stat_man.h>
-#include <clb_grp.h>
+#include <clb/clb_grp.h>
 #include "cmd_srv.h"
 
 using namespace std;
@@ -418,12 +418,12 @@ void cmd_srv::read(int sock, short event, void* arg) {
 	
 	/* 接收数据 */
 	buffer = srv->ev_recv(size, partition);
-	if ((int)size <= 0) {
+	if (partition) {
+		return;
+	} else if ((int)size <= 0) {
 		/* = 0: 客户端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
 		delete srv;
-		return;
-	} else if (partition) {
 		return;
 	} 
 	

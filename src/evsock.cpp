@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <event.h>
 #include <utils/log.h>
+#include <evobj.h>
 #include <evsock.h>
 
 
@@ -42,6 +43,7 @@ evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
 	
 	/* 成员变量初始化 */
   	frag_flag = false;
+  	pevobj = NULL;
 }
 
 
@@ -78,21 +80,17 @@ evsock::~evsock() {
 }
 
 
-void evsock::quit(void) {
-	if (evbase) {
-		event_base_loopbreak(evbase);
+void evsock::ev_close(void) {
+	if (pevobj) {
+		pevobj->ev_close();
+	} else {
+		delete this;
 	}
 }
 
 
-void evsock::evclose(void) {
-	/* 删除读事件 */
-	event_del(&read_ev);
-	
-	/* 删除写事件 */
-	if (!wq.empty()) {
-		event_del(&write_ev);
-	}	
+void evsock::evobj_bind(evobj *pobj) {
+	pevobj = pobj;
 }
 
 
@@ -115,15 +113,17 @@ int evsock::ev_recv_frag(size_t &len, bool &partition) {
 	char *recv_buf = frag_buf + frag_off;
 	int ret_len = recv(sockfd, recv_buf, recv_len, MSG_DONTWAIT);
 	if (ret_len <= 0) {
+		if ((errno == EAGAIN) || (errno == EINTR)) {
+			LOGE("recv warning: %s", strerror(errno));
+			partition = true;
+			frag_flag = true;
+			len = 0;
+			return 0;
+		}
 		partition = false;
 		frag_flag = false;
 		len = ret_len;
-		if (errno == EAGAIN) {
-			LOGE("recv eagain, impossible error, please check it!");
-		}
-		if (ret_len != 0) {
-			LOGE("recv error: %s", strerror(errno));
-		}
+		LOGE("recv error: %s", strerror(errno));
 	} else if (ret_len != (int)recv_len) {
 		/* 非阻塞模式下，数据接收未完成 */
 		partition = true;
@@ -157,16 +157,16 @@ void *evsock::ev_recv(size_t &len, bool &partition) {
 	/* 检查是否接收未完成的分片数据 */
 	if (frag_flag) {
 		ret_len = ev_recv_frag(len, partition);
-		if (ret_len <= 0) {
+		if (partition) {
+			/* 等待继续调用ev_recv */
+			return NULL;
+		} else if (ret_len <= 0) {
 			/* 数据读错误，或者分片数据仍旧未读完 */
 			if (frag_buf != (char*)&frag_header) {
 				delete[] sec_buf;
 			}
 			return NULL;
-		} else if (partition) {
-			/* 等待继续调用ev_recv */
-			return NULL;
-		} 
+		}
 		
 		/* 无继续分片，并且当前读写不为头数据 */
 		if (frag_buf != (char*)&frag_header) {
@@ -252,12 +252,12 @@ void *evsock::ev_recv(size_t &len, bool &partition) {
 
 	/* 准备接收缓冲区 */
 	ret_len = ev_recv_frag(len, partition);
-	if (ret_len <= 0) {
+	if (partition) {
+		return NULL;
+	} else if (ret_len <= 0) {
    		delete[] sec_buf;
  		return NULL;
-	} else if (partition) {
-		return NULL;
-	}
+	} 
 	
 	return sec_buf;
 }

@@ -8,6 +8,7 @@
 #include <job_queue.h>
 #include <qao/qao_base.h>
 #include <hash_tbl.h>
+#include <evobj.h>
 
 using namespace std;
 
@@ -38,12 +39,12 @@ public:
     struct event write_ev;
     struct event thw_ev;
 	
-	void quit(void);
+	void ev_close(void);
+	void evobj_bind(evobj *pobj);
 	
 	void *ev_recv(size_t &len, bool &partition);
 	void *ev_recv_raw(size_t &len);
 	void recv_done(void *buf);
-	void recv_raw_done(void *buf, size_t off, size_t len);
 	
 	bool ev_send(const void *buf, size_t len);
 	bool ev_send(const void *buf, size_t len, int qos);
@@ -53,10 +54,6 @@ public:
 	bool ev_send_inter_thread(const void *buf, size_t len, int qos);
 	bool ev_send_inter_thread(qao_base *qao);
 	
-	int reference(void);
-	int dereference(void);
-	void evclose(void);
-
 	virtual void send_done(void *buf, size_t len, bool send_ok) = 0;
 	virtual void send_done(qao_base *qao, bool send_ok) = 0;
 
@@ -68,6 +65,7 @@ public:
 protected:
 	int sockfd;
 	struct event_base* evbase;
+	evobj *pevobj;
 	
 private:
 	/* 分片接收相关变量 */

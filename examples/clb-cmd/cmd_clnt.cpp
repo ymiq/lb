@@ -38,24 +38,24 @@ void cmd_clnt::read(int sock, short event, void* arg) {
 	cmd_clnt *clnt = (cmd_clnt *)arg;
 	void *buffer;
 	size_t size;
-	bool fragment = false;
+	bool partition = false;
 	
 	/* 接收数据 */
-	buffer = clnt->ev_recv(size, fragment);
-	if ((int)size <= 0) {
+	buffer = clnt->ev_recv(size, partition);
+	if (partition) {
+		return;
+	} else if ((int)size <= 0) {
 		/* = 0: 服务端断开连接，在这里移除读事件并且释放客户数据结构 */
 		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
 		exit(1);
-	} else if (fragment) {
-		return;
-	}
+	} 
 	
 	cctl_rep_factory rep((const char*)buffer, size);
 	
 	/* 简单退出!!! */
 	if (!clnt->qao) {
 		rep.dump();
-		clnt->quit();
+		clnt->ev_close();
 	} else {
 		/* 清除屏幕内容, 并且把光标移到第一行第一列 */
 		printf("\033[1H\033[2J");

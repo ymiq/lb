@@ -257,7 +257,7 @@ static void *pthread_ask_simple(void *args) {
 	while (1) {
 		
 		/* 随机发送(100~1124)个包 */
-		unsigned long send_packets = (rand() % 128) + 1024;
+		unsigned long send_packets = (rand() % 128) + 2048;
 		for (unsigned long cnt=0; cnt<=send_packets; cnt++) {
 
 			string url = "localhost/wxif";

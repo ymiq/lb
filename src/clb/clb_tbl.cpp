@@ -3,10 +3,10 @@
 #include <cstring>
 #include <exception>
 #include <utils/log.h>
-#include <clb_tbl.h>
 #include <rcu_man.h>
 #include <evclnt.h>
-#include <clb_clnt.h>
+#include <clb/clb_tbl.h>
+#include <clb/clb_clnt.h>
 
 clb_tbl::clb_tbl() {
 }

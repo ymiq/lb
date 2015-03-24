@@ -6,8 +6,8 @@
 #include <ctime>
 #include <string>
 #include <evsock.h>
-#include <clb_tbl.h>
-#include <clb_grp.h>
+#include <clb/clb_tbl.h>
+#include <clb/clb_grp.h>
 #include <qao/cctl_req.h>
 #include <qao/qao_base.h>
 #include <stat/stat_man.h>
