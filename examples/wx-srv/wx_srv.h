@@ -27,6 +27,7 @@ protected:
 private:
 	struct timeval start_tv;
 	unsigned long recv_questions;
+	unsigned long recent_questions;
 };
 
 extern "C" {

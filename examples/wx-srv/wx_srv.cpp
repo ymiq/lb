@@ -13,6 +13,7 @@ using namespace std;
 
 wx_srv::wx_srv(int fd, struct event_base* base) : evsock(fd, base) {
 	recv_questions = 0;
+	recent_questions = 0;
 	gettimeofday(&start_tv, NULL);
 }
 
@@ -20,25 +21,26 @@ wx_srv::wx_srv(int fd, struct event_base* base) : evsock(fd, base) {
 wx_srv::~wx_srv() {
 }
 
-
 void wx_srv::dump_performance(unsigned long reply) {
-	if ((reply % 100) == 0) {
-		struct timeval tv;
+	unsigned long diff;
+	struct timeval tv;
 		
-		gettimeofday(&tv, NULL);
-		unsigned long diff;
-		if (tv.tv_usec >= start_tv.tv_usec) {
-			diff = (tv.tv_sec - start_tv.tv_sec) * 10 + 
-				(tv.tv_usec - start_tv.tv_usec) / 100000;
-		} else {
-			diff = (tv.tv_sec - start_tv.tv_sec - 1) * 10 + 
-				(tv.tv_usec + 1000000 - start_tv.tv_usec) / 100000;
-		}
-		if (!diff) {
-			diff = 10;
-		}
-
-		printf("REPLAY: %ld, speed: %ld qps\n", reply, (reply * 10) / diff);
+	recent_questions++;
+	gettimeofday(&tv, NULL);
+	if (tv.tv_usec >= start_tv.tv_usec) {
+		diff = (tv.tv_sec - start_tv.tv_sec) * 100 + 
+			(tv.tv_usec - start_tv.tv_usec) / 10000;
+	} else {
+		diff = (tv.tv_sec - start_tv.tv_sec - 1) * 100 + 
+			(tv.tv_usec + 1000000 - start_tv.tv_usec) / 10000;
+	}
+	if (!diff) {
+		diff = 10;
+	}
+	if (diff >= 100) {
+		printf("REPLAY: %ld, speed: %ld qps\n", reply, (recent_questions * 100) / diff);
+		start_tv = tv;
+		recent_questions = 0;
 	}
 }
 
@@ -54,9 +56,7 @@ void wx_srv::read(int sock, short event, void* arg) {
 	if (partition) {
 		return;
 	} else if ((int)len <= 0) {
-		/* = 0: 服务端断开连接，在这里移除读事件并且释放客户数据结构 */
-		/* < 0: 出现了其它的错误，在这里关闭socket，移除事件并且释放客户数据结构 */
-		exit(1);
+		delete srv;
 	}
 	
 	/* 无效数据 */

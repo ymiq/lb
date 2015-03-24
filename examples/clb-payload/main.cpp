@@ -227,12 +227,12 @@ static void *pthread_ask_http(void *args) {
 		
 		/* 随机发送(100~1124)个包 */
 		unsigned long send_packets = (rand() % coeff) + coeff;
-		for (unsigned long cnt=0; cnt<=send_packets; cnt++) {
+		for (unsigned long cnt=0; cnt<send_packets; cnt++) {
 			rand_post(&http_client, msgid++);
 		}
 		
 		/* 随机Sleep一段时间(50~200ms) */
-		rand_delay(50, 100);
+		rand_delay(200, 500);
 		
 		/* 显示问题数量和提问速度 */
 		struct timeval tv;
@@ -274,7 +274,7 @@ static void *pthread_ask_simple(void *args) {
 		
 		/* 随机发送(100~1124)个包 */
 		unsigned long send_packets = (rand() % coeff) + coeff;
-		for (unsigned long cnt=0; cnt<=send_packets; cnt++) {
+		for (unsigned long cnt=0; cnt<send_packets; cnt++) {
 			if (sk) {
 				rand_post(sk, msgid++);
 			}
