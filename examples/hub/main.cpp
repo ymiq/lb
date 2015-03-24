@@ -131,7 +131,7 @@ static void *thread_slb(void *args) {
 static void *thread_robot(void *args) {
 	/* 创建基于Event的客户端，用于发送命令和接受响应 */	
 	evclnt<robot_clnt> clnt(ip_str, (unsigned short)(port + 1000));
-	robot_sock = clnt.create_evsock();
+	robot_sock = clnt.evconnect();
 	if (robot_sock) {
     	clnt.loop();
     }

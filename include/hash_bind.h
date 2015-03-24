@@ -112,11 +112,16 @@ void hash_bind<V, KS, VS>::remove(V &value) {
 	typename KEY_ARRAY::it it;
 	for (it=key_array->begin(); it!=key_array->end(); it++) {
 		unsigned long key = *it;
-		value_table.remove(key);
+		if (!key) {
+			LOGE("DEL KEY: %lx", key);
+		}
+		key_table.remove(key);
 	}
 	
 	/* 删除val_table中内容 */
 	value_table.remove(vhash);
+	
+	delete key_array;
 }
 
 

@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
 		sprintf(nstr, "www.%d.com", i);
 		string name(nstr);
 		evclnt<slb_clnt> *pclnt = new evclnt<slb_clnt>(ip_str, (unsigned short)(port));
-		slb_clnt *sk = pclnt->create_evsock();
+		slb_clnt *sk = pclnt->evconnect();
 		if (sk) {
 			sclnt_decl *qao = new sclnt_decl();
 			sk->name = qao->name = name;

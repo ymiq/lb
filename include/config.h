@@ -12,6 +12,11 @@
 #define CFG_CACHE_ALIGN	64
 #define CFG_MAX_THREADS	64
 
+/* 使用单线程模式还是多线程模式 */
+#define CFG_CLBSRV_MULTI_THREAD		1
+#define CFG_HUSB_MULTI_THREAD		0
+#define CFG_CLBFCGI_MULTI_THREAD	0
+
 /* Memory Barrier */
 #define wmb() 			__sync_synchronize()
 #define rmb() 			__sync_synchronize()

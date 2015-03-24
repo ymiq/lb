@@ -91,9 +91,12 @@ static void data_handle(void *data, const char *s, int len) {
 	printf(" %s", s);
 }
 
+extern int sptr_main (int argc, char *argv[]);
 
 /* 程序入口点。*/
 int main(int argc, char **argv) {
+	
+	return sptr_main(argc, argv);
 
 	printf("%lx hash(0)\n", hash_64(0, 64));
 	printf("%lx hash(1)\n", hash_64(1, 64));
@@ -129,7 +132,3 @@ int main(int argc, char **argv) {
 	XML_ParserFree(parser);
 	return 0;
 }
-
-
-
- 

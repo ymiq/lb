@@ -42,12 +42,13 @@ evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
 	
 	/* 成员变量初始化 */
   	frag_flag = false;
-  	working = true;
-  	ref_cnt = 1;
 }
 
 
 evsock::~evsock() {
+	/* 删除线程触发事件 */
+	event_del(&thw_ev);
+	
 	/* 删除读事件 */
 	event_del(&read_ev);
 	
@@ -55,7 +56,7 @@ evsock::~evsock() {
 	if (!wq.empty()) {
 		event_del(&write_ev);
 	}
-	
+
 	/* 释放对象 */
 	job_queue<ev_job*> *q = this->ev_queue();
 	ev_job *job = q->pop();
@@ -70,7 +71,7 @@ evsock::~evsock() {
 		delete job;
 		job = q->pop();
 	}
-	
+
 	/* 关闭句柄 */
 	close(sockfd);
 	close(efd);
@@ -81,6 +82,17 @@ void evsock::quit(void) {
 	if (evbase) {
 		event_base_loopbreak(evbase);
 	}
+}
+
+
+void evsock::evclose(void) {
+	/* 删除读事件 */
+	event_del(&read_ev);
+	
+	/* 删除写事件 */
+	if (!wq.empty()) {
+		event_del(&write_ev);
+	}	
 }
 
 
@@ -452,9 +464,6 @@ bool evsock::ev_send_inter_thread(const void *buf, size_t size, int qos) {
 		return false;
 	}
 	
-	/* 增加引用计数器 */
-	__sync_add_and_fetch(&ref_cnt, 1);
-		
 	/* 把当前缓冲区挂入写FIFO */
 	ev_job *job = new ev_job((char*)buf, size, NULL);
 	bool ret = wq.push(job, qos); 
@@ -462,10 +471,6 @@ bool evsock::ev_send_inter_thread(const void *buf, size_t size, int qos) {
 		/* 触发写事件 */
 		unsigned long cnt = 1;
 		write(efd, &cnt, sizeof(cnt));
-	}
-	
-	if (!__sync_add_and_fetch(&ref_cnt, -1)) {
-		delete this;
 	}
 	return ret;
 }
@@ -482,9 +487,6 @@ bool evsock::ev_send_inter_thread(qao_base *qao) {
 		return false;
 	}
 	
-	/* 增加引用计数器 */
-	__sync_add_and_fetch(&ref_cnt, 1);
-		
 	/* 把当前缓冲区挂入写FIFO */
 	ev_job *job = new ev_job(NULL, 0, qao);
 	bool ret = wq.push(job, 3); 
@@ -492,10 +494,6 @@ bool evsock::ev_send_inter_thread(qao_base *qao) {
 		/* 触发写事件 */
 		unsigned long cnt = 1;
 		write(efd, &cnt, sizeof(cnt));
-	}
-	
-	if (!__sync_add_and_fetch(&ref_cnt, -1)) {
-		delete this;
 	}
 	return ret;
 }
@@ -515,19 +513,5 @@ void evsock::do_eventfd(int efd, short event, void* arg) {
 			LOGE("event_add error\n");
 		}
 	}
-}
-
-
-int evsock::reference(void) {
-	return __sync_add_and_fetch(&ref_cnt, 1);
-}
-
-
-int evsock::dereference(void) {
-	int ret = __sync_add_and_fetch(&ref_cnt, -1);
-	if (!ret) {
-		delete this;
-	}
-	return ret;
 }
 

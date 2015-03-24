@@ -22,12 +22,13 @@ template<typename T>
 class evsrv {
 public:
 	~evsrv();
-	evsrv(struct in_addr ip, unsigned short port);
-	evsrv(const char *ip_str, unsigned short port);
+	evsrv(struct in_addr ip, unsigned short port, struct event_base *eb=NULL);
+	evsrv(const char *ip_str, unsigned short port, struct event_base *eb=NULL);
 	int setskopt(int level, int optname,
                       const void *optval, socklen_t optlen);
 	int getskopt(int level, int optname,
                       void *optval, socklen_t *optlen);
+	bool evlisten(void);
 	bool loop(void);
 	
 	
@@ -38,6 +39,9 @@ private:
 	struct in_addr ip_addr;
 	unsigned short port;
 	struct event_base* base;
+	struct event listen_ev;
+	bool balloc_base;
+
 	
 	static void do_accept(int sock, short event, void* arg);	
 };
@@ -45,28 +49,35 @@ private:
 template<class T>
 evsrv<T>::~evsrv() {
 	close(sockfd);
+	if (balloc_base) {
+		event_base_free(base);
+	}
 }
 
 
 template<class T>
-evsrv<T>::evsrv(struct in_addr ip, unsigned short prt) {
+evsrv<T>::evsrv(struct in_addr ip, unsigned short prt, struct event_base *eb) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
     	throw "socket error";
     }
     ip_addr = ip;
     port = prt;
+    base = eb;
+    balloc_base = false;
 }
 
 
 template<class T>
-evsrv<T>::evsrv(const char *ipstr, unsigned short prt) {
+evsrv<T>::evsrv(const char *ipstr, unsigned short prt, struct event_base *eb) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
     	throw "socket error";
     }
     ip_addr.s_addr = inet_addr(ipstr);
     port = prt;
+    base = eb;
+    balloc_base = false;
 }
 
 
@@ -85,7 +96,7 @@ int evsrv<T>::getskopt(int level, int optname,
 
                      
 template<class T>
-bool evsrv<T>::loop(void) {
+bool evsrv<T>::evlisten(void) {
 	struct sockaddr_in sk_addr;
 	
 	/* 监听地址 */
@@ -107,11 +118,13 @@ bool evsrv<T>::loop(void) {
 	evutil_make_socket_nonblocking(sockfd);
 	
 	/* 等待客户端接入 */
-	struct event listen_ev;
-	base = event_base_new();
 	if (base == NULL) {
-		LOGE("event_base_new error\n");
-		return false;
+		base = event_base_new();
+		if (base == NULL) {
+			LOGE("event_base_new error\n");
+			return false;
+		}
+		balloc_base = true;
 	}
 	event_set(&listen_ev, sockfd, EV_READ|EV_PERSIST, evsrv<T>::do_accept, this);
 	if (event_base_set(base, &listen_ev) < 0) {
@@ -122,12 +135,21 @@ bool evsrv<T>::loop(void) {
 		LOGE("event_base_set error\n");
 		return false;
 	}
-	
-	/* 事件处理循环 */
-	event_base_dispatch(base);
-	
 	/* Never reache here */
 	return true;
+}
+
+
+template<class T>
+bool evsrv<T>::loop(void) {
+	if (evlisten()) {
+		/* 事件处理循环 */
+		event_base_dispatch(base);
+		
+		/* Never reache here */
+		return true;
+	}
+	return false;
 }
 
 

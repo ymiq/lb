@@ -113,8 +113,8 @@ static int stat_init(stat_tbl_base *pstat) {
 }
 
 
+#if CFG_CLBSRV_MULTI_THREAD
 static void *thread_worker(void *args) {
-		
 	/* 创建每线程统计表，并初始化 */
 	stat_tbl<clb_stat, 1024> *pstat = new stat_tbl<clb_stat, 1024>;
 	if (stat_init(pstat) < 0) {
@@ -131,21 +131,29 @@ static void *thread_worker(void *args) {
     	return NULL;
     }
 
-    /* 服务监听 */
+    /* 建立服务 */
     if (!srv.loop()) {
     	LOGE("starting server failed");
     }
 
 	return NULL;  
 }
+#endif
+
 
 void answer_reply(qao_base *qao) {
 	unsigned long token = qao->get_token();
 	clb_srv *srv = qao_bind->get_val(token);
 	if (srv != NULL) {
+#if CFG_CLBSRV_MULTI_THREAD
 		if (!srv->ev_send_inter_thread(qao)) {
 			delete qao;
 		}
+#else
+		if (!srv->ev_send(qao)) {
+			delete qao;
+		}
+#endif
 	} else {
 		delete qao;
 	}
@@ -199,7 +207,6 @@ int main(int argc, char *argv[]) {
 	} else {
 		LOG_CONSOLE("clb-srv");
 	}
-
 	
 	/* 创建RCU管理线程 */
 	if (!rcu_man::init()) {
@@ -209,6 +216,12 @@ int main(int argc, char *argv[]) {
 	/* 获取负载均衡HASH表 */
 	clb_tbl *plb = clb_tbl::get_inst();
 	clb_grp *pgrp = clb_grp::get_inst();
+		
+#if !CFG_CLBSRV_MULTI_THREAD
+	/* 创建event base */
+	struct event_base* base = event_base_new();
+	pgrp->set_event_base(base);
+#endif
 	
 	/* 根据数据库信息创建负载均衡HASH表 */
 	if (lb_init(plb, pgrp) < 0) {
@@ -224,6 +237,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* 创建工作线程 */
+#if CFG_CLBSRV_MULTI_THREAD
 	pthread_t th_worker[CFG_WORKER_THREADS];
 	for (int idx=0; idx<CFG_WORKER_THREADS; idx++) {
 		if (pthread_create(&th_worker[idx], NULL, thread_worker, NULL) != 0) {
@@ -231,11 +245,37 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 	}
+#else		
+	/* 创建每线程统计表，并初始化 */
+	stat_tbl<clb_stat, 1024> *pstat = new stat_tbl<clb_stat, 1024>;
+	if (stat_init(pstat) < 0) {
+		LOGE("statics table init failed");
+		exit(1);
+	}
 	
+	evsrv<clb_srv> srv(ip_str, (unsigned short)port, base);
+
+    /* 设置服务Socket选项 */
+    int yes = 1;
+    if (srv.setskopt(SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0) {
+    	LOGE("setsockopt error");
+    	return -1;
+    }
+
+    /* 建立服务 */
+    if (!srv.evlisten()) {
+    	LOGE("starting server failed");
+    }
+
+#endif
+
 	/* 创建动态配置命令服务 */
 	try {
+#if CFG_CLBSRV_MULTI_THREAD
 		evsrv<cmd_srv> srv(CFG_CMDSRV_IP, CFG_CMDSRV_PORT);
-	
+#else
+		evsrv<cmd_srv> srv(CFG_CMDSRV_IP, CFG_CMDSRV_PORT, base);
+#endif	
 	    /* 设置服务Socket选项 */
 	    int yes = 1;
 	    if (srv.setskopt(SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0) {
@@ -243,16 +283,26 @@ int main(int argc, char *argv[]) {
 	    	return -1;
 	    }
 	
+#if CFG_CLBSRV_MULTI_THREAD
 	    /* 服务监听 */
 	    if (!srv.loop()) {
 	    	LOGE("starting server failed");
 	    }
+#else
+	    /* 服务监听 */
+	    if (!srv.evlisten()) {
+	    	LOGE("starting server failed");
+	    }
+	    
+		/* 循环事件处理 */
+		event_base_dispatch(base);
+#endif
 	    
 	}catch(const char *msg) {
 		LOGE("Create server failed");
 		return -1;
 	}
-
+	
 	/* never reach here */	
 	return 0;
 }

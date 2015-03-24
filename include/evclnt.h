@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <event.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include <config.h>
 #include <utils/log.h>
@@ -22,14 +23,15 @@ template<typename T>
 class evclnt {
 public:
 	~evclnt();
-	evclnt(struct in_addr ip, unsigned short port);
-	evclnt(const char *ip_str, unsigned short port);
+	evclnt(struct in_addr ip, unsigned short port, struct event_base* eb=NULL);
+	evclnt(const char *ip_str, unsigned short port, struct event_base* eb=NULL);
 	int setskopt(int level, int optname,
                       const void *optval, socklen_t optlen);
 	int getskopt(int level, int optname,
                       void *optval, socklen_t *optlen);
-	T *create_evsock(void);
+	T *evconnect(void);
 	T *get_evsock(void);
+	struct event_base* get_event_base(void);
 	bool loop(void);
 	bool loop_thread(void);
 	void quit(void);
@@ -40,9 +42,10 @@ private:
 	int sockfd;
 	struct in_addr ip_addr;
 	unsigned short port;
-	struct event_base* base;
 	pthread_t th_clnt;
+	struct event_base* base;
 	T *evsk_dr;
+	bool balloc_base;
 	
 	static void *clnt_worker_thread(void *args);
 };
@@ -53,14 +56,14 @@ evclnt<T>::~evclnt() {
 	if (evsk_dr) {
 		delete evsk_dr;
 	}
-	if (base) {
+	if (balloc_base) {
 		event_base_free(base);
 	}
 }
 
 
 template<class T>
-evclnt<T>::evclnt(struct in_addr ip, unsigned short prt) {
+evclnt<T>::evclnt(struct in_addr ip, unsigned short prt, struct event_base* eb) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
     	throw "socket error";
@@ -68,8 +71,9 @@ evclnt<T>::evclnt(struct in_addr ip, unsigned short prt) {
     ip_addr = ip;
     port = prt;
     evsk_dr = NULL;
-    base = NULL;
+    base = eb;
     th_clnt = 0;
+   	balloc_base = false;
     
     int on = 1;
     setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));  
@@ -77,7 +81,7 @@ evclnt<T>::evclnt(struct in_addr ip, unsigned short prt) {
 
 
 template<class T>
-evclnt<T>::evclnt(const char *ipstr, unsigned short prt) {
+evclnt<T>::evclnt(const char *ipstr, unsigned short prt, struct event_base* eb) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
     	throw "socket error";
@@ -85,8 +89,9 @@ evclnt<T>::evclnt(const char *ipstr, unsigned short prt) {
     ip_addr.s_addr = inet_addr(ipstr);
     port = prt;
     evsk_dr = NULL;
-    base = NULL;
+    base = eb;
     th_clnt = 0;
+   	balloc_base = false;
     
     int on = 1;
     setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));  
@@ -94,8 +99,14 @@ evclnt<T>::evclnt(const char *ipstr, unsigned short prt) {
 
 
 template<class T>
+struct event_base* evclnt<T>::get_event_base(void) {
+	return base;
+}
+
+
+template<class T>
 void evclnt<T>::quit(void) {
-	event_base_loopbreak(base);
+//	event_base_loopbreak(base);
 }
 
 
@@ -120,7 +131,7 @@ T *evclnt<T>::get_evsock(void) {
 
 
 template<class T>
-T *evclnt<T>::create_evsock(void) {
+T *evclnt<T>::evconnect(void) {
 	
 	/* 监听地址 */
 	struct sockaddr_in sk_addr;
@@ -130,15 +141,18 @@ T *evclnt<T>::create_evsock(void) {
 	sk_addr.sin_addr = ip_addr;
 	
 	if (connect(sockfd, (struct sockaddr*)&sk_addr, sizeof(struct sockaddr)) < 0) {
-		LOGE ("connect error");
+		LOGE ("connect error: %s", strerror(errno));
 		return NULL;
 	}
 	
 	/* 等待客户端接入 */
-	base = event_base_new();
 	if (base == NULL) {
-		LOGE ("event_base_new error");
-		return NULL;
+		base = event_base_new();
+		if (base == NULL) {
+			LOGE ("event_base_new error");
+			return NULL;
+		}
+	   	balloc_base = true;
 	}
 	
     /* 创建evsock对象 */

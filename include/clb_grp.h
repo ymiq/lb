@@ -47,12 +47,15 @@ public:
 	int lb_stop(unsigned int group);
 	int stat_start(unsigned int group);
 	int stat_stop(unsigned int group);
+	
+	void set_event_base(struct event_base *eb);
 
 protected:
 	
 private:	
 	hash_tbl<clb_grp_info, 64> table;
 	clb_tbl *pclb;
+	struct event_base *ev_base;
 	
 	clb_grp();
 	~clb_grp();

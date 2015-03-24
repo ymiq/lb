@@ -248,7 +248,7 @@ static void *pthread_ask_simple(void *args) {
 	
 	/* 创建客户端 */
 	evclnt<pl_clnt> *pclnt = new evclnt<pl_clnt>("127.0.0.1", 7000);
-	pl_clnt *sk = pclnt->create_evsock();
+	pl_clnt *sk = pclnt->evconnect();
 	if (sk) {
 		/* 启动席位对应的线程 */
     	pclnt->loop_thread();

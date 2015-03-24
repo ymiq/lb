@@ -579,7 +579,7 @@ int main(int argc, char *argv[]) {
 		
 		/* 创建基于Event的客户端，用于发送命令和接受响应 */
 		evclnt<cmd_clnt> clnt(CFG_CMDSRV_IP, CFG_CMDSRV_PORT);
-		cmd_clnt *sk = clnt.create_evsock();
+		cmd_clnt *sk = clnt.evconnect();
 		if (sk) {
 			if (monitor) {
 				sk->reg_qao(&req);

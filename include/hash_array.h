@@ -46,10 +46,10 @@ public:
 		bool operator!=(const it &rv);
 		bool operator==(const it &rv);
 		
-	protected:
 	    void begin(void);
 	    void next(void);
 	
+	protected:
 	private:
 		hash_array *instance;
 		int pos_x;
@@ -75,7 +75,6 @@ private:
 	unsigned int mod_size;
 	hash_index *hidx;
 	it *end_it;	
-	int count;
 };
 
 
@@ -99,7 +98,6 @@ hash_array<INDEX_SIZE>::hash_array() {
 	/* 申请哈希表索引 */
 	hidx = new hash_index[mod_size]();	
 	end_it = new it(NULL, mod_size);
-	count = 0;
 }
 
 
@@ -289,7 +287,6 @@ phase2:
 	
 	/* 申请新的索引项, 此处未再考虑Cache对齐；因为正常情况下概率较低 */
 	pindex = new hash_index();
-//	LOGE("new array indx: %d for %lx", count++, hash);
 	pindex->items[0] = hash;
 	wmb();	/* 增加内存屏障，确保写入先后顺序 */
 
@@ -298,7 +295,6 @@ phase2:
 	if (__sync_bool_compare_and_swap(pwrite, NULL, pindex)) {
 		return true;
 	}
-	count--;
 	delete pindex;
 	return add(hash);
 }
@@ -342,6 +338,7 @@ void hash_array<INDEX_SIZE>::remove(unsigned long hash)
 template<unsigned int INDEX_SIZE>
 typename hash_array<INDEX_SIZE>::it hash_array<INDEX_SIZE>::begin(void) {
 	it ret(this);
+	ret.begin();
 	return ret;
 }
 
@@ -349,6 +346,14 @@ typename hash_array<INDEX_SIZE>::it hash_array<INDEX_SIZE>::begin(void) {
 template<unsigned int INDEX_SIZE>
 typename hash_array<INDEX_SIZE>::it &hash_array<INDEX_SIZE>::end(void) {
 	return *end_it;
+}
+
+
+template<unsigned int INDEX_SIZE>
+void hash_array<INDEX_SIZE>::it::begin(void) {
+	if (instance) {
+		instance->locate(pos_x, pos_y, pos_n, 0);
+	}
 }
 
 

@@ -50,10 +50,10 @@ public:
 		bool operator!=(const it &rv);
 		bool operator==(const it &rv);
 		
-	protected:
 	    void begin(void);
 	    void next(void);
 	
+	protected:
 	private:
 		hash_pair *instance;
 		int pos_x;
@@ -85,7 +85,6 @@ private:
 	unsigned int mod_size;
 	hash_index *hidx;
 	it *end_it;
-	int count;
 };
 
 
@@ -114,7 +113,6 @@ hash_pair<T, INDEX_SIZE>::hash_pair()
 	/* 申请哈希表索引 */
 	hidx = new hash_index[mod_size]();
 	end_it = new it(NULL, mod_size);
-	count = 0;
 }
 
 
@@ -315,7 +313,6 @@ phase2:
 	
 	/* 申请新的索引项 */
 	pindex = new hash_index();
-	LOGI("New hash_index: %d", count++);
 	
 	/* 更新条目信息 */
 	pindex->items[0].pair = pair;
@@ -371,6 +368,7 @@ void hash_pair<T, INDEX_SIZE>::remove(unsigned long hash)
 template<typename T, unsigned int INDEX_SIZE>
 typename hash_pair<T, INDEX_SIZE>::it hash_pair<T, INDEX_SIZE>::begin(void) {
 	it ret(this);
+	ret.begin();
 	return ret;
 }
 
@@ -378,6 +376,14 @@ typename hash_pair<T, INDEX_SIZE>::it hash_pair<T, INDEX_SIZE>::begin(void) {
 template<typename T, unsigned int INDEX_SIZE>
 typename hash_pair<T, INDEX_SIZE>::it &hash_pair<T, INDEX_SIZE>::end(void) {
 	return *end_it;
+}
+
+
+template<typename T, unsigned int INDEX_SIZE>
+void hash_pair<T, INDEX_SIZE>::it::begin(void) {
+	if (instance) {
+		instance->locate(pos_x, pos_y, pos_n, 0);
+	}
 }
 
 

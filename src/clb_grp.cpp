@@ -108,12 +108,15 @@ evclnt<clb_clnt> *clb_grp::get_clnt(unsigned int group) {
 
 
 evclnt<clb_clnt> *clb_grp::open_clnt(struct in_addr ip, unsigned short port) {
-	/* 创建一个和HUB连接的客户端，并且开启一个独立线程进行通信 */
+	/* 创建一个和HUB连接的客户端 */
 	try {
-		evclnt<clb_clnt> *ret = new evclnt<clb_clnt>(ip, port);
-		clb_clnt *sk = ret->create_evsock();
+		evclnt<clb_clnt> *ret = new evclnt<clb_clnt>(ip, port, ev_base);
+		clb_clnt *sk = ret->evconnect();
 		if (sk) {
-	    	ret->loop_thread();
+			/* 如果没有event_base, 启一个独立线程进行通信 */
+			if (!ev_base) {
+	    		ret->loop_thread();
+	    	}
 	    } else {
 	    	delete ret;
 	    	return NULL;
@@ -245,4 +248,8 @@ int clb_grp::stat_stop(unsigned int group) {
 	return 0;
 }
 
+
+void clb_grp::set_event_base(struct event_base *eb) {
+	ev_base = eb;
+}
 

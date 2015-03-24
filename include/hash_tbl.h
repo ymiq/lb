@@ -50,10 +50,10 @@ public:
 		bool operator!=(const it &rv);
 		bool operator==(const it &rv);
 		
-	protected:
 	    void begin(void);
 	    void next(void);
 	
+	protected:
 	private:
 		hash_tbl *instance;
 		int pos_x;
@@ -465,6 +465,7 @@ void hash_tbl<T, INDEX_SIZE>::remove(unsigned long hash)
 template<typename T, unsigned int INDEX_SIZE>
 typename hash_tbl<T, INDEX_SIZE>::it hash_tbl<T, INDEX_SIZE>::begin(void) {
 	it ret(this);
+	ret.begin();
 	return ret;
 }
 
@@ -472,6 +473,14 @@ typename hash_tbl<T, INDEX_SIZE>::it hash_tbl<T, INDEX_SIZE>::begin(void) {
 template<typename T, unsigned int INDEX_SIZE>
 typename hash_tbl<T, INDEX_SIZE>::it &hash_tbl<T, INDEX_SIZE>::end(void) {
 	return *end_it;
+}
+
+
+template<typename T, unsigned int INDEX_SIZE>
+void hash_tbl<T, INDEX_SIZE>::it::begin(void) {
+	if (instance) {
+		instance->locate(pos_x, pos_y, pos_n, 0);
+	}
 }
 
 
