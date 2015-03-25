@@ -7,7 +7,7 @@ export BIN_DIR=$(TOP_DIR)/bin
 export BUILD_DIR=$(TOP_DIR)/build
 
 .DEFAULT: all
-all: clb_fcgi clb_srv clb_cmd clb_pl hub robot slb
+all: clb_fcgi clb_srv clb_cmd clb_pl hub robot slb wx_srv
 	@echo "    All done."
 
 clean:
@@ -78,6 +78,15 @@ slb:
 
 slb_clean:
 	@$(MAKE) -C $(TOP_DIR)/examples/slb clean
+
+# #######################################################################################
+.PHONY: wx_srv wx_srv_clean
+wx_srv: 
+	@$(MAKE) -C $(TOP_DIR)/examples/wx-srv prepare
+	@$(MAKE) -C $(TOP_DIR)/examples/wx-srv
+
+wx_srv_clean:
+	@$(MAKE) -C $(TOP_DIR)/examples/wx-srv clean
 
 # #######################################################################################
 .PHONY: test test_clean

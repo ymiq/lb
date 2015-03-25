@@ -19,12 +19,14 @@
 #include <stat/clb_stat.h>
 #include "cmd_srv.h"
 #include "cfg_db.h"
+#include "wx_clnt.h"
 
 using namespace std;
 #define CFG_CMDSRV_IP		"127.0.0.1"
 #define CFG_CMDSRV_PORT		8000
 
 #define CFG_WORKER_THREADS	1
+static wx_clnt *wx_sk = NULL;
 
 static int lb_init(clb_tbl *plb, clb_grp *pgrp) {
 	int ret = 0;
@@ -82,6 +84,10 @@ static void *thread_worker(void *args) {
 		/* 获取POST内容 */
  		char *request_method = FCGX_GetParam("REQUEST_METHOD", request.envp);
 		if (strcmp(request_method, "POST")) {
+		    FCGX_FPrintF(request.out,  
+		        "Content-type: text/html\r\n"  
+		        "\r\n"  
+		        "<title>FastCGI Hello! ");  
 	        FCGX_Finish_r(&request);
 	        continue;
 		}
@@ -111,9 +117,9 @@ static void *thread_worker(void *args) {
 			hash = wx.hash;
 #ifdef CFG_QAO_TRACE		
 			wx.trace("fcgi");
-			wx.dump_trace();
+//			wx.dump_trace();
 #endif
-			
+
 		    /* 分发数据包 */
 		    unsigned int lb_status = 0;
 		    unsigned int stat_status = 0;
@@ -135,7 +141,7 @@ static void *thread_worker(void *args) {
 		    if (stat_status) {	
 			    pstat->stat(hash, 1);	    
 		    }
-		    	    
+
 			/* Worker线程主处理结束 */
 		    prcu->job_end(tid);
 
@@ -156,7 +162,16 @@ static void *thread_worker(void *args) {
 	return NULL;  
 }
 
+
 void answer_reply(qao_base *qao) {
+	/* 把消息发送到WX服务器 */
+	if (wx_sk) {
+		if (!wx_sk->ev_send_inter_thread(qao)) {
+			delete qao;
+		}
+	} else {
+		delete qao;
+	}
 }
 
 
@@ -191,8 +206,17 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	
+	
 	/* 创建动态配置命令服务 */
 	try {
+		/* 创建微信客户端 */
+		evclnt<wx_clnt> pclnt(CFG_CMDSRV_IP, 5000);
+		wx_sk = pclnt.evconnect();
+		if (wx_sk) {
+			/* 启动线程处理数据发送 */
+	    	pclnt.loop_thread();
+	    }
+	
 		evsrv<cmd_srv> srv(CFG_CMDSRV_IP, CFG_CMDSRV_PORT);
 	
 	    /* 设置服务Socket选项 */

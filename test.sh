@@ -2,7 +2,7 @@
 
 stop() {
 	killall slb
-#	killall clb-fcgi
+	killall clb-fcgi
 	killall clb-srv
 	killall hub
 	killall robot
@@ -22,7 +22,13 @@ start() {
 	./bin/clb-srv -g 1 -d
 	usleep 100000
 	
-#	fcgistarter -c /home/work/test/lb/bin/clb-fcgi -p 9000 -N 1
+	if [ -e /home/work/test/lb/bin/clb-fcgi ]; then
+		fcgistarter -c /home/work/test/lb/bin/clb-fcgi -p 9000 -N 1
+	else 
+		if [ -e /home/work/lb/bin/clb-fcgi ]; then
+			fcgistarter -c /home/work/lb/bin/clb-fcgi -p 9000 -N 1
+		fi
+	fi
 	usleep 100000
 }
 

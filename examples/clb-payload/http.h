@@ -2,6 +2,7 @@
 #define __HTTP_CURL_H__
 
 #include <string>
+#include "curl/curl.h"
 
 class http
 {
@@ -51,6 +52,7 @@ public:
 
 private:
 	bool debug_flag;
+	CURL* share_handle;
 };
 
 #endif

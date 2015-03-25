@@ -49,7 +49,7 @@ void clb_clnt::read(int sock, short event, void* arg) {
 	/* 记录站点信息, 显示对象内容 */
 #ifdef CFG_QAO_TRACE		
 	qao->trace("clb_clnt");
-	// qao->dump_trace();
+//	qao->dump_trace();
 #endif
 	answer_reply(qao);
 			

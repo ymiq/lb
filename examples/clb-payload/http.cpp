@@ -1,6 +1,7 @@
 #include "http.h"
 #include "curl/curl.h"
 #include <string>
+#include <ctime>
 
 using namespace std;
 
@@ -38,6 +39,8 @@ static size_t on_write_data(void* buffer,
 
 
 http::http(void):debug_flag(false) {
+	share_handle = curl_share_init();  
+	curl_share_setopt(share_handle, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);  
 
 }
 
@@ -56,6 +59,8 @@ int http::post(const string &str_url,
 		curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
 		curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, on_debug);
 	}
+    curl_easy_setopt(curl, CURLOPT_SHARE, share_handle);  
+    curl_easy_setopt(curl, CURLOPT_DNS_CACHE_TIMEOUT, 60 * 5);  
 	curl_easy_setopt(curl, CURLOPT_URL, str_url.c_str());
 	curl_easy_setopt(curl, CURLOPT_POST, 1);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, str_post.c_str());
