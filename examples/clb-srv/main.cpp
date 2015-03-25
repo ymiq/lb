@@ -24,24 +24,22 @@
 #include "clb_srv.h"
 
 using namespace std;
-#define CFG_CMDSRV_IP		"127.0.0.1"
-#define CFG_CMDSRV_PORT		8100
-
-#define CFG_CLBSRV_IP		"127.0.0.1"
-#define CFG_CLBSRV_PORT		7000
+#define CFG_CLBSRV_IP			"127.0.0.1"
+#define CFG_CLBSRV_PORT_BASE	10000
 
 #define CFG_WORKER_THREADS	1
 
 #define QAO_BIND		hash_bind<clb_srv*, 1024, 16>
 QAO_BIND *qao_bind;
 
-static unsigned int port = CFG_CLBSRV_PORT;
+static unsigned int port = CFG_CLBSRV_PORT_BASE;
 static char ip_str[256] = CFG_CLBSRV_IP;
 static bool fork_to_background = false;
+int clb_srv_group_id = 0;
 
 static struct option long_options[] = {
     {"help",  no_argument, 0,  'h' },
-    {"port",    required_argument, 0,  'p' },
+    {"group",    required_argument, 0,  'g' },
     {"ip",      required_argument, 0,  'i' },
     {"deamon",  no_argument, 0,  'd' },
     {0,         0,                 0,  0 }
@@ -51,7 +49,7 @@ static void help(void) {
 	printf("Usage: robot server\n");
 	printf("	-h, --help       display this help and exit\n");
 	printf("	-i, --ip         setting listen ip address\n");
-	printf("	-p, --port       setting listen port\n");
+	printf("	-g, --group      setting listen group\n");
 	printf("	-d, --deamon     daemonize\n");
 }
 
@@ -61,14 +59,15 @@ static bool parser_opt(int argc, char **argv) {
     while (1) {
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "hp:i:d",
+        c = getopt_long(argc, argv, "hg:i:d",
                  long_options, &option_index);
         if (c == -1)
             break;
 
         switch (c) {
-        case 'p':
-        	port = atoi(optarg);
+        case 'g':
+        	clb_srv_group_id = atoi(optarg);
+        	port += clb_srv_group_id * 10;
             break;
 
         case 'i':
@@ -122,7 +121,7 @@ static void *thread_worker(void *args) {
 		exit(1);
 	}
 	
-	evsrv<clb_srv> srv(ip_str, (unsigned short)port);
+	evsrv<clb_srv> srv(ip_str, (unsigned short)(port+1000));
 
     /* 设置服务Socket选项 */
     int yes = 1;
@@ -253,7 +252,7 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	
-	evsrv<clb_srv> srv(ip_str, (unsigned short)port, base);
+	evsrv<clb_srv> srv(ip_str, (unsigned short)(port+1000), base);
 
     /* 设置服务Socket选项 */
     int yes = 1;
@@ -272,9 +271,9 @@ int main(int argc, char *argv[]) {
 	/* 创建动态配置命令服务 */
 	try {
 #if CFG_CLBSRV_MULTI_THREAD
-		evsrv<cmd_srv> srv(CFG_CMDSRV_IP, CFG_CMDSRV_PORT);
+		evsrv<cmd_srv> srv(CFG_CLBSRV_IP, (unsigned short)port);
 #else
-		evsrv<cmd_srv> srv(CFG_CMDSRV_IP, CFG_CMDSRV_PORT, base);
+		evsrv<cmd_srv> srv(CFG_CLBSRV_IP, (unsigned short)port, base);
 #endif	
 	    /* 设置服务Socket选项 */
 	    int yes = 1;

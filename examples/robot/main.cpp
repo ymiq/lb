@@ -12,16 +12,16 @@
 #include <evsrv.h>
 #include "robot_hsrv.h"
 
-#define CFG_LISTEN_IP		"127.0.0.1"
-#define CFG_LISTEN_PORT		11000
+#define CFG_LISTEN_IP			"127.0.0.1"
+#define CFG_LISTEN_PORT_BASE	40000
 
-static unsigned int port = CFG_LISTEN_PORT;
+static unsigned int port = CFG_LISTEN_PORT_BASE;
 static char ip_str[256] = CFG_LISTEN_IP;
 static bool fork_to_background = false;
 
 static struct option long_options[] = {
     {"help",  no_argument, 0,  'h' },
-    {"port",    required_argument, 0,  'p' },
+    {"group",    required_argument, 0,  'g' },
     {"ip",      required_argument, 0,  'i' },
     {"deamon",  no_argument, 0,  'd' },
     {0,         0,                 0,  0 }
@@ -31,7 +31,7 @@ static void help(void) {
 	printf("Usage: robot server\n");
 	printf("	-h, --help       display this help and exit\n");
 	printf("	-i, --ip         setting listen ip address\n");
-	printf("	-p, --port       setting listen port\n");
+	printf("	-p, --group      setting listen group\n");
 	printf("	-d, --deamon     daemonize\n");
 }
 
@@ -41,14 +41,14 @@ static bool parser_opt(int argc, char **argv) {
     while (1) {
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "hp:i:d",
+        c = getopt_long(argc, argv, "hg:i:d",
                  long_options, &option_index);
         if (c == -1)
             break;
 
         switch (c) {
-        case 'p':
-        	port = atoi(optarg);
+        case 'g':
+        	port += 100 * atoi(optarg);
             break;
 
         case 'i':
@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
     /* 创建服务 */
     evsrv<robot_hsrv> *srv;
     try {
-    	srv = new evsrv<robot_hsrv>(ip_str, (unsigned short)port);
+    	srv = new evsrv<robot_hsrv>(ip_str, (unsigned short)(port + 1000));
     } catch(const char *msg) {
     	printf("Error out: %s\n", msg);
     	return -1;

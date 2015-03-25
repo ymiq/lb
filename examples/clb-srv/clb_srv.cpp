@@ -15,6 +15,9 @@
 #include "clb_srv.h"
 
 using namespace std;
+extern "C" {
+	extern int clb_srv_group_id;
+};
 
 clb_srv::clb_srv(int fd, struct event_base* base) : evsock(fd, base) {
 	plb = clb_tbl::get_inst();
@@ -68,7 +71,7 @@ void clb_srv::read(int sock, short event, void* arg) {
 			cdat_wx wx((char*)pxml, xml_len);
 			unsigned long hash = wx.hash;
 #ifdef CFG_QAO_TRACE		
-			wx.trace("clb_srv");
+			wx.trace("clb_srv(%d)", clb_srv_group_id);
 #endif
 
 			/* 绑定Server和QAO */

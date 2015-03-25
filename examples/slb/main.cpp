@@ -16,16 +16,17 @@
 #include <evclnt.h>
 #include "slb_clnt.h"
 
-#define CFG_LISTEN_IP		"127.0.0.1"
-#define CFG_LISTEN_PORT		12000
+#define CFG_LISTEN_IP			"127.0.0.1"
+#define CFG_LISTEN_PORT_BASE	32000
 
-static unsigned int port = CFG_LISTEN_PORT;
+static unsigned int port = CFG_LISTEN_PORT_BASE;
 static char ip_str[256] = CFG_LISTEN_IP;
 static bool fork_to_background = false;
+static int test_group = 0;
 
 static struct option long_options[] = {
     {"help",  no_argument, 0,  'h' },
-    {"port",    required_argument, 0,  'p' },
+    {"group",    required_argument, 0,  'g' },
     {"ip",      required_argument, 0,  'i' },
     {"deamon",  no_argument, 0,  'd' },
     {0,         0,                 0,  0 }
@@ -35,7 +36,7 @@ static void help(void) {
 	printf("Usage: robot server\n");
 	printf("	-h, --help       display this help and exit\n");
 	printf("	-i, --ip         setting listen ip address\n");
-	printf("	-p, --port       setting listen port\n");
+	printf("	-g, --group      setting listen group\n");
 	printf("	-d, --deamon     daemonize\n");
 }
 
@@ -45,14 +46,15 @@ static bool parser_opt(int argc, char **argv) {
     while (1) {
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "hp:i:d",
+        c = getopt_long(argc, argv, "hg:i:d",
                  long_options, &option_index);
         if (c == -1)
             break;
 
         switch (c) {
-        case 'p':
-        	port = atoi(optarg);
+        case 'g':
+        	test_group = atoi(optarg);
+        	port += 10 * test_group;
             break;
 
         case 'i':
@@ -98,9 +100,9 @@ int main(int argc, char* argv[]) {
      }
 
 	/* 创建32个基于Event的应答席位 */
-	for (int i=0; i<32; i++) {
+	for (int i=0; i<64; i++) {
 		char nstr[256];
-		sprintf(nstr, "www.%d.com", i);
+		sprintf(nstr, "www.%d.com", i);	//  + test_group * 32);
 		string name(nstr);
 		evclnt<slb_clnt> *pclnt = new evclnt<slb_clnt>(ip_str, (unsigned short)(port));
 		slb_clnt *sk = pclnt->evconnect();

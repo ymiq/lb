@@ -16,16 +16,19 @@
 #include "robot_clnt.h"
 #include <hash_bind.h>
 
-#define CFG_LISTEN_IP		"127.0.0.1"
-#define CFG_LISTEN_PORT		10000
+#define CFG_LISTEN_IP			"127.0.0.1"
+#define CFG_LISTEN_PORT_BASE	30000
+#define CFG_ROBOT_PORT_BASE		40000
 
-static unsigned int port = CFG_LISTEN_PORT;
+static unsigned int port = CFG_LISTEN_PORT_BASE;
+static unsigned int robot_port = CFG_ROBOT_PORT_BASE;
 static char ip_str[256] = CFG_LISTEN_IP;
 static bool fork_to_background = false;
+int hub_group_id = 0;
 
 static struct option long_options[] = {
 	{"help",  no_argument, 0,  'h' },
-	{"port",    required_argument, 0,  'p' },
+	{"group",    required_argument, 0,  'g' },
 	{"ip",      required_argument, 0,  'i' },
 	{"deamon",  no_argument, 0,  'd' },
 	{0,         0,                 0,  0 }
@@ -35,7 +38,7 @@ static void help(void) {
 	printf("Usage: lb-server\n");
 	printf("	-h, --help       display this help and exit\n");
 	printf("	-i, --ip         setting listen ip address\n");
-	printf("	-p, --port       setting listen port\n");
+	printf("	-g, --group      setting listen group\n");
 	printf("	-d, --deamon     daemonize\n");
 }
 
@@ -52,15 +55,19 @@ static bool parser_opt(int argc, char **argv) {
 	while (1) {
 		int option_index = 0;
 		
-		c = getopt_long(argc, argv, "hp:i:d",
+		c = getopt_long(argc, argv, "hg:i:d",
 					long_options, &option_index);
 		if (c == -1)
 		    break;
 
 		switch (c) {
-		case 'p':
-			port = atoi(optarg);
+		case 'g':
+		{
+			hub_group_id = atoi(optarg);
+			port += 10 * hub_group_id;
+			robot_port += 100 * hub_group_id; 
 		    break;
+		}
 		
 		case 'i':
 			strncpy(ip_str, optarg, 255);
@@ -82,7 +89,7 @@ static bool parser_opt(int argc, char **argv) {
 static void *thread_clb(void *args) {
 	evsrv<hub_csrv> *srv;
 	try {
-		srv = new evsrv<hub_csrv>(ip_str, (unsigned short)port);
+		srv = new evsrv<hub_csrv>(ip_str, (unsigned short)port + 1000);
 	} catch(const char *msg) {
 		printf("Error out: %s\n", msg);
 		exit(-1);
@@ -130,7 +137,7 @@ static void *thread_slb(void *args) {
 
 static void *thread_robot(void *args) {
 	/* 创建基于Event的客户端，用于发送命令和接受响应 */	
-	evclnt<robot_clnt> clnt(ip_str, (unsigned short)(port + 1000));
+	evclnt<robot_clnt> clnt(ip_str, (unsigned short)(robot_port + 1000));
 	robot_sock = clnt.evconnect();
 	if (robot_sock) {
     	clnt.loop();

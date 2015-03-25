@@ -14,19 +14,23 @@
 
 using namespace std;
 
-#define CFG_CLBSRV_IP		"127.0.0.1"
-#define CFG_CLBSRV_PORT		7000
-#define CFG_SIM_THREADS		4
+#define CFG_CLBSRV_IP			"127.0.0.1"
+#define CFG_CLBSRV_PORT_BASE	10000
+#define CFG_SIM_THREADS			4
 
-static unsigned int port = CFG_CLBSRV_PORT;
+static unsigned int port = CFG_CLBSRV_PORT_BASE;
 static char ip_str[256] = CFG_CLBSRV_IP;
 static bool fork_to_background = false;
 static bool http_payload = true;
+static int speed = 0;
+bool trace_show = false;
 
 static struct option long_options[] = {
     {"help",  no_argument, 0,  'h' },
-    {"simple",  no_argument, 0,  's' },
+    {"long",  no_argument, 0,  'l' },
     {"http",  no_argument, 0,  't' },
+    {"speed",  required_argument, 0,  's' },
+    {"trace",  no_argument, 0,  't' },
     {"deamon",  no_argument, 0,  'd' },
     {0,         0,                 0,  0 }
 };
@@ -34,10 +38,12 @@ static struct option long_options[] = {
 static void help(void) {
 	printf("Usage: cmb-payload \n");
 	printf("	-h, --help       display this help and exit\n");
-	printf("	-i, --ip         setting listen ip address\n");
-	printf("	-p, --port       setting listen port\n");
-	printf("	-s, --simple     apply payload to long-link server\n");
+	printf("	-i, --ip         setting clb listen ip address\n");
+	printf("	-g, --group      setting clb listen group\n");
+	printf("	-s, --speed      question speed\n");
+	printf("	-l, --long       apply payload to long-link server\n");
 	printf("	-t, --http       apply payload to http server\n");
+	printf("	-r, --trace      trace dump\n");
 	printf("	-d, --deamon     daemonize\n");
 }
 
@@ -48,21 +54,21 @@ static bool parser_opt(int argc, char **argv) {
     while (1) {
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "hstp:i:d",
+        c = getopt_long(argc, argv, "hlrtg:i:s:d",
                  long_options, &option_index);
         if (c == -1)
             break;
 
         switch (c) {
-		case 'p':
-			port = atoi(optarg);
+		case 'g':
+			port += 10 * atoi(optarg);
 		    break;
 		
 		case 'i':
 			strncpy(ip_str, optarg, 255);
 		    break;
 		
-        case 's':
+        case 'l':
         	http_payload = false;
             break;
 
@@ -70,8 +76,16 @@ static bool parser_opt(int argc, char **argv) {
         	http_payload = true;
             break;
 
+        case 'r':
+        	trace_show = true;
+            break;
+
         case 'd':
         	fork_to_background = true;
+            break;
+
+        case 's':
+        	speed = atoi(optarg);
             break;
 
         default:
@@ -143,9 +157,9 @@ static void rand_post(http *pclient, unsigned long msgid) {
 	struct timeval tv;
 	
 	gettimeofday(&tv, NULL);
-	rand_company(company, 0, 16);
-	rand_user(user, 0, 16);
-	rand_question(question, 0, 16);
+	rand_company(company, 0, 64);
+	rand_user(user, 0, 1024);
+	rand_question(question, 0, 1024);
 	snprintf(content, sizeof(content)-1, format, company, user, (unsigned int)tv.tv_sec, question, msgid);
 	
 	string url = "localhost/wxif/";
@@ -162,9 +176,9 @@ static void rand_post(pl_clnt *sk, unsigned long msgid) {
 	struct timeval tv;
 	
 	gettimeofday(&tv, NULL);
-	rand_company(company, 0, 16);
-	rand_user(user, 0, 16);
-	rand_question(question, 0, 16);
+	rand_company(company, 0, 64);
+	rand_user(user, 0, 1024);
+	rand_question(question, 0, 1024);
 	
 	char *content = new char[1024]();
 	serial_data *pheader = (serial_data*)content;
@@ -206,11 +220,13 @@ void dump_receive(void) {
 static void *pthread_ask_http(void *args) {
 	http http_client;
 	unsigned long msgid = ((unsigned long)pthread_self()) << 32;
+	int coeff = (speed + 1);
+	unsigned int dump = 0;
 	
 	while (1) {
 		
 		/* 随机发送(100~1124)个包 */
-		unsigned long send_packets = (rand() % 64) + 16;
+		unsigned long send_packets = (rand() % coeff) + coeff;
 		for (unsigned long cnt=0; cnt<=send_packets; cnt++) {
 
 			string url = "localhost/wxif";
@@ -220,7 +236,7 @@ static void *pthread_ask_http(void *args) {
 		}
 		
 		/* 随机Sleep一段时间(50~200ms) */
-		rand_delay(1000, 2000);
+		rand_delay(200, 500);
 		
 		/* 显示问题数量和提问速度 */
 		struct timeval tv;
@@ -237,7 +253,9 @@ static void *pthread_ask_http(void *args) {
 			diff = 10;
 		}
 		unsigned long questions = __sync_add_and_fetch(&total_sends, send_packets);
-		printf("Questions: %ld, speed: %ld qps\n", questions, (questions * 10) / diff);
+		if (((++dump & 0x07) == 0x07) && !trace_show) {
+			printf("Questions: %ld, speed: %ld qps\n", questions, (questions * 10) / diff);
+		}
 	}
 	return NULL;
 }
@@ -245,9 +263,11 @@ static void *pthread_ask_http(void *args) {
 
 static void *pthread_ask_simple(void *args) {
 	unsigned long msgid = ((unsigned long)pthread_self()) << 32;
+	int coeff = (speed + 1);
+	unsigned int dump = 0;
 	
 	/* 创建客户端 */
-	evclnt<pl_clnt> *pclnt = new evclnt<pl_clnt>("127.0.0.1", 7000);
+	evclnt<pl_clnt> *pclnt = new evclnt<pl_clnt>(CFG_CLBSRV_IP, port + 1000);
 	pl_clnt *sk = pclnt->evconnect();
 	if (sk) {
 		/* 启动席位对应的线程 */
@@ -257,7 +277,7 @@ static void *pthread_ask_simple(void *args) {
 	while (1) {
 		
 		/* 随机发送(100~1124)个包 */
-		unsigned long send_packets = (rand() % 128) + 2048;
+		unsigned long send_packets = (rand() % coeff) + coeff;
 		for (unsigned long cnt=0; cnt<=send_packets; cnt++) {
 
 			string url = "localhost/wxif";
@@ -286,7 +306,9 @@ static void *pthread_ask_simple(void *args) {
 			diff = 10;
 		}
 		unsigned long questions = __sync_add_and_fetch(&total_sends, send_packets);
-		printf("Questions: %ld, speed: %ld qps\n", questions, (questions * 10) / diff);
+		if (((++dump & 0x07) == 0x07) && !trace_show) {
+			printf("Questions: %ld, speed: %ld qps\n", questions, (questions * 10) / diff);
+		}
 		
 	}
 	return NULL;

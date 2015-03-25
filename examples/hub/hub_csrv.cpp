@@ -14,6 +14,10 @@
 
 using namespace std;
 
+extern "C" {
+	extern int hub_group_id;
+}
+
 hub_csrv::~hub_csrv() {
 }
 
@@ -48,7 +52,7 @@ void hub_csrv::read(int sock, short event, void* arg) {
 		
 		/* 记录站点信息, 显示对象内容 */
 #ifdef CFG_QAO_TRACE		
-		q->trace("hub_csrv");
+		q->trace("hub_csrv(%d)", hub_group_id);
 //		q->dump_trace();
 #endif
 #ifdef CFG_QAO_DUMP

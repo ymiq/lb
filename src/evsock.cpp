@@ -123,7 +123,9 @@ int evsock::ev_recv_frag(size_t &len, bool &partition) {
 		partition = false;
 		frag_flag = false;
 		len = ret_len;
-		LOGE("recv error: %s", strerror(errno));
+		if (ret_len < 0) {
+			LOGE("recv error: %s", strerror(errno));
+		}
 	} else if (ret_len != (int)recv_len) {
 		/* 非阻塞模式下，数据接收未完成 */
 		partition = true;

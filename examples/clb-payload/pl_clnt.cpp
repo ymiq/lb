@@ -10,7 +10,9 @@
 #include "pl_clnt.h"
 #include <qao/answer.h>
 
-
+extern "C" {
+	extern bool trace_show;
+};
 
 void pl_clnt::send_done(void *buf, size_t len, bool send_ok) {
 	delete[] (char*)buf;
@@ -50,7 +52,9 @@ void pl_clnt::read(int sock, short event, void* arg) {
 		/* 记录站点信息, 显示对象内容 */
 #ifdef CFG_QAO_TRACE		
 		qao->trace("pl_clnt");
-//		qao->dump_trace();
+		if (trace_show) {
+			qao->dump_trace();
+		}
 #endif
 #ifdef CFG_QAO_DUMP
 		qao->dump();

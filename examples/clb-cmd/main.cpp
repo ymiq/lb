@@ -550,26 +550,55 @@ static int stat_parser(int argc, char *argv[], cctl_req &req) {
 
 
 int main(int argc, char *argv[]) {
+	int parser_off = 1;
+	unsigned short port = CFG_CMDSRV_PORT;
 	
 	LOG_CONSOLE("clb-cmd");
+	
+	/* 检查配置目的服务 */
+	argc -= 1;
+	if ((argc >= 1) && !strcmp(argv[1], "-g")) {
+		int cfg_grp;
+		
+		if (argc == 1) {
+			help();
+			return 0;
+		}
+		char *str = argv[2];
+		
+		if ((strlen(str) >= 2) && (str[0] == '0') 
+				&& ((str[1] == 'x') || (str[1] == 'X'))) {
+			cfg_grp = (unsigned int)strtoul(str, NULL, 16);
+		} else {
+			cfg_grp = (unsigned int)strtoul(str, NULL, 10);
+		}
+		
+		if ((errno == ERANGE) || (errno == EINVAL)) {
+			printf("无效组名: %s\n", str);
+			return 0;
+		}
+		parser_off += 2;
+		argc -= 2;
+		port = 10000 + 10 * cfg_grp;
+	}
 	
 	/* 设置随机数种子 */
 	srand((int)time(NULL));
 	
 	try {
 		/* 均衡数据库命令 */
-		if (db_parser(argc-1, &argv[1])) {
+		if (db_parser(argc, &argv[parser_off])) {
 			return 0;
 		}
 	
 		/* 统计相关命令 */
 		cctl_req req;
-		if ((argc > 3) && (!strcmp(argv[1], "stat"))) {
-			if (!stat_parser(argc-2, &argv[2], req)) {
+		if ((argc > 2) && (!strcmp(argv[parser_off], "stat"))) {
+			if (!stat_parser(argc-1, &argv[parser_off+1], req)) {
 				return 0;
 			}
-		} else if ((argc > 3) && (!strcmp(argv[1], "lb"))) {
-			if (!lb_parser(argc-2, &argv[2], req)) {
+		} else if ((argc > 2) && (!strcmp(argv[parser_off], "lb"))) {
+			if (!lb_parser(argc-1, &argv[parser_off+1], req)) {
 				return 0;
 			}
 		} else {
@@ -578,7 +607,7 @@ int main(int argc, char *argv[]) {
 		}
 		
 		/* 创建基于Event的客户端，用于发送命令和接受响应 */
-		evclnt<cmd_clnt> clnt(CFG_CMDSRV_IP, CFG_CMDSRV_PORT);
+		evclnt<cmd_clnt> clnt(CFG_CMDSRV_IP, port);
 		cmd_clnt *sk = clnt.evconnect();
 		if (sk) {
 			if (monitor) {

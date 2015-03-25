@@ -30,8 +30,7 @@ using namespace std;
 	create index lb_idx on lb(master, slave, groupid, aport, qport, qstat, astat);
 */
 
-#define CFG_ENTERPRISES			256
-#define CFG_ENTERPRISE_GROUPS	32
+#define CFG_ENTERPRISES			64
 #define CFG_RECEIVE_THREADS		32
 
 lb_db::lb_db(const char *ip, unsigned short port, const char *db_name) {
@@ -92,9 +91,9 @@ int lb_db::db_create(void) {
 	
 	/* 新建数据内容 */
 	for (int i=0; i<CFG_ENTERPRISES; i++) {
-		unsigned int group = 0;		// ((unsigned int)rand()) % CFG_ENTERPRISE_GROUPS;
-		unsigned int qport = 10000 + group;
-		unsigned int aport = 11000 + group;
+		unsigned int group = i / 32;
+		unsigned int qport = 31000 + group * 10;
+		unsigned int aport = 32000 + group * 10;
 		unsigned long hash;
 		
 		/* 添加数据到数据库 */

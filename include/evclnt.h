@@ -138,7 +138,7 @@ T *evclnt<T>::evconnect(void) {
 	sk_addr.sin_addr = ip_addr;
 	
 	if (connect(sockfd, (struct sockaddr*)&sk_addr, sizeof(struct sockaddr)) < 0) {
-		LOGE ("connect error: %s", strerror(errno));
+		LOGE ("connect to %d error: %s", port, strerror(errno));
 		return NULL;
 	}
 	
