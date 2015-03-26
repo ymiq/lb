@@ -5,6 +5,10 @@
 
 using namespace std;
 
+static unsigned long total_recv = 0;
+static timeval start_tv;
+static bool binit = false;
+
 static int on_debug(CURL *curl, 
 			curl_infotype itype, char *pdata, size_t size, void *pvoid) {
 	if(itype == CURLINFO_TEXT) 	{
@@ -27,6 +31,7 @@ static int on_debug(CURL *curl,
 
 static size_t on_write_data(void* buffer, 
 			size_t size, size_t nmemb, void* lpdata) {
+#if 0				
 	string* str = dynamic_cast<string*>((string *)lpdata);
 	if( NULL == str || NULL == buffer ) {
 		return -1;
@@ -34,6 +39,32 @@ static size_t on_write_data(void* buffer,
 
     char* pdata = (char*)buffer;
     str->append(pdata, size * nmemb);
+#else
+	if (!binit) {
+		binit = true;
+		gettimeofday(&start_tv, NULL);
+	}
+	
+	unsigned long reply = __sync_add_and_fetch(&total_recv, 1);	
+	if ((reply % 1000) == 0) {
+		struct timeval tv;
+		
+		gettimeofday(&tv, NULL);
+		unsigned long diff;
+		if (tv.tv_usec >= start_tv.tv_usec) {
+			diff = (tv.tv_sec - start_tv.tv_sec) * 10 + 
+				(tv.tv_usec - start_tv.tv_usec) / 100000;
+		} else {
+			diff = (tv.tv_sec - start_tv.tv_sec - 1) * 10 + 
+				(tv.tv_usec + 1000000 - start_tv.tv_usec) / 100000;
+		}
+		if (!diff) {
+			diff = 10;
+		}
+
+		printf("REPLAY: %ld, speed: %ld qps\n", reply, (reply * 10) / diff);
+	}
+#endif
 	return nmemb;
 }
 
@@ -41,11 +72,12 @@ static size_t on_write_data(void* buffer,
 http::http(void):debug_flag(false) {
 	share_handle = curl_share_init();  
 	curl_share_setopt(share_handle, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);  
-
+	curl_share_setopt(share_handle, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE);   
 }
 
-http::~http(void) {
 
+http::~http(void) {
+	curl_share_cleanup(share_handle);
 }
 
 int http::post(const string &str_url, 
@@ -68,8 +100,8 @@ int http::post(const string &str_url,
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, on_write_data);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&str_resp);
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
-	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3);
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 3);
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1);
 	res = curl_easy_perform(curl);
 	curl_easy_cleanup(curl);
 	return res;

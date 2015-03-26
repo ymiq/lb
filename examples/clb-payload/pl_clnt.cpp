@@ -61,7 +61,7 @@ void pl_clnt::read(int sock, short event, void* arg) {
 #endif
 		
 		/* 把Candidate发给Hub */
-		dump_receive();
+		count_reply();
 		delete qao;
 		
 	} catch (const char *msg) {

@@ -169,7 +169,7 @@ static void rand_post(http *pclient, unsigned long msgid) {
 }
 
 
-static void rand_post(pl_clnt *sk, unsigned long msgid) {
+static bool rand_post(pl_clnt *sk, unsigned long msgid) {
 	char company[128];
 	char user[128];
 	char question[128];
@@ -187,34 +187,20 @@ static void rand_post(pl_clnt *sk, unsigned long msgid) {
 	datalen += 1;
 	pheader->length = datalen + sizeof(serial_data);
 	pheader->datalen = datalen;
-	sk->ev_send_inter_thread(pheader, pheader->length);
+	bool ret = sk->ev_send_inter_thread(pheader, pheader->length);
+	if (!ret) {
+		delete[] content;
+	}
+	return ret;
 }
 
-
-static unsigned long total_recv = 0;
+static unsigned long total_reply = 0;
 static unsigned long total_sends = 0;
+static unsigned long total_valids = 0;
 static struct timeval start_tv;
 
-void dump_receive(void) {
-	unsigned long reply = __sync_add_and_fetch(&total_recv, 1);
-	if ((reply % 10000) == 0) {
-		struct timeval tv;
-		
-		gettimeofday(&tv, NULL);
-		unsigned long diff;
-		if (tv.tv_usec >= start_tv.tv_usec) {
-			diff = (tv.tv_sec - start_tv.tv_sec) * 10 + 
-				(tv.tv_usec - start_tv.tv_usec) / 100000;
-		} else {
-			diff = (tv.tv_sec - start_tv.tv_sec - 1) * 10 + 
-				(tv.tv_usec + 1000000 - start_tv.tv_usec) / 100000;
-		}
-		if (!diff) {
-			diff = 10;
-		}
-
-		printf("REPLAY: %ld, speed: %ld qps\n", reply, (reply * 10) / diff);
-	}
+void count_reply(void) {
+	__sync_add_and_fetch(&total_reply, 1);
 }
 
 static void *pthread_ask_http(void *args) {
@@ -268,15 +254,18 @@ static void *pthread_ask_simple(void *args) {
 	if (sk) {
 		/* 启动席位对应的线程 */
     	pclnt->loop_thread();
+    } else {
+    	exit(1);
     }
 
 	while (1) {
 		
 		/* 随机发送(100~1124)个包 */
 		unsigned long send_packets = (rand() % coeff) + coeff;
+		unsigned long valids = 0;
 		for (unsigned long cnt=0; cnt<send_packets; cnt++) {
-			if (sk) {
-				rand_post(sk, msgid++);
+			if (rand_post(sk, msgid++)) {
+				valids++;
 			}
 		}
 		
@@ -297,9 +286,12 @@ static void *pthread_ask_simple(void *args) {
 		if (!diff) {
 			diff = 10;
 		}
+		
 		unsigned long questions = __sync_add_and_fetch(&total_sends, send_packets);
+		unsigned long send_questions = __sync_add_and_fetch(&total_valids, valids);
 		if (((++dump & 0x07) == 0x07) && !trace_show) {
-			printf("Questions: %ld, speed: %ld qps\n", questions, (questions * 10) / diff);
+			printf("Send: %ld, Valids: %ld, Reply: %ld, Snd-Spd: %ld qps, Rply-Spd: %ld qps\n", 
+					questions, send_questions, total_reply, (questions * 10) / diff, (total_reply * 10) / diff);
 		}
 		
 	}

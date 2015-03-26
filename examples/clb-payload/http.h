@@ -1,6 +1,7 @@
 #ifndef __HTTP_CURL_H__
 #define __HTTP_CURL_H__
 
+#include <ctime>
 #include <string>
 #include "curl/curl.h"
 

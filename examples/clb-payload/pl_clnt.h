@@ -29,7 +29,7 @@ private:
 };
 
 extern "C" {
-	void dump_receive(void);
+	void count_reply(void);
 }
 
 #endif /* __PL_CLNT_H__ */

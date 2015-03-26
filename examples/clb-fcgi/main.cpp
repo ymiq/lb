@@ -52,6 +52,43 @@ static int stat_init(stat_tbl_base *pstat) {
 	return ret;  
 }
 
+// #define CFG_PERF_DUMP
+
+#if defined(CFG_PERF_DUMP)
+static unsigned long total_questions = 0;
+static unsigned long recent_questions = 0;
+static struct timeval start_tv;
+static bool perf_init = false;
+void dump_performance(void) {
+	unsigned long diff;
+	struct timeval tv;
+	
+	total_questions++;	
+	recent_questions++;
+	if (!perf_init) {
+		gettimeofday(&start_tv, NULL);
+		perf_init = true;
+		return;
+	}
+	gettimeofday(&tv, NULL);
+	if (tv.tv_usec >= start_tv.tv_usec) {
+		diff = (tv.tv_sec - start_tv.tv_sec) * 100 + 
+			(tv.tv_usec - start_tv.tv_usec) / 10000;
+	} else {
+		diff = (tv.tv_sec - start_tv.tv_sec - 1) * 100 + 
+			(tv.tv_usec + 1000000 - start_tv.tv_usec) / 10000;
+	}
+	if (!diff) {
+		diff = 10;
+	}
+	if (diff >= 100) {
+		LOGI("REPLAY: %ld, speed: %ld qps\n", total_questions, (recent_questions * 100) / diff);
+		start_tv = tv;
+		recent_questions = 0;
+	}
+}
+#endif
+
 
 static void *thread_worker(void *args) {
     FCGX_Request request;
@@ -101,7 +138,11 @@ static void *thread_worker(void *args) {
 	        FCGX_Finish_r(&request);
 	        continue;
 		}
-		
+
+#if defined(CFG_PERF_DUMP)
+		/* 统计性能 */
+		dump_performance();
+#endif		
 		/* 复制数据到缓冲区 */
 		char *buffer = new char[len+1];
 		FCGX_GetStr(buffer, len, request.in);
