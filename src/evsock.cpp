@@ -45,6 +45,7 @@ evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
   	frag_flag = false;
   	wfrag_flag = false;
   	pevobj = NULL;
+  	count = 0;
 }
 
 
@@ -56,9 +57,7 @@ evsock::~evsock() {
 	event_del(&read_ev);
 	
 	/* 删除写事件 */
-	if (!wq.empty()) {
-		event_del(&write_ev);
-	}
+	event_del(&write_ev);
 
 	/* 释放对象 */
 	job_queue<ev_job*> *q = this->ev_queue();
@@ -379,7 +378,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 	job_queue<ev_job*> *q = evsk->ev_queue();
 	ev_job *job = q->pop();
 	if (job == NULL) {
-		LOGE("impossible error when pop from queue, check it");
+//		LOGE("impossible error when pop from queue, check it: %ld", evsk->count++);
 		return;
 	}
 	
@@ -558,13 +557,19 @@ bool evsock::ev_send_inter_thread(qao_base *qao) {
 
 void evsock::do_eventfd(int efd, short event, void* arg) {
 	evsock *evsk = (evsock *)arg;
-	job_queue<ev_job*> *q = evsk->ev_queue();
 	
 	/* 清除事件 */
 	unsigned long cnt;
-	read(evsk->efd, &cnt, sizeof(cnt));
+	if (read(evsk->efd, &cnt, sizeof(cnt)) <= 0) {
+		if ((errno == EAGAIN) || (errno == EINTR)) {
+			return;
+		}
+		LOGE("read eventfd error");
+		return;
+	}
 	
 	/* 检查Queue不为空，当前没有EV_WRITE事件 */
+	job_queue<ev_job*> *q = evsk->ev_queue();
 	if (!q->empty() && !event_pending(&evsk->write_ev, EV_WRITE, NULL)) {
 		if (event_add(&evsk->write_ev, NULL) < 0) {
 			LOGE("event_add error\n");

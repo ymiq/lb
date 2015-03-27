@@ -22,7 +22,7 @@ SRCS += $(TOP_DIR)/src/clb/clb_tbl.cpp
 SRCS += $(TOP_DIR)/src/evsock.cpp
 SRCS += $(TOP_DIR)/src/rcu_man.cpp
 
-CPPFLAGS = -O2 -Wall -Werror -I$(TOP_DIR)/include -I$(TOP_DIR)/examples/clb-fcgi
+CPPFLAGS = -ggdb -Wall -Werror -I$(TOP_DIR)/include -I$(TOP_DIR)/examples/clb-fcgi
 
 LDFLAGS = -lstdc++ -lpthread -lfcgi 
 LDFLAGS += -L/usr/lib64/mysql/ -lmysqlclient
@@ -58,6 +58,6 @@ prepare:
 	@mkdir -p $(dir $(OBJS))
 	
 clean:
-	@rm -fr $(TARGET) $(BUILD_DIR)
+	@rm -fr $(TARGET) $(WORK_DIR)
 
 

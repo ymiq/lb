@@ -153,10 +153,10 @@ void answer_reply(qao_base *qao) {
 			delete qao;
 		}
 #endif
+		qao_bind->remove(token);
 	} else {
 		delete qao;
 	}
-	qao_bind->remove(token);
 }
 
 

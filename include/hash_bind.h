@@ -102,6 +102,7 @@ void hash_bind<V, KS, VS>::remove(unsigned long key) {
 template<typename V, unsigned int KS, unsigned int VS>
 void hash_bind<V, KS, VS>::remove(V &value) {
 	/* 获取KEY数组 */
+//	LOGE(">>>>>>Del: %p", value);
 	unsigned long vhash = pointer_hash(value);
 	KEY_ARRAY *key_array = value_table.find(vhash);
 	if (key_array == NULL) {
@@ -127,7 +128,16 @@ void hash_bind<V, KS, VS>::remove(V &value) {
 
 template<typename V, unsigned int KS, unsigned int VS>
 V hash_bind<V, KS, VS>::get_val(unsigned long key) {
-	return key_table.find(key);
+	V value = key_table.find(key);
+	if (value == NULL) {
+		return value;
+	}
+	unsigned long vhash = pointer_hash(value);
+	if (!value_table.find(vhash)) {
+//		LOGE("value unexist, check it: %lx, %p", key, value);
+		return NULL;
+	}
+	return value;
 }
 
 

@@ -46,6 +46,6 @@ prepare:
 	@mkdir -p $(dir $(OBJS))
 	
 clean:
-	@rm -fr $(TARGET) $(BUILD_DIR)
+	@rm -fr $(TARGET) $(WORK_DIR)
 
 

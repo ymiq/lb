@@ -68,6 +68,8 @@ protected:
 	struct event_base* evbase;
 	evobj *pevobj;
 	
+	unsigned long count;
+	
 private:
 	/* 分片接收相关变量 */
 	bool frag_flag;				/* 分片: 一个数据内容段被协议栈拆分成多个分片 */

@@ -16,6 +16,7 @@
 
 clb_grp::clb_grp() {
 	pclb = clb_tbl::get_inst();
+	ev_base = NULL;
 }
 
 
