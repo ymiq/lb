@@ -14,7 +14,7 @@
 
 evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
 	/* 初始化发送优先级队列 */
-	int qsize[] = {1024, 2048, 4096, 8192};
+	int qsize[] = {1024, 8192, 8192, 16384};
 	if (!wq.init(4, qsize)) {
 		throw "can't create priority queue for evsock";
 	}
@@ -43,6 +43,7 @@ evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
 	
 	/* 成员变量初始化 */
   	frag_flag = false;
+  	wfrag_flag = false;
   	pevobj = NULL;
 }
 
@@ -114,7 +115,6 @@ int evsock::ev_recv_frag(size_t &len, bool &partition) {
 	int ret_len = recv(sockfd, recv_buf, recv_len, MSG_DONTWAIT);
 	if (ret_len <= 0) {
 		if ((errno == EAGAIN) || (errno == EINTR)) {
-//			LOGE("recv warning: %s", strerror(errno));
 			partition = true;
 			frag_flag = true;
 			len = 0;
@@ -124,7 +124,7 @@ int evsock::ev_recv_frag(size_t &len, bool &partition) {
 		frag_flag = false;
 		len = ret_len;
 		if (ret_len < 0) {
-			LOGE("recv error: %s", strerror(errno));
+			LOGD("recv error: %s", strerror(errno));
 		}
 	} else if (ret_len != (int)recv_len) {
 		/* 非阻塞模式下，数据接收未完成 */
@@ -143,9 +143,6 @@ int evsock::ev_recv_frag(size_t &len, bool &partition) {
 		} else if (frag_sec == 3) {
 			partition = false;
 			len = sec_off;
-			if (len != sec_len) {
-				LOGE(">>>>>>>>>>>>>>packet error %p-%p: %d vs %d", this, sec_buf, len, sec_len);
-			}
 		}
 	}
 	return ret_len;
@@ -275,12 +272,111 @@ void evsock::recv_done(void *buf) {
 }
 
 
-void evsock::do_write(int sock, short event, void* arg) {
-	bool del_job = false;
-	evsock *evsk = (evsock *)arg;
+void evsock::wfrag_prepare(evsock *evsk, ev_job* job, void *buf, size_t len, int type) {
+	evsk->wfrag_flag = true;
+	evsk->wfrag_buf = (char*)buf;
+	evsk->wfrag_len = len;
+	evsk->wfrag_off = 0;
+	evsk->wfrag_job = job;
+	evsk->wfrag_type = type;
+}
+
+
+/* 
+ * 发送指定缓冲区内容，处理EAGAIN和EINTR错误
+ */
+void evsock::do_write_buffer(evsock *evsk) {
+	char *wbuf = evsk->wfrag_buf + evsk->wfrag_off;
+	size_t wlen = evsk->wfrag_len - evsk->wfrag_off;
+	ev_job *job = evsk->wfrag_job;
+		
+	/* 发送数据 */
+	int len = send(evsk->sockfd, wbuf, wlen, MSG_DONTWAIT);
+	if (len <= 0) {
+		/* 出错处理 */
+		if ((errno != EAGAIN) && (errno != EINTR)) {
+			evsk->wfrag_flag = false;
+			if (evsk->wfrag_type != 1) {
+				/* 通知发送完成 */
+	 			if (job->qao) {
+					evsk->send_done(job->qao, false);
+		 			delete[] job->buf;
+	 			} else {
+					evsk->send_done((void*)job->buf, job->len, false);
+	 			}
+	 		}
+			LOGD("send error: %s", strerror(errno));
+ 			delete job;
+		}
+		len = 0;
+	} 
+	
+	/* 只发送部分数据，等待继续发送 */
+	if (len != (int)wlen) {
+		evsk->wfrag_off += len;
+		
+		/* 添加事件，等待继续发送 */
+		if (!event_pending(&evsk->write_ev, EV_WRITE, NULL)) {
+			if (event_add(&evsk->write_ev, NULL) < 0) {
+				LOGE("event_add error, check it\n");
+			}
+		}
+		return;
+	}
+
+	/* 数据发送完毕 */
+	evsk->wfrag_flag = false;
 	job_queue<ev_job*> *q = evsk->ev_queue();
+	if (!evsk->wfrag_type) {
+		/* 通知发送完成 */
+		if (job->qao) {
+			evsk->send_done(job->qao, true);
+			delete[] job->buf;
+		} else {
+			evsk->send_done((void*)job->buf, job->len, true);
+		}
+		delete job;
+	} else if (evsk->wfrag_type == 1) {
+		
+		/* SECTION数据头信息发送完毕，发送后续数据 */
+		serial_data *pheader = &job->header;
+		size_t datalen = pheader->datalen;
+		char *buf = job->buf + job->offset;
+		job->offset += datalen;
+		
+		int type = 0;
+		if (job->offset != job->len) {
+			type = 2;
+		}
+		wfrag_prepare(evsk, job, buf, datalen, type);
+		
+		do_write_buffer(evsk);
+		return;
+		
+	} else if (evsk->wfrag_type == 2) {
+		q->push(job, 0);
+	}
+	
+	/* 检查FIFO是否还存在待发送内容 */
+	if (!q->empty() && !event_pending(&evsk->write_ev, EV_WRITE, NULL)) {
+		if (event_add(&evsk->write_ev, NULL) < 0) {
+			LOGE("event_add error\n");
+		}
+	}
+}
+
+
+void evsock::do_write(int sock, short event, void* arg) {
+	evsock *evsk = (evsock *)arg;
+	
+	/* 检查是否继续写入（缓冲区满）*/
+	if (evsk->wfrag_flag) {
+		do_write_buffer(evsk);
+		return;
+	}
 	
 	/* 从写缓冲队列读取一个job */
+	job_queue<ev_job*> *q = evsk->ev_queue();
 	ev_job *job = q->pop();
 	if (job == NULL) {
 		LOGE("impossible error when pop from queue, check it");
@@ -289,10 +385,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 	
 	/* 发送数据 */
 	if (job->section) {
-		bool send_status = false;
-		
 		/* 发送分片数据 */
-		char *buf = job->buf + job->offset;
 		size_t datalen = job->len - job->offset;
 		size_t max_len = CFG_SECTION_SIZE - sizeof(serial_data);
 		serial_data *pheader = &job->header;
@@ -304,35 +397,10 @@ void evsock::do_write(int sock, short event, void* arg) {
 			pheader->length = job->offset | (3u << 30);
 		}
 		pheader->datalen = datalen;
-		job->offset += datalen;
 		
-		/* 发送信息 */
-		int len = send(sock, pheader, sizeof(serial_data), 0);
-		if (len == sizeof(serial_data)) {
-			/* 发送数据头 */
-			len = send(sock, buf, datalen, 0);
-			if (len == (int)datalen) {
-				send_status = true;
-			}
-		}
-		if (len == 0) {
-			if ((errno == EAGAIN) || (errno == EINTR)) {
-				LOGE("Send buff full, check it");
-			}
-		} else if ((len > 0) && !send_status) {
-			LOGE("Send buff full, check it");
-		}
-						
-		/* 通知发送完成 */
-   		if ((job->offset == job->len) || !send_status) {
- 			if (job->qao) {
-				evsk->send_done(job->qao, send_status);
-	 			delete[] job->buf;
- 			} else {
-				evsk->send_done((void*)job->buf, job->len, send_status);
- 			}
- 			del_job = true;
-  		}
+		/* 发送数据  */
+		wfrag_prepare(evsk, job, pheader, sizeof(serial_data), 1);
+		do_write_buffer(evsk);
 
 	} else if (job->qao) {
 		size_t datalen;
@@ -340,9 +408,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 		/* 序列化对象并发送 */
 		char *buf = job->qao->serialization(datalen);
 		if (buf) {
-			bool send_done = true;
-			bool send_status = false;
-			
+			int type = 0;
 			if (datalen > CFG_SECTION_SIZE) {
 				/* 发送第一个分片数据 */
 				serial_data *pheader = (serial_data*)buf;
@@ -354,38 +420,23 @@ void evsock::do_write(int sock, short event, void* arg) {
 				pheader->length |= (1u << 30);
 				pheader->datalen = CFG_SECTION_SIZE - sizeof(serial_data);
 				datalen = CFG_SECTION_SIZE;
-				send_done = false;
+				type = 2;
 			}
-			
+				
 			/* 发送数据 */
-			int len = send(sock, buf, datalen, 0);
-			if (len == (int)datalen) {
-				send_status = true;
-			} else if (len > 0) {
-				LOGE("Send buff full");
-			} else if (len == 0) {
-				if ((errno == EAGAIN) || (errno == EINTR)) {
-					LOGE("Send buff full, check it");
-				}
-			}
+			wfrag_prepare(evsk, job, buf, datalen, type);
+			do_write_buffer(evsk);
 			
-			/* 发送完成或者发送失败时，通知发送完成 */
-			if (send_done || !send_status) {
-				evsk->send_done(job->qao, send_status);
-				delete[] buf;
-				del_job = true;
-			}
 		} else {
 			evsk->send_done(job->qao, false);
-			del_job = true;
+			delete job;
 		}
 		
 	} else {
-		bool send_done = true;
-		bool send_status = false;
+		int type = 0;
 		size_t datalen = job->len;
 		
-		if (job->len > CFG_SECTION_SIZE) {
+		if (datalen > CFG_SECTION_SIZE) {
 			/* 发送第一个分片数据 */
 			serial_data *pheader = (serial_data*)job->buf;
 			job->section = true;
@@ -394,38 +445,12 @@ void evsock::do_write(int sock, short event, void* arg) {
 			pheader->length |= (1u << 30);
 			pheader->datalen = CFG_SECTION_SIZE - sizeof(serial_data);
 			datalen = CFG_SECTION_SIZE;
-			send_done = false;
+			type = 2;
 		}
 		
-		/* 发送缓冲区中内容 */
-		int len = send(sock, job->buf, datalen, 0);
-		if (len == (int)datalen) {
-			send_status = true;
-		} else if (len > 0) {
-			LOGE("Send buff full");
-		}
-		datalen = len;
-		
-		/* 发送完成或者发送失败时，通知发送完成 */
-		if (send_done || !send_status) {
-			evsk->send_done((void*)job->buf, datalen, send_status);
-			del_job = true;
-		}
-	}
-	
-	if (del_job) {
-		/* 删除队列中的job */
-		delete job;
-	} else {
-		/* 把job放入最高优先级队列 */
-		q->push(job, 0);
-	}
-		
-	/* 检查FIFO是否还存在待发送内容 */
-	if (!q->empty() && !event_pending(&evsk->write_ev, EV_WRITE, NULL)) {
-		if (event_add(&evsk->write_ev, NULL) < 0) {
-			LOGE("event_add error\n");
-		}
+		/* 发送数据  */
+		wfrag_prepare(evsk, job, job->buf, datalen, type);
+		do_write_buffer(evsk);
 	}
 }
 
@@ -468,6 +493,7 @@ bool evsock::ev_send(qao_base *qao) {
 	ev_job *job = new ev_job(NULL, 0, qao);
 	int qos = qao->get_qos();
 	if (qos == 0) {
+		LOGW("Found QAO with qos 0, check it");
 		qos = 3;
 	}
 	bool ret = wq.push(job, qos);

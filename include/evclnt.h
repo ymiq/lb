@@ -142,7 +142,10 @@ T *evclnt<T>::evconnect(void) {
 		return NULL;
 	}
 	
-	/* 等待客户端接入 */
+	/* 设置句柄为非阻塞 */
+	evutil_make_socket_nonblocking(sockfd);
+
+	/* 创建event_base */
 	if (base == NULL) {
 		base = event_base_new();
 		if (base == NULL) {

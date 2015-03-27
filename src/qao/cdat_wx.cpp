@@ -40,7 +40,7 @@ cdat_wx::cdat_wx(const char *str, size_t len) {
 
 	/* 释放XML解析器 */
 	XML_ParserFree(parser);
-	init(QAO_CDAT_WX, 0, 0);
+	init(QAO_CDAT_WX, 0, 3);
 }
 
 

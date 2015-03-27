@@ -168,6 +168,9 @@ void evsrv<T>::do_accept(int sock, short event, void* arg) {
 		return;
 	}
 	
+	/* 设置句柄为非阻塞 */
+	evutil_make_socket_nonblocking(newfd);
+
     /* 创建evsock对象 */
 	T *evsk_dr = new T(newfd, srv->base);
 	evsock *evsk = dynamic_cast<evsock *>(evsk_dr);

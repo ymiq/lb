@@ -21,16 +21,17 @@ private:
 	public:
 		~ev_job() {};
 		ev_job(char *buf, size_t len, qao_base *qao) 
-						: buf(buf), len(len), qao(qao), section(false) {};
+						: buf(buf), len(len), qao(qao), section(false), offset(0) {};
 			
 	public:
 		char *buf;
 		size_t len;		
 		qao_base *qao;
 		bool section;				/* 分段：一个数据内容在应用层被拆分成大小不超过SECTION_SIZE的数据段进行发送 */
-		unsigned int offset;
+		size_t offset;
 		serial_data header;
 	};
+
 		
 public:
 	virtual ~evsock();
@@ -86,8 +87,19 @@ private:
 	int efd;
 	job_queue<ev_job*> wq;
 	
+	/* 分片发送相关变量 */
+	bool wfrag_flag;
+	char *wfrag_buf;
+	size_t wfrag_len;
+	size_t wfrag_off;
+	ev_job *wfrag_job;
+	int wfrag_type;
+
 	void frag_prepare(void *buf, size_t len, size_t off, int bsec);
 	int ev_recv_frag(size_t &len, bool &partition);
+	
+	static void wfrag_prepare(evsock *evsk, ev_job* job, void *buf, size_t len, int type);
+	static void do_write_buffer(evsock *evsk);
 };
 	
 #endif /* __EVSOCK_H__ */ 

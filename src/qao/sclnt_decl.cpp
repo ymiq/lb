@@ -14,7 +14,7 @@
 using namespace std;
 
 sclnt_decl::sclnt_decl() {
-	init(QAO_SCLNT_DECL, 0, 0);
+	init(QAO_SCLNT_DECL, 0, 3);
 }
 
 

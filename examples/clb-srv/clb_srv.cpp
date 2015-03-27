@@ -53,70 +53,62 @@ void clb_srv::read(int sock, short event, void* arg) {
 		return;
 	}
 	
-	len -= sizeof(serial_data);
-	int total_len = len;
-	/* 处理TCP粘包 */
-	char *pxml = (char*)buffer + sizeof(serial_data);
-	while ((int)len > 0) {
-		
-		/* 获取第一个xml数据段 */
+	/* 处理该段数据 */
+	try {
+		char *pxml = (char*)buffer + sizeof(serial_data);
+	
+			/* 获取xml数据长度 */
 		int xml_len = strlen(pxml);
-		
-		/* 处理该段数据 */
-		try {
-			/* Worker线程主处理开始 */
-		    srv->prcu->job_start(srv->tid);
-		    
-			/* 把XML数据转换为对象 */
-			cdat_wx wx((char*)pxml, xml_len);
-			unsigned long hash = wx.hash;
+	
+		/* Worker线程主处理开始 */
+	    srv->prcu->job_start(srv->tid);
+	    
+		/* 把XML数据转换为对象 */
+		cdat_wx wx((char*)pxml, xml_len);
+		unsigned long hash = wx.hash;
 #ifdef CFG_QAO_TRACE		
-			wx.trace("clb_srv(%d)", clb_srv_group_id);
+		wx.trace("clb_srv(%d)", clb_srv_group_id);
 #endif
 
-			/* 绑定Server和QAO */
-			qao_srv_bind(&wx, srv);
+		/* 绑定Server和QAO */
+		qao_srv_bind(&wx, srv);
 
-		    /* 分发数据包 */
-		    unsigned int lb_status = 0;
-		    unsigned int stat_status = 0;
-		    evclnt<clb_clnt> *pclnt = srv->plb->get_clnt(hash, lb_status, stat_status);
-		    
-	    	/* 把数据包写入当前Socket */
-		    if ((pclnt != NULL) && lb_status) {
-		    	clb_clnt *clnt_sk = pclnt->get_evsock();
-		    	if (clnt_sk) {
-			    	size_t wlen;
-			    	char *serial = (char*)wx.serialization(wlen);
-			    	if (serial) {
-			    		if(!clnt_sk->ev_send_inter_thread(serial, wlen)) {
-			    			qao_srv_unbind(&wx);
-			    			delete serial;
-			    		}
-			    	} else {
-			    		qao_srv_unbind(&wx);
-			    	}
-			    } else {
-			    	qao_srv_unbind(&wx);
-			    }
+	    /* 分发数据包 */
+	    unsigned int lb_status = 0;
+	    unsigned int stat_status = 0;
+	    evclnt<clb_clnt> *pclnt = srv->plb->get_clnt(hash, lb_status, stat_status);
+	    
+    	/* 把数据包写入当前Socket */
+	    if ((pclnt != NULL) && lb_status) {
+	    	clb_clnt *clnt_sk = pclnt->get_evsock();
+	    	if (clnt_sk) {
+		    	size_t wlen;
+		    	char *serial = (char*)wx.serialization(wlen);
+		    	if (serial) {
+		    		if(!clnt_sk->ev_send_inter_thread(serial, wlen)) {
+		    			qao_srv_unbind(&wx);
+		    			delete serial;
+		    		}
+		    	} else {
+		    		qao_srv_unbind(&wx);
+		    	}
 		    } else {
-			    qao_srv_unbind(&wx);
+		    	qao_srv_unbind(&wx);
 		    }
-		    
-		    /* 统计处理 */
-		    if (stat_status) {	
-	//		    srv->pstat->stat(hash, 1);	    
-		    }
+	    } else {
+		    qao_srv_unbind(&wx);
+	    }
+	    
+	    /* 统计处理 */
+	    if (stat_status) {	
+//		    srv->pstat->stat(hash, 1);	    
+	    }
 
-			/* Worker线程主处理结束 */
-		    srv->prcu->job_end(srv->tid);
-	
-		} catch(const char *msg) {
-			LOGE("error: %s", msg);
-			LOGE("error xml(%d, %d, %d): %s", total_len, len, xml_len, pxml);
-		}
-		pxml += xml_len + 1;
-		len -= xml_len + 1;
+		/* Worker线程主处理结束 */
+	    srv->prcu->job_end(srv->tid);
+
+	} catch(const char *msg) {
+		LOGE("error: %s", msg);
 	}
 	
 	/* 释放缓冲区 */
