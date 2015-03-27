@@ -31,6 +31,9 @@ int qao_base::dereference(void) {
 
 int qao_base::set_qos(int qos) {
 	int ret = qao_qos; 
+	if (!(qos & 0x03)) {
+		qos = 3;
+	}
 	qao_qos = qos & 0x3; 
 	return ret;
 }
@@ -67,6 +70,9 @@ void qao_base::init(int type, int version, int qos) {
 	qao_type = ((unsigned int) type) & 0xff;
 	qao_version = ((unsigned int)version) & 0x3f;
 	qao_qos = ((unsigned int)qos) & 0x03;
+	if (!qao_qos) {
+		qao_qos = 3;
+	}
 }
 
 
