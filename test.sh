@@ -9,12 +9,13 @@ stop() {
 }
 
 start() {
+	usleep 200000
 	./bin/robot -g 0 -d
 	./bin/robot -g 1 -d
-	usleep 100000
+	usleep 200000
 	./bin/hub -g 0 -d
 	./bin/hub -g 1 -d
-	usleep 100000
+	usleep 200000
 	./bin/slb -g 0 -d
 	./bin/slb -g 1 -d
 	usleep 100000

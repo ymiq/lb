@@ -62,8 +62,7 @@ unsigned long qao_base::get_token(void) {
 
 
 void qao_base::init(int type, int version, int qos) {
-	pid_t pid = getpid();
-	unsigned long token = (unsigned long)pid;
+	unsigned long token = (unsigned long)pthread_self();
 	token <<= 32;
 	token |= __sync_fetch_and_add(&qao_base::seqno, 1);
 	qao_token = token;

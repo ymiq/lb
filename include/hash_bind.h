@@ -102,26 +102,23 @@ void hash_bind<V, KS, VS>::remove(unsigned long key) {
 template<typename V, unsigned int KS, unsigned int VS>
 void hash_bind<V, KS, VS>::remove(V &value) {
 	/* 获取KEY数组 */
-//	LOGE(">>>>>>Del: %p", value);
+
 	unsigned long vhash = pointer_hash(value);
 	KEY_ARRAY *key_array = value_table.find(vhash);
 	if (key_array == NULL) {
 		return;
 	}
 	
-	/* 循环删除所有KEY */
-	typename KEY_ARRAY::it it;
-	for (it=key_array->begin(); it!=key_array->end(); it++) {
-		unsigned long key = *it;
-		if (!key) {
-			LOGE("DEL KEY: %lx", key);
-		}
-		key_table.remove(key);
-	}
-	
 	/* 删除val_table中内容 */
 	value_table.remove(vhash);
 	
+	/* 循环删除所有KEY */
+	typename KEY_ARRAY::it it;
+	for (it=key_array->begin(); it!=key_array->end(); ++it) {
+		unsigned long key = *it;
+		key_array->remove(key);
+		key_table.remove(key);
+	}	
 	delete key_array;
 }
 
@@ -129,14 +126,6 @@ void hash_bind<V, KS, VS>::remove(V &value) {
 template<typename V, unsigned int KS, unsigned int VS>
 V hash_bind<V, KS, VS>::get_val(unsigned long key) {
 	V value = key_table.find(key);
-	if (value == NULL) {
-		return value;
-	}
-	unsigned long vhash = pointer_hash(value);
-	if (!value_table.find(vhash)) {
-//		LOGE("value unexist, check it: %lx, %p", key, value);
-		return NULL;
-	}
 	return value;
 }
 

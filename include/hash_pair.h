@@ -100,14 +100,20 @@ hash_pair<T, INDEX_SIZE>::hash_pair()
 	/* 调整参数size为2^n */
 	if (size >= 0x40000000) {
 		mod_size = 0x40000000;
-	} else {
+	} else if (size < 16) {
+		mod_size = 16;
+	}else {
 		int bit = 30;
 		for (bit=30;  bit>=0; bit--) {
-			if (size & (1UL << bit)) {
+			if (size & (1U << bit)) {
 				break;
 			}
 		}
-		mod_size = 1UL << (bit + 1);
+		if (size & ~((1U << bit))) {
+			mod_size = 1U << (bit + 1);
+		} else {
+			mod_size = 1U << bit;
+		}
 	}
 	
 	/* 申请哈希表索引 */
@@ -202,6 +208,7 @@ T hash_pair<T, INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n, int inc) 
 				}
 			}
 			y++;
+			n = 0;
 			pindex = pindex->next;
 		} while (pindex);
 		

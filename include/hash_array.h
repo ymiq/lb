@@ -85,14 +85,20 @@ hash_array<INDEX_SIZE>::hash_array() {
 	/* 调整参数size为2^n */
 	if (size >= 0x40000000) {
 		mod_size = 0x40000000;
-	} else {
+	} else if (size < 16) {
+		mod_size = 16;
+	}else {
 		int bit = 30;
 		for (bit=30;  bit>=0; bit--) {
 			if (size & (1U << bit)) {
 				break;
 			}
 		}
-		mod_size = 1U << (bit + 1);
+		if (size & ~((1U << bit))) {
+			mod_size = 1U << (bit + 1);
+		} else {
+			mod_size = 1U << bit;
+		}
 	}
 	
 	/* 申请哈希表索引 */
@@ -173,7 +179,7 @@ unsigned long hash_array<INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n,
 			for (int idn=n; idn<CFG_ARRAY_ITEM_SIZE; idn++) {
 				
 				hash = pindex->items[idn];
-				
+
 				/* 当前INDEX搜索结束 */
 				if (!hash) {
 					goto next;
@@ -187,6 +193,7 @@ unsigned long hash_array<INDEX_SIZE>::locate(int &pos_x, int &pos_y, int &pos_n,
 				}
 			}
 			y++;
+			n = 0;
 			pindex = pindex->next;
 		} while (pindex);
 		
@@ -285,7 +292,7 @@ phase2:
 		pindex = pindex->next;
 	} while (pindex);
 	
-	/* 申请新的索引项, 此处未再考虑Cache对齐；因为正常情况下概率较低 */
+	/* 申请新的索引项 */
 	pindex = new hash_index();
 	pindex->items[0] = hash;
 	wmb();	/* 增加内存屏障，确保写入先后顺序 */

@@ -13,7 +13,7 @@
 #define CFG_MAX_THREADS	64
 
 /* 使用单线程模式还是多线程模式 */
-#define CFG_CLBSRV_MULTI_THREAD		1
+#define CFG_CLBSRV_MULTI_THREAD		0
 #define CFG_HUSB_MULTI_THREAD		0
 #define CFG_CLBFCGI_MULTI_THREAD	0
 
