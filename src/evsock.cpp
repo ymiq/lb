@@ -44,8 +44,8 @@ evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
 	/* 成员变量初始化 */
   	frag_flag = false;
   	wfrag_flag = false;
+  	sock_error = false;
   	pevobj = NULL;
-  	count = 0;
 }
 
 
@@ -123,6 +123,7 @@ int evsock::ev_recv_frag(size_t &len, bool &partition) {
 		frag_flag = false;
 		len = ret_len;
 		if (ret_len < 0) {
+			sock_error = true;
 			LOGD("recv error: %s", strerror(errno));
 		}
 	} else if (ret_len != (int)recv_len) {
@@ -305,6 +306,7 @@ void evsock::do_write_buffer(evsock *evsk) {
 	 			}
 	 		}
 			LOGD("send error: %s", strerror(errno));
+			evsk->sock_error = true;
  			delete job;
 		}
 		len = 0;
@@ -378,7 +380,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 	job_queue<ev_job*> *q = evsk->ev_queue();
 	ev_job *job = q->pop();
 	if (job == NULL) {
-//		LOGE("impossible error when pop from queue, check it: %ld", evsk->count++);
+		LOGE("impossible error when pop from queue, check it");
 		return;
 	}
 	
@@ -455,7 +457,7 @@ void evsock::do_write(int sock, short event, void* arg) {
 
 
 bool evsock::ev_send(const void *buf, size_t size, int qos) {
-	if (!buf || !size) {
+	if (!buf || !size || sock_error) {
 		return false;
 	}
 		
@@ -484,7 +486,7 @@ bool evsock::ev_send(const void *buf, size_t size) {
 
 
 bool evsock::ev_send(qao_base *qao) {
-	if (!qao) {
+	if (!qao || sock_error) {
 		return false;
 	}
 		
@@ -512,7 +514,7 @@ bool evsock::ev_send(qao_base *qao) {
 
 
 bool evsock::ev_send_inter_thread(const void *buf, size_t size, int qos) {
-	if (!buf || !size) {
+	if (!buf || !size || sock_error) {
 		return false;
 	}
 	
@@ -537,7 +539,7 @@ bool evsock::ev_send_inter_thread(const void *buf, size_t size) {
 
 
 bool evsock::ev_send_inter_thread(qao_base *qao) {
-	if (!qao) {
+	if (!qao || sock_error) {
 		return false;
 	}
 	

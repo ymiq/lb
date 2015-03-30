@@ -68,9 +68,10 @@ protected:
 	struct event_base* evbase;
 	evobj *pevobj;
 	
-	unsigned long count;
-	
 private:
+	/* sock状态 */
+	bool sock_error;			/* 读出错，不再接受写 */
+	
 	/* 分片接收相关变量 */
 	bool frag_flag;				/* 分片: 一个数据内容段被协议栈拆分成多个分片 */
 	int frag_sec;				/* 正在分片数据为分段报文分片 */
