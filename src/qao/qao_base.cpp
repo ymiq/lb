@@ -14,18 +14,7 @@ qao_base::qao_base(void) {
 	qao_type = 0;
 	qao_version = 0;
 	qao_qos = 3;
-	ref_cnt = 1;
 	track = "";
-}
-
-
-int qao_base::reference(void) {
-	return __sync_add_and_fetch(&ref_cnt, 1);
-}
-
-
-int qao_base::dereference(void) {
-	return __sync_sub_and_fetch(&ref_cnt, -1);
 }
 
 

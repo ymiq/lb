@@ -79,6 +79,7 @@ void clb_srv::read(int sock, short event, void* arg) {
 	    evclnt<clb_clnt> *pclnt = srv->plb->get_clnt(hash, lb_status, stat_status);
 	    
     	/* 把数据包写入当前Socket */
+    	bool unbind = true;
 	    if ((pclnt != NULL) && lb_status) {
 	    	clb_clnt *clnt_sk = pclnt->get_evsock();
 	    	if (clnt_sk) {
@@ -89,14 +90,12 @@ void clb_srv::read(int sock, short event, void* arg) {
 		    			qao_srv_unbind(&wx);
 		    			delete serial;
 		    		}
-		    	} else {
-		    		qao_srv_unbind(&wx);
-		    	}
-		    } else {
-		    	qao_srv_unbind(&wx);
+		    		unbind = false;
+		    	} 
 		    }
-	    } else {
-		    qao_srv_unbind(&wx);
+	    }
+	    if (unbind) {
+	    	qao_srv_unbind(&wx);
 	    }
 	    
 	    /* 统计处理 */
@@ -122,7 +121,6 @@ void clb_srv::send_done(void *buf, size_t len, bool send_ok) {
 
 
 void clb_srv::send_done(qao_base *qao, bool send_ok) {
-	/* 销毁对象 */
 	delete qao;
 }
 

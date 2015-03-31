@@ -328,7 +328,7 @@ void evsock::do_write_buffer(evsock *evsk) {
 	/* 数据发送完毕 */
 	evsk->wfrag_flag = false;
 	job_queue<ev_job*> *q = evsk->ev_queue();
-	if (!evsk->wfrag_type) {
+	if (evsk->wfrag_type == 0) {
 		/* 通知发送完成 */
 		if (job->qao) {
 			evsk->send_done(job->qao, true);
@@ -410,11 +410,11 @@ void evsock::do_write(int sock, short event, void* arg) {
 		char *buf = job->qao->serialization(datalen);
 		if (buf) {
 			int type = 0;
+			job->buf = buf;
 			if (datalen > CFG_SECTION_SIZE) {
 				/* 发送第一个分片数据 */
 				serial_data *pheader = (serial_data*)buf;
 				job->section = true;
-				job->buf = buf;
 				job->len = datalen;
 				job->offset = CFG_SECTION_SIZE;
 				job->header = *pheader;
@@ -494,7 +494,7 @@ bool evsock::ev_send(qao_base *qao) {
 	ev_job *job = new ev_job(NULL, 0, qao);
 	int qos = qao->get_qos();
 	if (qos == 0) {
-		LOGW("Found QAO with qos 0, check it");
+		LOGW("QAO with PRI 0 is forbidden, check it");
 		qos = 3;
 	}
 	bool ret = wq.push(job, qos);

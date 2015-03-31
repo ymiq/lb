@@ -63,10 +63,6 @@ public:
 	virtual void dump_trace(void);
 #endif
 	
-	/* 引用计数处理 */
-	int reference(void);
-	int dereference(void);
-	
 	/* 基本属性操作 */
 	int set_qos(int qos);
 	int get_qos(void);
@@ -93,7 +89,6 @@ protected:
 	unsigned int qao_qos;		/* QoS */
 	
 private:
-	unsigned int ref_cnt;
 	static unsigned int seqno;
 #ifdef CFG_QAO_TRACE	
 	string track;
