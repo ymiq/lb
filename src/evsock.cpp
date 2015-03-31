@@ -11,6 +11,8 @@
 #include <evobj.h>
 #include <evsock.h>
 
+bool evsock::rcu_init = false;
+rcu_obj<evsock> *evsock::prcu_obj = NULL;
 
 evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
 	/* 初始化发送优先级队列 */
@@ -46,6 +48,16 @@ evsock::evsock(int fd, struct event_base* base): sockfd(fd), evbase(base) {
   	wfrag_flag = false;
   	sock_error = false;
   	pevobj = NULL;
+  	
+  	/* RCU全局相关变量初始化 */
+  	if (__sync_bool_compare_and_swap(&evsock::rcu_init, false, true)) {
+	  	evsock::prcu_obj = new rcu_obj<evsock>();
+	  	evsock::prcu_obj->reg();
+	}
+	
+ 	/* RCU相关初始化 */
+	prcu = rcu_man::get_inst();
+	tid = prcu->tid_get();
 }
 
 
@@ -579,3 +591,12 @@ void evsock::do_eventfd(int efd, short event, void* arg) {
 	}
 }
 
+
+void evsock::job_start(void) {
+	prcu->job_start(tid);
+}
+
+
+void evsock::job_end(void) {
+	prcu->job_end(tid);
+}

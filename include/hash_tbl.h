@@ -119,7 +119,7 @@ hash_tbl<T, INDEX_SIZE>::hash_tbl()
 	
 	/* RCU初始化 */
 	prcu = new rcu_obj<T>();
-	prcu->set_type(OBJ_LIST_TYPE_CLASS);
+	prcu->reg();
 	
 	end_it = new it(NULL, mod_size);
 }

@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <cstring>
 #include <exception>
-#include <rcu_obj.h>
 #include <rcu_man.h>
 #include <stat/stat_man.h>
 #include <stat/clb_stat.h>

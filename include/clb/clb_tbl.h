@@ -6,7 +6,6 @@
 #include <cstdlib>
 #include <cstddef>
 #include <config.h>
-#include <rcu_obj.h>
 #include <hash_tbl.h>
 #include <evclnt.h>
 #include <clb/clb_clnt.h>

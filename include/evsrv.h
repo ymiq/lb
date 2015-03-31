@@ -41,7 +41,6 @@ private:
 	struct event_base* base;
 	struct event listen_ev;
 	bool balloc_base;
-
 	
 	static void do_accept(int sock, short event, void* arg);	
 };

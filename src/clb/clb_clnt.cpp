@@ -51,7 +51,17 @@ void clb_clnt::read(int sock, short event, void* arg) {
 	qao->trace("clb_clnt");
 //	qao->dump_trace();
 #endif
+
+	/* 多线程模式下，clb_clnt线程会调用clb_srv线程中的对象 */
+#if CFG_CLBSRV_MULTI_THREAD
+	clnt->job_start();
+#endif
+
 	answer_reply(qao);
+	
+#if CFG_CLBSRV_MULTI_THREAD
+	clnt->job_end();
+#endif
 			
 	/* 接收数据处理完成，释放资源 */
 	clnt->recv_done(buffer);

@@ -9,6 +9,8 @@
 #include <qao/qao_base.h>
 #include <hash_tbl.h>
 #include <evobj.h>
+#include <rcu_obj.h>
+#include <rcu_man.h>
 
 using namespace std;
 
@@ -55,6 +57,9 @@ public:
 	bool ev_send_inter_thread(const void *buf, size_t len, int qos);
 	bool ev_send_inter_thread(qao_base *qao);
 	
+	void job_start(void);
+	void job_end(void);
+	
 	virtual void send_done(void *buf, size_t len, bool send_ok) = 0;
 	virtual void send_done(qao_base *qao, bool send_ok) = 0;
 
@@ -67,6 +72,10 @@ protected:
 	int sockfd;
 	struct event_base* evbase;
 	evobj *pevobj;
+	
+	/* RCU全局相关变量 */
+	static bool rcu_init;
+	static rcu_obj<evsock> *prcu_obj;
 	
 private:
 	/* sock状态 */
@@ -97,6 +106,10 @@ private:
 	size_t wfrag_off;
 	ev_job *wfrag_job;
 	int wfrag_type;
+	
+	/* RCU相关变量 */
+	rcu_man *prcu;
+	int tid;
 
 	void frag_prepare(void *buf, size_t len, size_t off, int bsec);
 	int ev_recv_frag(size_t &len, bool &partition);

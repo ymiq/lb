@@ -7,37 +7,13 @@
 rcu_man::rcu_man() {
 	obj_tbl = new obj_table();
 	tid_tbl = new thread_table();
-	pthread_mutex_init(&obj_mutex, NULL);
-	pthread_mutex_init(&tid_mutex, NULL);
 }
 
 
 rcu_man::~rcu_man() {
 }
 
-
-void rcu_man::obj_lock() {
-	pthread_mutex_lock(&obj_mutex);
-}
-
-
-void rcu_man::obj_unlock() {
-	pthread_mutex_unlock(&obj_mutex);
-}
-
-
-void rcu_man::tid_lock() {
-	pthread_mutex_lock(&tid_mutex);
-}
-
-
-void rcu_man::tid_unlock() {
-	pthread_mutex_unlock(&tid_mutex);
-}
-
-
 bool rcu_man::obj_reg(rcu_base *obj) {
-	obj_lock(); 
 	obj_table *ptbl = obj_tbl;
 	obj_table *prev_tbl;
 	
@@ -46,7 +22,6 @@ bool rcu_man::obj_reg(rcu_base *obj) {
 	{
 		for (int i=0; i<CFG_OBJ_TABLE_SIZE; i++) {
 			if (ptbl->table[i] == obj) {
-				obj_unlock();
 				return true;
 			}
 		}
@@ -59,10 +34,12 @@ bool rcu_man::obj_reg(rcu_base *obj) {
 	do
 	{
 		for (int i=0; i<CFG_OBJ_TABLE_SIZE; i++) {
-			if (ptbl->table[i] == NULL) {
-				ptbl->table[i] = obj;
-				obj_unlock();
-				return true;
+			rcu_base *save_obj = ptbl->table[i];
+			if (save_obj == NULL) {
+				if (__sync_bool_compare_and_swap(&ptbl->table[i], NULL, obj)) {
+					return true;
+				}
+				return obj_reg(obj);				
 			}
 		}
 		prev_tbl = ptbl;
@@ -72,21 +49,20 @@ bool rcu_man::obj_reg(rcu_base *obj) {
 	/* 重新申请缓冲区 */
 	obj_table *new_tbl = new obj_table();
 	new_tbl->table[0] = obj;
-	
-	/* 避免乱序造成问题 */
 	wmb();
-	prev_tbl->next = new_tbl;
 	
-	obj_unlock();
-	return true;
+	/* 增加obj_table */
+	if (__sync_bool_compare_and_swap(&prev_tbl->next, NULL, new_tbl)) {
+		return true;
+	}
+	delete new_tbl;
+	
+	return obj_reg(obj);;
 }
 
 
 int rcu_man::tid_reg(pthread_t tid) {
 	int ret;
-	
-	tid_lock();  
-	
 	thread_table *ptbl = tid_tbl;
 	thread_table *prev_tbl;
 	
@@ -96,7 +72,6 @@ int rcu_man::tid_reg(pthread_t tid) {
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
 			if (ptbl->table[i] == tid) {
-				obj_unlock();
 				return ret + i;
 			}
 		}
@@ -111,10 +86,12 @@ int rcu_man::tid_reg(pthread_t tid) {
 	do
 	{
 		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
-			if (ptbl->table[i] == 0) {
-				ptbl->table[i] = tid;
-				obj_unlock();
-				return ret + i;
+			pthread_t save_tid = ptbl->table[i];
+			if (save_tid == 0) {
+				if (__sync_bool_compare_and_swap(&ptbl->table[i], 0, tid)) {
+					return ret + i;
+				}
+				return tid_reg(tid);
 			}
 		}
 		prev_tbl = ptbl;
@@ -125,41 +102,20 @@ int rcu_man::tid_reg(pthread_t tid) {
 	/* 重新申请缓冲区 */
 	thread_table *new_tbl = new thread_table();
 	new_tbl->table[0] = tid;
-	
-	/* 避免乱序造成问题 */
 	wmb();
-	prev_tbl->next = new_tbl;
-			
-	tid_unlock();
-	return ret;
+	
+	/* 增加obj_table */
+	if (__sync_bool_compare_and_swap(&prev_tbl->next, NULL, new_tbl)) {
+		return ret;
+	}
+	delete new_tbl;
+
+	return tid_reg(tid);
 }
 
 
 int rcu_man::tid_get(void) {
-	int ret = 0;
-	pthread_t tid = pthread_self();	
-	thread_table *ptbl = tid_tbl;
-	pthread_t save_tid;
-	
-	/* 遍历所有线程表，获取线程ID */
-	do
-	{
-		for (int i=0; i<CFG_THREAD_TABLE_SIZE; i++) {
-			/* 搜索结束 */
-			save_tid = ptbl->table[i];
-			if (!save_tid) {
-				return tid_reg(tid);
-			}
-			
-			/* 找到结果 */
-			if (save_tid == tid) {
-				return ret + i;
-			}
-		}
-		ptbl = ptbl->next;
-		ret += CFG_THREAD_TABLE_SIZE;
-	}while (ptbl);
-	return -1;
+	return tid_reg(pthread_self());
 }
 
 

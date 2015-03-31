@@ -1,4 +1,10 @@
-﻿#ifndef _RCU_OBJ_H__
+﻿/*
+ * RCU对象，用于处理类似share_ptr问题。
+ * 对多线程共享对象/缓冲区指针，使用延时释放的方法，而不是对象引用计数器。
+ *
+ */
+
+#ifndef _RCU_OBJ_H__
 #define _RCU_OBJ_H__
 
 #include <cstdlib>
@@ -18,15 +24,16 @@
 using namespace std;
 
 
-#define OBJ_LIST_TYPE_CLASS		1
-#define OBJ_LIST_TYPE_STRUCT	0
+#define OBJ_LIST_TYPE_CLASS			0
+#define OBJ_LIST_TYPE_CLASS_ARRAY	1
+#define OBJ_LIST_TYPE_STRUCT		2
 #define OBJ_LIST_TYPE_BUFFER	OBJ_LIST_TYPE_STRUCT
 
 
 template<typename T> 
 class rcu_instance : virtual rcu_base {
 public:
-	rcu_instance();
+	rcu_instance(int threads=0);
 	~rcu_instance();
 	
 	/* 每个线程在主业务处理前、后分别调用job_start和job_end函数。调用简单实例：
@@ -49,7 +56,7 @@ public:
 	void free(void);	
 	void add(T *ptr);
 	
-	void set_type(int t);
+	void reg(int t=OBJ_LIST_TYPE_CLASS);
 
 protected:
 	
@@ -75,30 +82,38 @@ private:
 	 *    主业务处理中，新启了一次安全检测，进入Grace period（值为：2）的线程，
 	 *    将退出Grace Period（值为: 0)，需要等待下一次主处理周期才能进入Grace period
 	 */
-	int quiescent[CFG_MAX_THREADS];
+	int *quiescent;
+	int max_threads;
 
 	void lock(void);
 	void unlock(void);
 	
 	list<T*> *ready_list(void);
-	list<T*> *add_list(void);	
+	list<T*> *append_list(void);	
 };
 
 template<typename T> 
-rcu_instance<T>::rcu_instance() {
+rcu_instance<T>::rcu_instance(int threads) {
 	
-	/* 全家变量初始化 */
+	/* 全局变量初始化 */
 	pthread_mutex_init(&mtx, NULL);
 	ready = 0;
-	type = OBJ_LIST_TYPE_STRUCT;
+	type = OBJ_LIST_TYPE_CLASS;
 	conflict = false;
-	for (int i=0; i<CFG_MAX_THREADS; i++) {
-		quiescent[i] = true;
+	if (threads <= 0) {
+		threads = CFG_MAX_THREADS;
+	}
+	max_threads = threads;
+	quiescent = new int[threads]();
+	for (int i=0; i<threads; i++) {
+		quiescent[i] = 1;
 	}
 }
 
 template<typename T> 
 rcu_instance<T>::~rcu_instance() {
+	pthread_mutex_destroy(&mtx);
+	delete[] quiescent;
 }
 
 template<typename T> 
@@ -120,7 +135,7 @@ list<T*> *rcu_instance<T>::ready_list(void) {
 }
 
 template<typename T> 
-list<T*> *rcu_instance<T>::add_list(void) {
+list<T*> *rcu_instance<T>::append_list(void) {
 	if (ready) {
 		return &list0;
 	} 
@@ -128,7 +143,7 @@ list<T*> *rcu_instance<T>::add_list(void) {
 }
 
 template<typename T> 
-void rcu_instance<T>::set_type(int t) {
+void rcu_instance<T>::reg(int t) {
 	
 	/* 注册RCU结构体/对象到RCU管理器 */
 	rcu_man *prcu = rcu_man::get_inst();
@@ -143,7 +158,7 @@ void rcu_instance<T>::set_type(int t) {
 
 template<typename T> 
 void rcu_instance<T>::job_start(int id) {
-	if ((id >= 0) && (id < CFG_MAX_THREADS)) {
+	if ((id >= 0) && (id < max_threads)) {
 		if (conflict) {
 			quiescent[id] = 2;
 		} else {
@@ -154,7 +169,7 @@ void rcu_instance<T>::job_start(int id) {
 
 template<typename T> 
 void rcu_instance<T>::job_end(int id) {
-	if ((id >= 0) && (id < CFG_MAX_THREADS)) {
+	if ((id >= 0) && (id < max_threads)) {
 		quiescent[id] = 1;
 	}
 }
@@ -170,7 +185,7 @@ void rcu_instance<T>::free(void) {
 	lock();
 	
 	/* 检查是否进入和平时期 */
-	for (int i=0; i<CFG_MAX_THREADS; i++) {
+	for (int i=0; i<max_threads; i++) {
 		if (!quiescent[i]) {
 			unlock();
 			return;		
@@ -181,26 +196,27 @@ void rcu_instance<T>::free(void) {
 	list<T*> *list = ready_list();
 	typename list<T*>::iterator element;
 	for (element=list->begin(); element!=list->end(); ++element) {
-		if (type) {
+		if (type == OBJ_LIST_TYPE_CLASS) {
 			delete (T*) (*element);
-		} else {
+		} else if (type == OBJ_LIST_TYPE_CLASS_ARRAY) {
+			delete[] (T*) (*element);
+		}else {
 			std::free(*element);
 		}
 	}
 	list->clear();
 	
 	/* 切换Ready链表 */
-	ready = ready ? 0: 1;
+	ready = ready ? 0 : 1;
 	
 	/* 检查是否存在需要释放的内容 */
 	list = ready_list();
-	mb();
 	if (list->empty()) {
 		conflict = false;
 	} else {
 		/* 进入Grace Period（值为：2）的线程，将强制退出Grace Period */
-		for (int i=0; i<CFG_MAX_THREADS; i++) {
-			__sync_val_compare_and_swap(&quiescent[i], 2, 0);
+		for (int i=0; i<max_threads; i++) {
+			__sync_bool_compare_and_swap(&quiescent[i], 2, 0);
 		}
 		
 		wmb();
@@ -222,17 +238,17 @@ void rcu_instance<T>::add(T *ptr) {
 	lock();
 	
 	/* 添加到释放列表 */
-	list<T*> *alist = add_list();
+	list<T*> *alist = append_list();
 	alist->push_back(ptr);
 	
 	/* 检查ready_list 是否为空 */
 	list<T*> *rlist = ready_list();
 	if (rlist->empty()) {
-		ready = ready ? 0: 1;
+		ready = ready ? 0 : 1;
 		
 		/* 进入Grace Period（值为：2）的线程，将强制退出Grace Period */
-		for (int i=0; i<CFG_MAX_THREADS; i++) {
-			__sync_val_compare_and_swap(&quiescent[i], 2, 0);
+		for (int i=0; i<max_threads; i++) {
+			__sync_bool_compare_and_swap(&quiescent[i], 2, 0);
 		}
 		
 		wmb();
@@ -254,7 +270,7 @@ public:
 	void job_end(int id);
 	void free(void);
 	void add(T *ptr);
-	void set_type(int type);
+	void reg(int type=OBJ_LIST_TYPE_CLASS);
 
 protected:
 	
@@ -288,8 +304,8 @@ void rcu_obj<T>::add(T *ptr) {
 }
 
 template<typename T>
-void rcu_obj<T>::set_type(int type) {
-	obj.set_type(type);
+void rcu_obj<T>::reg(int type) {
+	obj.reg(type);
 }
 
 #endif /* _RCU_OBJ_H__ */

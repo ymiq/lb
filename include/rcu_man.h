@@ -48,17 +48,10 @@ private:
 
 	obj_table *obj_tbl;
 	thread_table *tid_tbl;
-	pthread_mutex_t obj_mutex;
-	pthread_mutex_t tid_mutex;
 	
 	rcu_man();
 	~rcu_man();
 	
-	void obj_lock();
-	void obj_unlock();
-
-	void tid_lock();
-	void tid_unlock();
 	int tid_reg(pthread_t tid);
 	
 	static void *worker_thread(void *arg);
